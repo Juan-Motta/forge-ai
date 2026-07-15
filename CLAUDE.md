@@ -1,14 +1,15 @@
-# Workflow discipline for Claude Code + Codex
+# Workflow discipline for Claude Code, Codex + OpenCode
 
 > This file is the always-on instruction set. `AGENTS.md` is a symlink to it, so
-> **Claude Code** (reads `CLAUDE.md`) and **Codex** (reads `AGENTS.md`) load the exact
-> same discipline. One canonical source — no drift.
+> **Claude Code** (reads `CLAUDE.md`), **Codex** (reads `AGENTS.md`), and **OpenCode**
+> (reads `AGENTS.md`, falls back to `CLAUDE.md`) all load the exact same discipline.
+> One canonical source — no drift.
 
 ## What this is
 
 A lightweight, **skills-and-config-only** workflow system. No hooks, no scripts —
 enforcement is **advisory** (you follow the instructions) plus **native coarse gating**
-on outward actions (push / PR). It runs identically under Claude Code and Codex.
+on outward actions (push / PR). It runs identically under Claude Code, Codex, and OpenCode.
 
 ## Golden rules (always apply)
 
@@ -23,7 +24,7 @@ on outward actions (push / PR). It runs identically under Claude Code and Codex.
 - **Challenge, don't flatter.** Push back on weak ideas; verify claims against the code.
 - **Ground your claims.** State what you verified vs. inferred; cite `file:line`.
 
-## Workflow skills (canonical in `skills/`, discovered by both harnesses)
+## Workflow skills (canonical in `skills/`, discovered by all three harnesses)
 
 - `new-feature` — full feature workflow (brainstorm → plan → cross-review → TDD → review → verify → ship)
 
@@ -45,6 +46,8 @@ approval** on outward actions:
   (human approves).
 - **Codex:** `approval_policy` in `.codex/config.toml` requires approval before running
   non-trivial shell commands.
+- **OpenCode:** `permission.bash` in `opencode.json` sets `git push*` / `gh pr create*`
+  to `ask` (and force-push to `deny`).
 
-Neither reads `.workflow/state.md` to decide — they always ask; you approve. A future
+None of them read `.workflow/state.md` to decide — they always ask; you approve. A future
 phase may add hook-based conditional blocking; see `docs/`.
