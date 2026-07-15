@@ -5,6 +5,10 @@ Notable changes, newest first. One short entry per shipped change. See
 
 ## 2026-07-15
 
+- Add project-specific rules layer: `PROJECT.md` (+ template) for persona / project info /
+  variables / special rules, `shared/rules/project-rules.md` (precedence: adds to but never
+  overrides the safety baseline), a golden rule to load it, and OpenCode `instructions`
+  force-load.
 - Repo hygiene + docs: add `.gitignore` (ignores `.workflow/`; durable handoff stays in
   committed `CONTINUITY.md`), `LICENSE` (MIT), document how to invoke a skill per engine in
   the README, and fix a stale "both engines" → "all engines" wording.

@@ -181,6 +181,23 @@ exactly where you left off.
 
 ---
 
+## Project-specific rules
+
+Two rule layers apply, both always-on:
+
+- **Global baseline** (`CLAUDE.md` golden rules + `shared/rules/*`) — the framework
+  discipline, applies without exception.
+- **Project rules** (`PROJECT.md`) — this project's **Persona**, **Project info**,
+  **Variables**, and **Special rules**. Editable per project.
+
+Project rules **add and refine** (tone, context, variables, special behavior); they never
+override the safety/ship-gate baseline (on conflict, the baseline wins). All three engines
+load `PROJECT.md` via golden rule #2 (OpenCode also force-loads it via `opencode.json`
+`instructions`).
+
+**To add project rules:** copy `PROJECT.template.md` → `PROJECT.md`, fill the four
+sections, commit. No per-engine config needed. See `shared/rules/project-rules.md`.
+
 ## Extending
 
 See [`docs/extending.md`](docs/extending.md) — it defines three tiers (skills-only,

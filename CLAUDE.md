@@ -16,6 +16,9 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
 - **Resume from continuity.** At the start of each session, read `CONTINUITY.md` first and
   continue from its **Next step** before anything else; if it names an active workflow,
   open that `.workflow/state.md` too. See `shared/rules/continuity.md`.
+- **Load project rules.** Also read `PROJECT.md` — this project's persona, info,
+  variables, and special rules. It **adds** to these global rules and never overrides the
+  safety/ship-gate baseline. See `shared/rules/project-rules.md`.
 - **Never work on `main`.** Create a branch before changing code.
 - **Pick the right workflow skill** for the task (see index below) and follow it.
 - **`.workflow/state.md` is the source of truth** for the active workflow: its checklist
@@ -54,6 +57,7 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
 - `docs-layout.md` — where each artifact lives (`docs/prds|plans|research|solutions|adr`, `CHANGELOG.md`)
 - `continuity.md` — session handoff via `CONTINUITY.md`; how to resume on a new session
 - `models.md` — default model per role (research/review/council); reviewer ≠ driver
+- `project-rules.md` — how per-project `PROJECT.md` layers on the global baseline (precedence)
 
 ## Enforcement model (read this — it's a deliberate trade)
 
