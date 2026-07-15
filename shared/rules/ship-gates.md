@@ -15,7 +15,7 @@ boxes in `.workflow/state.md` must be checked:
 There is **no hook** that conditionally blocks a commit when a box is unchecked. Two
 things stand in:
 
-1. **Advisory (both engines):** you are instructed — here and in the workflow skill —
+1. **Advisory (all engines):** you are instructed — here and in the workflow skill —
    not to ship until the boxes pass. Honor it.
 2. **Native coarse gate (per harness):** outward actions prompt for human approval
    regardless of gate state:

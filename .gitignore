@@ -1,0 +1,10 @@
+# OS / editor cruft
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
+
+# Transient workflow state — the durable session handoff lives in CONTINUITY.md
+# (committed, per docs/adr/001). The per-workflow checklist is local working state.
+.workflow/

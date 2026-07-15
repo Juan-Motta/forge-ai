@@ -5,6 +5,9 @@ Notable changes, newest first. One short entry per shipped change. See
 
 ## 2026-07-15
 
+- Repo hygiene + docs: add `.gitignore` (ignores `.workflow/`; durable handoff stays in
+  committed `CONTINUITY.md`), `LICENSE` (MIT), document how to invoke a skill per engine in
+  the README, and fix a stale "both engines" → "all engines" wording.
 - Record ADR 001 (commit `CONTINUITY.md`) — decided via a live `council` run across all
   three engines (Codex + Claude + OpenCode); also validated `council` end-to-end.
 - Set model defaults in `shared/rules/models.md`: Codex `gpt-5.6-sol` @ `xhigh`, Claude

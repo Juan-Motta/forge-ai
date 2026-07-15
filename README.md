@@ -154,10 +154,18 @@ At session start the agent reads `CONTINUITY.md` and resumes from its **Next ste
 
 ### 2. Run a workflow
 
-Invoke a skill by name — e.g. start a feature with **`new-feature`**, fix a defect with
-**`fix-bug`**, or get a multi-engine decision with **`council`**. The skill walks the
-phases, writes artifacts to the right `docs/` folder, and tracks progress in
-`.workflow/state.md`.
+Skills load **on demand** — there's no special slash syntax (these are `SKILL.md` skills,
+not slash-commands). Two ways to trigger one, the same across all three engines:
+
+- **Implicitly** — just describe the task; the engine matches it to a skill's
+  `description` and loads it (e.g. "add a feature that …" → `new-feature`; "there's a bug
+  where …" → `fix-bug`).
+- **Explicitly** — name it: *"use the `new-feature` skill"*, *"run `council` on whether to
+  do A or B"*, *"`checkpoint` before I stop"*.
+
+Per engine, if you want to confirm what's available: ask *"what skills do you have in this
+project?"* — all three list the `skills/` folder. The skill then walks its phases, writes
+artifacts to the right `docs/` folder, and tracks progress in `.workflow/state.md`.
 
 ### 3. Ship behind the gate
 
