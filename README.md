@@ -44,5 +44,6 @@ a decision checklist, and the steps to add a new skill.
 ## Status
 
 Skeleton (2026-07-15). Engines: Claude Code, Codex, OpenCode. Skills: `prd`, `research`,
-`plan`, `new-feature`, `fix-bug`, `quick-fix`, `review`, `council`, `finish-branch`.
-Docs layout + memory discipline in `shared/rules/docs-layout.md` and `shared/rules/memory.md`.
+`plan`, `new-feature`, `fix-bug`, `quick-fix`, `review`, `council`, `finish-branch`,
+`checkpoint`. Docs layout + memory + session continuity in `shared/rules/docs-layout.md`,
+`shared/rules/memory.md`, `shared/rules/continuity.md` (session handoff via `CONTINUITY.md`).

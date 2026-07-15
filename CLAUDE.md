@@ -13,6 +13,9 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
 
 ## Golden rules (always apply)
 
+- **Resume from continuity.** At the start of each session, read `CONTINUITY.md` first and
+  continue from its **Next step** before anything else; if it names an active workflow,
+  open that `.workflow/state.md` too. See `shared/rules/continuity.md`.
 - **Never work on `main`.** Create a branch before changing code.
 - **Pick the right workflow skill** for the task (see index below) and follow it.
 - **`.workflow/state.md` is the source of truth** for the active workflow: its checklist
@@ -37,6 +40,7 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
 - `review` — cross-engine second opinion on a plan or diff (P0–P3 findings)
 - `council` — multi-perspective decision analysis: several engines as advisors → synthesized verdict + minority report (for hard, expensive forks)
 - `finish-branch` — close out a branch: confirm gates → final verify → commit → push → PR
+- `checkpoint` — write a clean session handoff to `CONTINUITY.md` before closing / context reset
 
 ## Discipline reference (`shared/rules/`)
 
@@ -48,6 +52,7 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
 - `approach-comparison.md` — fixed-axes table for choosing an approach
 - `memory.md` — what to save and where (repo-first, portable across engines)
 - `docs-layout.md` — where each artifact lives (`docs/prds|plans|research|solutions|adr`, `CHANGELOG.md`)
+- `continuity.md` — session handoff via `CONTINUITY.md`; how to resume on a new session
 
 ## Enforcement model (read this — it's a deliberate trade)
 
