@@ -1,0 +1,14 @@
+# Codex-native options for forge-ai (no scripts/hooks).
+# Coarse ship-gate: pause for human approval before non-trivial shell commands.
+# This is the native backstop described in shared/rules/ship-gates.md — it always
+# asks (it does not read .workflow/state.md). Approve push/PR only when gates are green.
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# Repo skills are discovered under <repo>/.codex/skills (symlinked to ../skills).
+# Discipline is loaded from AGENTS.md (symlink -> CLAUDE.md) at the repo root.
+
+# To harden the ship-gate into an actual command block (still no bash script), add a
+# Codex execpolicy `.rules` file that requires approval specifically for
+# `git push` / `gh pr create`. Left out of this first cut to keep it minimal.
