@@ -4,9 +4,9 @@
 
 forge-ai gives an AI coding agent a consistent, opinionated way of working — research →
 plan → TDD → cross-engine review → verify → ship — plus shared memory and session
-continuity. It's **skills + config only**: no hooks, no scripts, no runtime. Point any of
-the three CLIs at the project and they pick up the same rules, the same skills, and the
-same guardrails.
+continuity. The discipline is **skills + config only** — no runtime hooks or scripts (the
+one-time installer is the only script). Point any of the three CLIs at the project and
+they pick up the same rules, the same skills, and the same guardrails.
 
 ---
 
@@ -139,6 +139,30 @@ always runs on a **different engine than the driver**:
 `council` consults all three at once; `review`/`research` use the non-driver engine.
 
 ---
+
+## Installation
+
+forge-ai is the framework repo — install its discipline into a target project. It's
+**copy-based**, so the discipline travels with that repo (works on any clone, no external
+dependency):
+
+```bash
+./install.sh /path/to/your-project              # first install
+./install.sh /path/to/your-project --upgrade    # refresh framework files later
+```
+
+What it does:
+
+- **Copies the managed baseline** (overwritten on upgrade): `CLAUDE.md`, `skills/`,
+  `shared/rules/`, `docs/extending.md`, the `*.template.md` files, and the docs scaffolding
+  — then creates the symlinks (`AGENTS.md`, `.claude/skills`, `.codex/skills`,
+  `.opencode/skills`).
+- **Creates project-owned files only if missing** (never clobbered on re-run): `PROJECT.md`,
+  `CONTINUITY.md`, `.claude/settings.json`, `.codex/config.toml`, `opencode.json`.
+- An existing `CLAUDE.md` is backed up to `CLAUDE.md.pre-forge.bak` (move its
+  project-specifics into `PROJECT.md`), and `.gitignore` is merged, not replaced.
+
+Then fill in `PROJECT.md` and open the project in any of the three engines.
 
 ## How to use it
 

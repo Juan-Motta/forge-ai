@@ -5,6 +5,9 @@ Notable changes, newest first. One short entry per shipped change. See
 
 ## 2026-07-15
 
+- Add `install.sh` — copy-based installer to deploy the discipline into a target project
+  (managed baseline overwritten; project-owned files created-if-missing; existing CLAUDE.md
+  backed up; `.gitignore` merged). Idempotent / `--upgrade`.
 - Add project-specific rules layer: `PROJECT.md` (+ template) for persona / project info /
   variables / special rules, `shared/rules/project-rules.md` (precedence: adds to but never
   overrides the safety baseline), a golden rule to load it, and OpenCode `instructions`
