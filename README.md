@@ -44,4 +44,4 @@ a decision checklist, and the steps to add a new skill.
 ## Status
 
 Skeleton (2026-07-15). Engines: Claude Code, Codex, OpenCode. Skills: `new-feature`,
-`fix-bug`, `quick-fix`, `review`, `finish-branch`.
+`fix-bug`, `quick-fix`, `review`, `council`, `finish-branch`.

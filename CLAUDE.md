@@ -30,6 +30,7 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
 - `fix-bug` — bug fix with systematic debugging (reproduce → root cause → failing test → fix → review → verify → ship)
 - `quick-fix` — trivial changes (<3 files, no behavior risk); escalate if scope grows
 - `review` — cross-engine second opinion on a plan or diff (P0–P3 findings)
+- `council` — multi-perspective decision analysis: several engines as advisors → synthesized verdict + minority report (for hard, expensive forks)
 - `finish-branch` — close out a branch: confirm gates → final verify → commit → push → PR
 
 ## Discipline reference (`shared/rules/`)
