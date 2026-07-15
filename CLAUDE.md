@@ -26,6 +26,8 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
 
 ## Workflow skills (canonical in `skills/`, discovered by all three harnesses)
 
+- `research` — pre-design research: check current docs + prior art, write a sourced brief
+- `plan` — design step: clarify intent, compare approaches, write a reviewed plan
 - `new-feature` — full feature workflow (brainstorm → plan → cross-review → TDD → review → verify → ship)
 - `fix-bug` — bug fix with systematic debugging (reproduce → root cause → failing test → fix → review → verify → ship)
 - `quick-fix` — trivial changes (<3 files, no behavior risk); escalate if scope grows
@@ -38,6 +40,9 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
 - `workflow.md` — when to use which skill; the phases
 - `severity.md` — P0–P3 rubric for review findings
 - `ship-gates.md` — what must be true before commit/push/PR, and how each harness gates it
+- `tdd.md` — red-green-refactor discipline
+- `research.md` — when to research and what a good brief contains
+- `approach-comparison.md` — fixed-axes table for choosing an approach
 
 ## Enforcement model (read this — it's a deliberate trade)
 

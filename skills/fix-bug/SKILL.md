@@ -26,9 +26,9 @@ verified from what you infer.
 
 ## 3. Failing test first (TDD)
 
-Write a test that fails **because of the bug** (red). This proves the repro and prevents
-regression. For a high-impact surface, also design-review the fix approach with the
-other engine before implementing.
+Write a test that fails **because of the bug** (red) — see `shared/rules/tdd.md`. This
+proves the repro and prevents regression. For a high-impact surface, also design-review
+the fix approach with the `review` skill (a different engine) before implementing.
 
 ## 4. Fix minimally
 

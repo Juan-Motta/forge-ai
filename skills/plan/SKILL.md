@@ -1,0 +1,46 @@
+---
+name: plan
+description: Turn an idea into a reviewed design — clarify intent, compare 2–3 approaches on fixed axes, pick one with rationale, and write a plan the implementation follows. Use before building a non-trivial change under Claude Code, Codex, or OpenCode. Feeds new-feature / fix-bug.
+---
+
+# plan
+
+Design before you build. Produces a written plan that `new-feature` / `fix-bug`
+implements against. Pairs with `research` (run it first when external tech is involved).
+
+## 1. Clarify intent
+
+Pin down purpose, constraints, and success criteria. Ask the user one question at a time
+only when something is genuinely ambiguous; otherwise state your assumptions and proceed.
+Do not write implementation code in this phase.
+
+## 2. Compare approaches
+
+List **2–3 genuinely different** approaches and score them on the fixed axes in
+`shared/rules/approach-comparison.md` (complexity, blast radius, reversibility, time to
+validate, correctness/user risk). Name the default winner and why — prefer the simplest
+option that clears the bar.
+
+## 3. Validate the choice (don't self-certify)
+
+Run `review` or `council` on the chosen approach before locking it in. If the cheapest
+falsifying experiment is quick, spike it first and let evidence decide. Resolve any
+P0/P1/P2 the reviewer raises (`shared/rules/severity.md`).
+
+## 4. Write the plan
+
+Capture: the goal, the chosen approach + the comparison table, the files/units to touch,
+edge cases, the tests that will prove it (TDD — `shared/rules/tdd.md`), and acceptance
+criteria. Keep units small and single-purpose. Save to the plan doc and reference it from
+`.workflow/state.md`.
+
+## 5. Hand off to implementation
+
+`new-feature` / `fix-bug` build from this plan. A gap here propagates downstream, so a
+missing required behavior or acceptance criterion is a P1, not a nit.
+
+## Verification
+
+The plan states the goal, a compared-and-chosen approach (with rationale), the test plan,
+and acceptance criteria; the choice was reviewed by another engine. Missing any of these
+means it's not ready to implement.

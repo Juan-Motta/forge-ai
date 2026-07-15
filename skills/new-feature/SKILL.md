@@ -1,48 +1,46 @@
 ---
 name: new-feature
-description: Full feature workflow — brainstorm, plan, dual-engine design review, TDD, code review, verify, and ship behind the ship-gate. Use when starting any new feature or behavior change under Claude Code or Codex.
+description: Full feature workflow — research, plan, cross-engine design review, TDD, code review, verify, and ship behind the ship-gate. Use when starting any new feature or behavior change under Claude Code, Codex, or OpenCode.
 ---
 
 # new-feature
 
 Drive a feature from idea to shipped change with cross-engine review discipline. Works
-identically under Claude Code and Codex.
+identically under Claude Code, Codex, and OpenCode.
 
 ## 0. Set up tracking
 
 - Confirm you are **not on `main`** — create a branch (`feat/<name>`).
 - Copy `state.template.md` to `.workflow/state.md` and fill in the feature name + branch.
 
-## 1. Brainstorm
+## 1. Research (when external tech is involved)
 
-Clarify intent, constraints, and success criteria **before** designing. Ask one question
-at a time when something is genuinely ambiguous; otherwise state assumptions and proceed.
-Do not write code yet.
+If the feature touches an unfamiliar or external library/API/protocol, run the `research`
+skill first and write a sourced brief (`shared/rules/research.md`). Skip only for changes
+fully contained in code you already understand.
 
 ## 2. Plan
 
-Write the approach: files to touch, edge cases, and the tests that will prove it. Keep
-units small and single-purpose.
+Clarify intent, then compare 2–3 approaches and pick one — use the `plan` skill and the
+fixed axes in `shared/rules/approach-comparison.md`. Capture the goal, chosen approach,
+files/units to touch, edge cases, the test plan, and acceptance criteria. Keep units
+small. Do not write implementation code yet.
 
 ## 3. Design review (cross-engine)
 
-Get a second opinion from the **other** engine before implementing:
-
-- If Claude is driving → have Codex review the plan (`codex exec ...`).
-- If Codex is driving → have Claude review the plan (`claude -p ...`).
-
-Collect findings by severity (`shared/rules/severity.md`); resolve P0/P1/P2; record the
-iteration in `.workflow/state.md`.
+Validate the plan with the `review` skill (a *different* engine reviews) — or `council`
+for a hard fork. Collect findings by severity (`shared/rules/severity.md`); resolve
+P0/P1/P2; record the iteration in `.workflow/state.md`.
 
 ## 4. TDD
 
-Red → green → refactor. Write the failing test first, make it pass minimally, then
-refactor. Never write implementation before a failing test exists.
+Red → green → refactor (`shared/rules/tdd.md`). Write the failing test first, make it pass
+minimally, then refactor. Never write implementation before a failing test exists.
 
 ## 5. Code review (cross-engine)
 
-Review the diff with the other engine + a self-pass. Fix all P0/P1/P2. Repeat until a
-single pass is clean. Record iterations in `.workflow/state.md`.
+Review the diff with the `review` skill (the other engine) + a self-pass. Fix all
+P0/P1/P2. Repeat until a single pass is clean. Record iterations in `.workflow/state.md`.
 
 ## 6. Verify
 
