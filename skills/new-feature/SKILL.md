@@ -29,8 +29,9 @@ small. Do not write implementation code yet.
 ## 3. Design review (cross-engine)
 
 Validate the plan with the `review` skill (a *different* engine reviews) — or `council`
-for a hard fork. Collect findings by severity (`shared/rules/severity.md`); resolve
-P0/P1/P2; record the iteration in `.workflow/state.md`.
+for a hard fork. Reviewer/advisor models come from `shared/rules/models.md`. Collect
+findings by severity (`shared/rules/severity.md`); resolve P0/P1/P2; record the iteration
+in `.workflow/state.md`.
 
 ## 4. TDD
 

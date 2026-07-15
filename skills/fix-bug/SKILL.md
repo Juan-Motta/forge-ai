@@ -37,8 +37,9 @@ the real cause, not the symptom.
 
 ## 5. Code review (cross-engine)
 
-Review the diff with the **other** engine + a self-pass; resolve all P0/P1/P2
-(`shared/rules/severity.md`). Record iterations in `.workflow/state.md`.
+Review the diff with the **other** engine (`review` skill; models per
+`shared/rules/models.md`) + a self-pass; resolve all P0/P1/P2 (`shared/rules/severity.md`).
+Record iterations in `.workflow/state.md`.
 
 ## 6. Verify
 

@@ -53,6 +53,7 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
 - `memory.md` — what to save and where (repo-first, portable across engines)
 - `docs-layout.md` — where each artifact lives (`docs/prds|plans|research|solutions|adr`, `CHANGELOG.md`)
 - `continuity.md` — session handoff via `CONTINUITY.md`; how to resume on a new session
+- `models.md` — default model per role (research/review/council); reviewer ≠ driver
 
 ## Enforcement model (read this — it's a deliberate trade)
 

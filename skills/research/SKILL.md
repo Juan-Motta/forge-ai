@@ -24,7 +24,9 @@ brief.
 
 Use the engine's available tools (web search / fetch / docs lookup) to gather **current,
 versioned** facts. Prefer official docs over blog posts. Note the version and the date
-checked. Also look at how established tools/products solved the same problem.
+checked. Also look at how established tools/products solved the same problem. If you
+delegate the research to another engine, use the research model from
+`shared/rules/models.md`.
 
 ## 3. Write the brief
 

@@ -21,8 +21,9 @@ State which, and the exact scope (file paths, base ref).
 - Driver Codex → reviewer Claude (`claude -p ...`) or OpenCode.
 - Driver OpenCode → reviewer Claude or Codex.
 
-Give the reviewer the target + this instruction: report findings tagged by severity
-(`shared/rules/severity.md`) with location and a concrete fix.
+Use the reviewer model + effort from `shared/rules/models.md`. Give the reviewer the
+target + this instruction: report findings tagged by severity (`shared/rules/severity.md`)
+with location and a concrete fix.
 
 ## 3. Collect findings
 

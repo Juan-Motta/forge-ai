@@ -5,6 +5,13 @@ Notable changes, newest first. One short entry per shipped change. See
 
 ## 2026-07-15
 
+- Record ADR 001 (commit `CONTINUITY.md`) — decided via a live `council` run across all
+  three engines (Codex + Claude + OpenCode); also validated `council` end-to-end.
+- Set model defaults in `shared/rules/models.md`: Codex `gpt-5.6-sol` @ `xhigh`, Claude
+  `opus` @ `high`, OpenCode `opencode-go/glm-5.2`.
+- Add `shared/rules/models.md` — default model per cross-engine role (research/review/
+  council; reviewer ≠ driver); wire `review`/`council`/`research`/`new-feature`/`fix-bug`
+  to read from it.
 - Add session continuity: `CONTINUITY.md` (+ template), `shared/rules/continuity.md`, the
   `checkpoint` skill, and a session-start "resume from continuity" golden rule.
 - Add memory discipline (`shared/rules/memory.md`), docs layout
