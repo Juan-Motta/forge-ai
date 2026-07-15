@@ -35,6 +35,12 @@ push/PR is the human backstop. See `shared/rules/ship-gates.md`.
 
 Start a feature with the `new-feature` skill.
 
+## Extending
+
+See [`docs/extending.md`](docs/extending.md) for how to add capability while staying
+simple and interoperable — the three tiers (skills-only, skills + invoked scripts, hooks),
+a decision checklist, and the steps to add a new skill.
+
 ## Status
 
 Skeleton (2026-07-15). Engines: Claude Code, Codex, OpenCode. Skills: `new-feature`,
