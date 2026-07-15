@@ -1,0 +1,20 @@
+# Docs Layout
+
+Where each artifact lives. The workflow skills write to these paths so knowledge is
+findable and portable across all three engines.
+
+| Path | Holds | Written by |
+| --- | --- | --- |
+| `docs/prds/<feature>.md` | Product requirements (problem, users, goals, criteria) | `prd` |
+| `docs/plans/<feature>.md` | Design plan (approach, files, tests, acceptance) | `plan`, `new-feature` |
+| `docs/research/<YYYY-MM-DD>-<topic>.md` | Sourced research brief | `research` |
+| `docs/solutions/<slug>.md` | Solved-bug knowledge base (symptom→cause→fix) | `fix-bug` |
+| `docs/adr/<NNN>-<slug>.md` | Architecture decision records | `plan`, `council` |
+| `docs/CHANGELOG.md` | Human-readable history of notable changes | `finish-branch` / ship |
+
+## Rules
+
+- Create the file under the right folder; the folder already exists (`.gitkeep`).
+- One artifact per file; name it after the feature/topic so it's greppable.
+- These are the **portable memory** of the project — see `shared/rules/memory.md`.
+- Keep `docs/CHANGELOG.md` newest-first, one line or short block per shipped change.

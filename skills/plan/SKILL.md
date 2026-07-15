@@ -31,8 +31,9 @@ P0/P1/P2 the reviewer raises (`shared/rules/severity.md`).
 
 Capture: the goal, the chosen approach + the comparison table, the files/units to touch,
 edge cases, the tests that will prove it (TDD — `shared/rules/tdd.md`), and acceptance
-criteria. Keep units small and single-purpose. Save to the plan doc and reference it from
-`.workflow/state.md`.
+criteria. Keep units small and single-purpose. Save to `docs/plans/<feature>.md`
+(`shared/rules/docs-layout.md`) and reference it from `.workflow/state.md`. Record any
+significant architecture decision as an ADR in `docs/adr/`.
 
 ## 5. Hand off to implementation
 

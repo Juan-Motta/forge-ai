@@ -23,9 +23,12 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
   `shared/rules/ship-gates.md`.
 - **Challenge, don't flatter.** Push back on weak ideas; verify claims against the code.
 - **Ground your claims.** State what you verified vs. inferred; cite `file:line`.
+- **Capture learnings.** Save reusable solutions/decisions to the repo `docs/` (portable
+  memory) — see `shared/rules/memory.md` and `shared/rules/docs-layout.md`.
 
 ## Workflow skills (canonical in `skills/`, discovered by all three harnesses)
 
+- `prd` — write a product requirements doc (problem/users/goals) before designing
 - `research` — pre-design research: check current docs + prior art, write a sourced brief
 - `plan` — design step: clarify intent, compare approaches, write a reviewed plan
 - `new-feature` — full feature workflow (brainstorm → plan → cross-review → TDD → review → verify → ship)
@@ -43,6 +46,8 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
 - `tdd.md` — red-green-refactor discipline
 - `research.md` — when to research and what a good brief contains
 - `approach-comparison.md` — fixed-axes table for choosing an approach
+- `memory.md` — what to save and where (repo-first, portable across engines)
+- `docs-layout.md` — where each artifact lives (`docs/prds|plans|research|solutions|adr`, `CHANGELOG.md`)
 
 ## Enforcement model (read this — it's a deliberate trade)
 

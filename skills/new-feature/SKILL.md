@@ -51,3 +51,5 @@ tests alone. Note what you observed.
 
 Only when every required box in `.workflow/state.md` is checked (`shared/rules/ship-gates.md`).
 Commit, then push / open PR — approve the native prompt **only if the gates are green**.
+Record the change in `docs/CHANGELOG.md` and save any reusable learning
+(`shared/rules/memory.md`). Or run `finish-branch` to do the wrap-up.

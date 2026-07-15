@@ -43,7 +43,8 @@ Review the diff with the **other** engine + a self-pass; resolve all P0/P1/P2
 ## 6. Verify
 
 Exercise the original repro and confirm it's gone; check you didn't break neighbors.
-Note what you observed.
+Note what you observed. Record the fix (symptom → root cause → fix → how verified) in
+`docs/solutions/<slug>.md` (`shared/rules/memory.md`).
 
 ## 7. Ship
 

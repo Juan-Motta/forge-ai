@@ -33,5 +33,7 @@ that states what changed, why, and how it was verified.
 
 ## 5. Record
 
-Note in `.workflow/state.md` that the branch was finished (PR link / merge outcome), so
-the workflow state reflects reality.
+- Add a newest-first entry to `docs/CHANGELOG.md` (`shared/rules/docs-layout.md`).
+- Save any reusable learning per `shared/rules/memory.md` (solved bugs → `docs/solutions/`).
+- Note in `.workflow/state.md` that the branch was finished (PR link / merge outcome), so
+  the workflow state reflects reality.
