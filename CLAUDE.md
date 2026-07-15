@@ -27,8 +27,10 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
 ## Workflow skills (canonical in `skills/`, discovered by all three harnesses)
 
 - `new-feature` — full feature workflow (brainstorm → plan → cross-review → TDD → review → verify → ship)
-
-More skills (fix-bug, quick-fix, review, finish-branch) are added as the project grows.
+- `fix-bug` — bug fix with systematic debugging (reproduce → root cause → failing test → fix → review → verify → ship)
+- `quick-fix` — trivial changes (<3 files, no behavior risk); escalate if scope grows
+- `review` — cross-engine second opinion on a plan or diff (P0–P3 findings)
+- `finish-branch` — close out a branch: confirm gates → final verify → commit → push → PR
 
 ## Discipline reference (`shared/rules/`)
 

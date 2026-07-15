@@ -37,5 +37,5 @@ Start a feature with the `new-feature` skill.
 
 ## Status
 
-Skeleton (2026-07-15). Engines: Claude Code, Codex, OpenCode. Skills: `new-feature`.
-More (fix-bug, quick-fix, review, finish-branch) to follow.
+Skeleton (2026-07-15). Engines: Claude Code, Codex, OpenCode. Skills: `new-feature`,
+`fix-bug`, `quick-fix`, `review`, `finish-branch`.
