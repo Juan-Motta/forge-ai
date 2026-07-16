@@ -98,10 +98,11 @@ seed_config configs/codex/config.toml    .codex/config.toml
 seed_config configs/opencode.json        opencode.json
 
 # --- back up any pre-existing, NON-forge per-engine skills dir before sync overwrites it ---
-# (forge-generated copies contain new-feature/SKILL.md; a dir without it is the user's own.)
+# (forge-generated dirs carry a .forge-generated marker; a dir without it is the user's own,
+#  so we never wipe a user's skills — even one coincidentally named new-feature.)
 for eng in .claude .agents; do
   sd="$TARGET/$eng/skills"
-  if [ -e "$sd" ] && [ ! -e "$sd/new-feature/SKILL.md" ]; then
+  if [ -e "$sd" ] && [ ! -e "$sd/.forge-generated" ]; then
     mv "$sd" "$sd.pre-forge.bak"
     echo "  ! backed up existing $eng/skills -> $eng/skills.pre-forge.bak (put custom skills in ./skills)"
   fi

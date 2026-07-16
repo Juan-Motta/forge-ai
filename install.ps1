@@ -101,7 +101,7 @@ Seed-Config 'configs/opencode.json'        'opencode.json'
 # --- back up any pre-existing, NON-forge per-engine skills dir before sync overwrites it ---
 foreach ($eng in '.claude', '.agents') {
   $sd = Join-Path $Target "$eng/skills"
-  if ((Test-Path $sd) -and -not (Test-Path (Join-Path $sd 'new-feature/SKILL.md'))) {
+  if ((Test-Path $sd) -and -not (Test-Path (Join-Path $sd '.forge-generated'))) {
     Move-Item $sd "$sd.pre-forge.bak"
     Write-Host "  ! backed up existing $eng/skills -> $eng/skills.pre-forge.bak (put custom skills in ./skills)"
   }
