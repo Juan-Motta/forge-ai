@@ -1,7 +1,8 @@
 # Codex-native options for forge-ai (no scripts/hooks).
-# Coarse ship-gate: pause for human approval before non-trivial shell commands.
-# This is the native backstop described in shared/rules/ship-gates.md — it always
-# asks (it does not read .workflow/state.md). Approve push/PR only when gates are green.
+# Best-effort ship prompt (NOT a hard gate): on-request asks when a command crosses the
+# sandbox boundary — it does NOT fire before every command, does NOT read
+# .workflow/state.md, and is bypassable. See shared/rules/ship-gates.md. Check the gate
+# checklist yourself before approving a push/PR.
 
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"

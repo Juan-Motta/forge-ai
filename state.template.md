@@ -8,7 +8,7 @@
 - **Skill:** new-feature
 - **Feature:** <name>
 - **Branch:** <feat/...>
-- **Driver:** <claude | codex>
+- **Driver:** <claude | codex | opencode>
 - **Phase:** <brainstorm | plan | design-review | tdd | code-review | verify | ship>
 
 ## Ship-gate checklist

@@ -16,11 +16,13 @@ engines auto-load `CLAUDE.md`/`AGENTS.md`, which points here; OpenCode also forc
 ## Precedence (important)
 
 - The **global safety baseline** — branch safety, the ship-gate, and anything that
-  prevents data loss or an unreviewed ship — is **never overridable** by `PROJECT.md`.
+  prevents data loss or an unreviewed ship — **should not** be overridden by `PROJECT.md`.
+  Note: this is **advisory** — nothing physically enforces it, so review your own
+  `PROJECT.md` against `ship-gates.md` and don't write project rules that weaken safety.
 - `PROJECT.md` **adds and refines**: persona/tone, project context, variables, and
-  special behavior. It cannot switch off a safety rule.
-- On a genuine conflict, the global safety baseline wins; surface the conflict rather than
-  silently following the weaker rule.
+  special behavior.
+- On a genuine conflict, treat the global safety baseline as winning; surface the conflict
+  rather than silently following the weaker rule.
 
 ## Adding project rules
 

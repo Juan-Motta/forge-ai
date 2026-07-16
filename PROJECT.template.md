@@ -1,9 +1,9 @@
 # Project rules
 
 > Project-specific rules for THIS project. Always loaded alongside the global baseline
-> (`CLAUDE.md` golden rules + `shared/rules/*`). These **add and refine** — they do NOT
-> override the global safety rules (branch safety, ship-gate). See
-> `shared/rules/project-rules.md`.
+> (`CLAUDE.md` golden rules + `shared/rules/*`). These **add and refine** — they
+> **should not** override the global safety rules (branch safety, ship-gate) — advisory;
+> nothing enforces it. See `shared/rules/project-rules.md`.
 > Copy this file to `PROJECT.md` and fill it in.
 
 ## Persona

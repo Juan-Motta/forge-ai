@@ -1,8 +1,9 @@
 # Project rules
 
 > Project-specific rules for this project. Always loaded alongside the global baseline
-> (`CLAUDE.md` golden rules + `shared/rules/*`). These **add and refine** — they do NOT
-> override the global safety rules. See `shared/rules/project-rules.md`.
+> (`CLAUDE.md` golden rules + `shared/rules/*`). These **add and refine** — they
+> **should not** override the global safety rules (advisory; nothing enforces it). See
+> `shared/rules/project-rules.md`.
 
 ## Persona
 

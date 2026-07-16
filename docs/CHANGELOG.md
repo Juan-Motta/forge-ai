@@ -5,6 +5,14 @@ Notable changes, newest first. One short entry per shipped change. See
 
 ## 2026-07-15
 
+- Council logic review (4 advisors: Codex gpt-5.6-sol, Claude opus, 2× OpenCode glm-5.2) →
+  NEEDS-WORK. Applied the cheap/factual fixes: three-engine consistency (OpenCode added to
+  `ship-gates.md`, de-`(future)`'d the `workflow.md` table, OpenCode as driver in
+  `state.template.md`) and honest enforcement wording (discipline not a hard gate; "should
+  not" not "never override"; commit-confirmation not "backstop"; corrected the Codex
+  `approval_policy` description). Substantive findings deferred to follow-up (see
+  CONTINUITY.md): single-engine review path, per-workflow gate profiles, finish-branch
+  ordering, read-only reviewer, installer config-propagation, Windows symlink note.
 - Add `index` skill + `docs/index.md` — a high-level project map (structure, entry points,
   conventions) for fast agent orientation; refreshable, kept high-level to resist staleness.
 - `install.sh` now refreshes framework `skills/` and `shared/rules/` **per entry (by

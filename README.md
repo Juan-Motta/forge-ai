@@ -57,19 +57,20 @@ flowchart TD
 
 ### Enforcement model — advisory + native approval
 
-There is **no hook** that conditionally blocks an action. The skills *instruct* the agent
-to pass the gates before shipping (advisory), and on top of that each engine applies a
-**coarse native approval** on outward actions:
+This is **discipline, not a hard gate.** No hook conditionally blocks an action. The
+skills *instruct* the agent to pass the gates before shipping (advisory), and each engine
+shows a **best-effort native prompt** on outward actions — it reads no gate state and
+matches by command pattern (so it's bypassable):
 
-| Engine | Native gate | Config |
+| Engine | Native prompt | Config |
 | --- | --- | --- |
 | Claude Code | `git push` / `gh pr create` are `ask`-tier | `.claude/settings.json` |
-| Codex | approval required before non-trivial shell commands | `.codex/config.toml` |
+| Codex | `approval_policy` asks when a command crosses the sandbox boundary | `.codex/config.toml` |
 | OpenCode | `git push*` / `gh pr create*` set to `ask` (force-push `deny`) | `opencode.json` |
 
-The human approving the prompt is the backstop: **don't approve a push/PR whose gates
-aren't green.** (Hard conditional blocking would require per-engine hooks — deliberately
-out of scope; see [`docs/extending.md`](docs/extending.md).)
+The prompt is a commit-confirmation, not proof the gates are green: **the approver must
+check `.workflow/state.md` first.** (Real hard blocking would need per-engine hooks —
+Tier C, out of scope; see [`docs/extending.md`](docs/extending.md).)
 
 ### Repo layout
 

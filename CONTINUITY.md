@@ -4,7 +4,7 @@
 > Keep it current; refresh it with the `checkpoint` skill before closing a session.
 
 - **Focus:** Building out forge-ai itself — interoperable workflow discipline (Claude Code, Codex, OpenCode), skills + config only, no scripts/hooks.
-- **Next step:** Manually test the native push/PR approval gate in each engine (headless can't exercise the approval prompt): open each CLI in the repo, attempt `git push`, confirm it asks/pauses. Then pick the next capability (Tier B validator script, or Tier C hooks).
+- **Next step:** Address the council's substantive findings (cheap/factual ones already applied): (1) single-engine review path (cross-engine gate is unsatisfiable for solo-CLI users), (2) per-workflow gate profiles (quick-fix/fix-bug can't meet the universal gate), (3) fix finish-branch ordering (record changelog/memory BEFORE the ship commit), (4) invoke reviewers read-only, (5) make install.sh propagate/validate gates for already-configured projects, (6) Windows symlink note. Also still pending: manual test of the native push/PR prompt in each engine.
 - **Blockers:** none
 - **Active workflow:** none
 - **Updated:** 2026-07-15

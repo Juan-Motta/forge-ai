@@ -10,22 +10,25 @@ boxes in `.workflow/state.md` must be checked:
 - [ ] Change verified by actually exercising it
 - [ ] `.workflow/state.md` updated
 
-## How enforcement works here (advisory + native coarse gate)
+## How enforcement works here (advisory + a best-effort native prompt)
 
-There is **no hook** that conditionally blocks a commit when a box is unchecked. Two
-things stand in:
+**Be honest about what this is: discipline, not a hard gate.** Nothing conditionally
+blocks a commit when a box is unchecked. Two things stand in — both advisory:
 
-1. **Advisory (all engines):** you are instructed — here and in the workflow skill —
-   not to ship until the boxes pass. Honor it.
-2. **Native coarse gate (per harness):** outward actions prompt for human approval
-   regardless of gate state:
-   - **Claude Code** — `git push` and `gh pr create` are `ask`-tier in
-     `.claude/settings.json`.
-   - **Codex CLI** — `approval_policy` in `.codex/config.toml` pauses for approval before
-     non-trivial shell commands.
+1. **Advisory (all engines):** you are instructed — here and in the workflow skill — not
+   to ship until the boxes pass. Honor it.
+2. **Best-effort native prompt (per engine):** each engine can prompt for human approval
+   on outward commands — but it reads **no** gate state and matches commands by pattern,
+   so it is bypassable (e.g. `git -C . push`, a PR via API, another tool):
+   - **Claude Code** — `git push` / `gh pr create` are `ask`-tier in `.claude/settings.json`.
+   - **Codex** — `approval_policy` in `.codex/config.toml` asks when a command crosses the
+     sandbox boundary (not before every command).
+   - **OpenCode** — `permission.bash` in `opencode.json` sets `git push*` / `gh pr create*`
+     to `ask` (force-push `deny`).
 
-The native gate does not read `.workflow/state.md`; it always asks. The human approver is
-the backstop: **do not approve a push/PR whose gates are not green.**
+The prompt shows the human a generic "allow this command?", **not** the checklist — so it
+is a commit-confirmation, not proof the gates are green. The approver must
+**independently check `.workflow/state.md` before approving.**
 
 > A later phase can replace the advisory layer with hook-based conditional blocking
 > (deny when a box is unchecked). That needs harness hooks/scripts, deliberately out of

@@ -6,18 +6,25 @@ Use a workflow skill for any non-trivial change. Follow its steps in order.
 
 | Scenario | Skill |
 | --- | --- |
+| Define what/why before building | `prd` |
+| Check current docs / prior art | `research` |
+| Design: compare approaches, write a plan | `plan` |
 | New feature / behavior change | `new-feature` |
-| (future) Bug fix | `fix-bug` |
-| (future) Trivial change (<3 files) | `quick-fix` |
-| (future) Wrap up + open PR | `finish-branch` |
+| Bug fix | `fix-bug` |
+| Trivial change (<3 files) | `quick-fix` |
+| Cross-engine second opinion (plan or diff) | `review` |
+| Hard, expensive decision fork | `council` |
+| Wrap up + open PR | `finish-branch` |
+| Session handoff before closing | `checkpoint` |
+| Project map for orientation | `index` |
 
 ## Phases (shared shape)
 
 1. **Brainstorm** — clarify intent, constraints, success criteria before designing.
 2. **Plan** — write the approach; identify files, edge cases, tests.
-3. **Design review** — get a second opinion from the *other* engine (Codex reviews
-   Claude's plan, or Claude reviews Codex's) before implementing. Cross-engine diversity
-   is the point.
+3. **Design review** — get a second opinion from a *different* engine (any of Claude
+   Code / Codex / OpenCode; models in `models.md`) before implementing. Cross-engine
+   diversity is the point.
 4. **TDD** — red → green → refactor. Write the failing test first.
 5. **Code review** — dual review (the other engine + self) against the diff; fix all
    P0/P1/P2 before shipping (see `severity.md`).

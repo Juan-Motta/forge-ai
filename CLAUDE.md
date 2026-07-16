@@ -7,9 +7,10 @@
 
 ## What this is
 
-A lightweight, **skills-and-config-only** workflow system. No hooks, no scripts —
-enforcement is **advisory** (you follow the instructions) plus **native coarse gating**
-on outward actions (push / PR). It runs identically under Claude Code, Codex, and OpenCode.
+A lightweight, **skills-and-config-only** workflow system. It's **discipline, not a hard
+gate**: you follow the instructions (advisory), plus each engine shows a **best-effort
+native prompt** on outward actions (push / PR) that the human confirms — it reads no gate
+state and is bypassable. It runs identically under Claude Code, Codex, and OpenCode.
 
 ## Golden rules (always apply)
 
@@ -17,8 +18,9 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
   continue from its **Next step** before anything else; if it names an active workflow,
   open that `.workflow/state.md` too. See `shared/rules/continuity.md`.
 - **Load project rules.** Also read `PROJECT.md` — this project's persona, info,
-  variables, and special rules. It **adds** to these global rules and never overrides the
-  safety/ship-gate baseline. See `shared/rules/project-rules.md`.
+  variables, and special rules. It **adds** to these global rules and **should not**
+  override the safety/ship-gate baseline (advisory — nothing enforces this). See
+  `shared/rules/project-rules.md`.
 - **Never work on `main`.** Create a branch before changing code.
 - **Pick the right workflow skill** for the task (see index below) and follow it.
 - **`.workflow/state.md` is the source of truth** for the active workflow: its checklist
