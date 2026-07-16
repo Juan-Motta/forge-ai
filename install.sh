@@ -4,20 +4,24 @@
 #
 #   ./install.sh <target-dir> [--upgrade]
 #
-# The shippable payload lives in ./template/. This installer copies template/* into the
-# target's root (where the engines discover config) and creates the discovery symlinks
-# there. forge-ai's own repo files (this installer, README, PROJECT.md, CONTINUITY.md,
-# docs/, the root dev .claude) are NOT part of the payload and never travel to the target.
+# The shippable payload lives in ./template/ as a single NEUTRAL source (CLAUDE.md,
+# skills/, shared/rules/, configs/). This installer copies it into the target's root, then
+# runs sync.sh to GENERATE each engine's config + skills (.claude/.codex/.opencode +
+# AGENTS.md + opencode.json). No symlinks anywhere (Windows-safe). The generated engine
+# artifacts are gitignored — regenerate them any time with ./sync.sh (or sync.ps1).
 #
 # Copy-based on purpose: the discipline travels with the target repo (works on any clone,
 # no external dependency). Re-run with --upgrade to refresh the framework files.
 #
 # MANAGED (framework baseline — OVERWRITTEN on install/upgrade):
-#   CLAUDE.md, docs/extending.md, *.template.md, and the framework's OWN entries in
-#   skills/ and shared/rules/ (refreshed by name). Your own skills/rules dropped into
-#   those dirs are left untouched — they survive upgrades (selective, not wholesale).
+#   CLAUDE.md, sync.sh/sync.ps1, docs/extending.md, *.template.md, and the framework's OWN
+#   entries in skills/ and shared/rules/ (refreshed by name). Your own skills/rules dropped
+#   into those dirs are left untouched — they survive upgrades (selective, not wholesale).
 # PROJECT-OWNED (created only if missing — NEVER clobbered):
-#   PROJECT.md, CONTINUITY.md, .claude/settings.json, .codex/config.toml, opencode.json
+#   PROJECT.md, CONTINUITY.md, configs/claude/settings.json, configs/codex/config.toml,
+#   configs/opencode.json  (edit these to customize; sync regenerates the engine dirs)
+# GENERATED (gitignored; produced by sync.sh — do NOT edit):
+#   AGENTS.md, opencode.json, .claude/, .codex/, .opencode/
 #
 set -euo pipefail
 
@@ -54,6 +58,10 @@ for f in "$PAYLOAD"/shared/rules/*.md; do
   cp "$f" "$TARGET/shared/rules/$(basename "$f")"
 done
 
+# --- MANAGED: sync scripts (the generator) ---
+cp "$PAYLOAD/sync.sh" "$TARGET/sync.sh"; chmod +x "$TARGET/sync.sh"
+cp "$PAYLOAD/sync.ps1" "$TARGET/sync.ps1"
+
 # --- MANAGED: templates + framework doc + docs/ scaffolding ---
 cp "$PAYLOAD/state.template.md" "$TARGET/state.template.md"
 cp "$PAYLOAD/CONTINUITY.template.md" "$TARGET/CONTINUITY.template.md"
@@ -64,65 +72,72 @@ for d in prds plans research solutions adr; do
   [ -e "$TARGET/docs/$d/.gitkeep" ] || touch "$TARGET/docs/$d/.gitkeep"
 done
 
-# --- PROJECT-OWNED: create only if missing ---
+# --- PROJECT-OWNED: PROJECT.md / CONTINUITY.md (create only if missing) ---
 [ -f "$TARGET/PROJECT.md" ]    || { cp "$PAYLOAD/PROJECT.template.md" "$TARGET/PROJECT.md"; echo "  + created PROJECT.md (fill in persona/info/variables/special rules)"; }
 [ -f "$TARGET/CONTINUITY.md" ] || cp "$PAYLOAD/CONTINUITY.template.md" "$TARGET/CONTINUITY.md"
-mkdir -p "$TARGET/.claude" "$TARGET/.codex" "$TARGET/.opencode"
-[ -f "$TARGET/.claude/settings.json" ] || cp "$PAYLOAD/.claude/settings.json" "$TARGET/.claude/settings.json"
-[ -f "$TARGET/.codex/config.toml" ]    || cp "$PAYLOAD/.codex/config.toml" "$TARGET/.codex/config.toml"
-[ -f "$TARGET/opencode.json" ]         || cp "$PAYLOAD/opencode.json" "$TARGET/opencode.json"
 
-# --- symlinks (guarded: never clobber or nest inside a pre-existing real file/dir) ---
-# AGENTS.md → CLAUDE.md (back up a real, non-symlink AGENTS.md first)
-if [ -e "$TARGET/AGENTS.md" ] && [ ! -L "$TARGET/AGENTS.md" ]; then
-  mv "$TARGET/AGENTS.md" "$TARGET/AGENTS.md.pre-forge.bak"
+# --- PROJECT-OWNED: neutral configs (create if missing; migrate a pre-existing engine
+#     config so we don't lose the project's own gate settings) ---
+seed_config() {  # $1 = configs/ path (source of truth), $2 = pre-existing generated path
+  local cfg="$TARGET/$1" pre="$TARGET/$2"
+  [ -f "$cfg" ] && return 0
+  mkdir -p "$(dirname "$cfg")"
+  if [ -f "$pre" ]; then
+    cp "$pre" "$cfg"; echo "  + migrated existing $2 -> $1 (edit configs/ from now on)"
+  else
+    cp "$PAYLOAD/$1" "$cfg"
+  fi
+}
+seed_config configs/claude/settings.json .claude/settings.json
+seed_config configs/codex/config.toml    .codex/config.toml
+seed_config configs/opencode.json        opencode.json
+
+# --- back up any pre-existing, NON-forge per-engine skills dir before sync overwrites it ---
+# (forge-generated copies contain new-feature/SKILL.md; a dir without it is the user's own.)
+for eng in .claude .codex .opencode; do
+  sd="$TARGET/$eng/skills"
+  if [ -e "$sd" ] && [ ! -e "$sd/new-feature/SKILL.md" ]; then
+    mv "$sd" "$sd.pre-forge.bak"
+    echo "  ! backed up existing $eng/skills -> $eng/skills.pre-forge.bak (put custom skills in ./skills)"
+  fi
+done
+# back up a real, non-forge AGENTS.md before sync overwrites it
+if [ -f "$TARGET/AGENTS.md" ] && ! grep -q "Workflow discipline for Claude Code" "$TARGET/AGENTS.md" 2>/dev/null; then
+  cp "$TARGET/AGENTS.md" "$TARGET/AGENTS.md.pre-forge.bak"
   echo "  ! backed up existing AGENTS.md -> AGENTS.md.pre-forge.bak"
 fi
-ln -sfn CLAUDE.md "$TARGET/AGENTS.md"
 
-# per-engine skills symlink → ../skills
-link_skills() {
-  local lp="$TARGET/$1"
-  if [ -L "$lp" ] || [ ! -e "$lp" ]; then
-    ln -sfn ../skills "$lp"                 # symlink or absent → (re)create
-  elif [ -d "$lp" ] && [ -z "$(ls -A "$lp")" ]; then
-    rmdir "$lp"; ln -s ../skills "$lp"      # empty real dir → replace
-  else
-    echo "  ! $1 already exists as a non-empty directory — left as-is (NOT symlinked)."
-    echo "    forge-ai skills live in ./skills. Move yours into ./skills, or keep them here"
-    echo "    knowing forge-ai's skills won't be discovered via $1 for this engine."
-  fi
-}
-link_skills ".claude/skills"
-link_skills ".codex/skills"
-link_skills ".opencode/skills"
+# --- GENERATE engine dirs + AGENTS.md + opencode.json via sync (no symlinks) ---
+bash "$TARGET/sync.sh" >/dev/null
 
-# --- .gitignore (merge, don't clobber) ---
+# --- .gitignore (merge, don't clobber): generated engine artifacts + local state ---
 touch "$TARGET/.gitignore"
-if ! grep -qx '.workflow/' "$TARGET/.gitignore"; then
-  printf '\n# forge-ai\n.DS_Store\n.workflow/\n.claude/local/\n.claude/settings.local.json\n' >> "$TARGET/.gitignore"
+if ! grep -qx '# forge-ai (generated — regenerate with ./sync.sh)' "$TARGET/.gitignore"; then
+  {
+    printf '\n# forge-ai (generated — regenerate with ./sync.sh)\n'
+    printf '.claude/\n.codex/\n.opencode/\n/AGENTS.md\n/opencode.json\n'
+    printf '\n# forge-ai (local state)\n.DS_Store\n.workflow/\n'
+  } >> "$TARGET/.gitignore"
 fi
 
-# --- warn if a pre-existing engine config lacks the forge push/PR gate ---
-# (project-owned configs are created-if-missing, so an already-configured project keeps
-#  its own file — but then it may not gate ships. Warn instead of silently leaving it.)
-warn_gate() {  # $1 = file, $2 = grep needle, $3 = hint
+# --- warn if a project-owned config lacks the forge push/PR gate ---
+warn_gate() {  # $1 = configs/ file, $2 = grep needle, $3 = hint
   if [ -f "$TARGET/$1" ] && ! grep -q "$2" "$TARGET/$1" 2>/dev/null; then
-    echo "  ! $1 exists but has no forge push/PR gate ($3) — add it manually."
+    echo "  ! $1 has no forge push/PR gate ($3) — add it, then re-run ./sync.sh."
   fi
 }
-warn_gate ".claude/settings.json" "git push"      "ask-tier on git push / gh pr create"
-warn_gate ".codex/config.toml"    "approval_policy" "approval_policy"
-warn_gate "opencode.json"         "git push"      "permission.bash git push* / gh pr create*"
+warn_gate "configs/claude/settings.json" "git push"       "ask-tier on git push / gh pr create"
+warn_gate "configs/codex/config.toml"    "approval_policy" "approval_policy"
+warn_gate "configs/opencode.json"        "git push"       "permission.bash git push* / gh pr create*"
 
-# --- post-install validation: skill discovery + AGENTS.md must resolve ---
+# --- post-install validation: generated skill copies + AGENTS.md must exist ---
 ok=1
 for p in .claude/skills .codex/skills .opencode/skills; do
-  [ -e "$TARGET/$p/new-feature/SKILL.md" ] || { echo "  ! discovery FAILED: $p does not surface skills"; ok=0; }
+  [ -e "$TARGET/$p/new-feature/SKILL.md" ] || { echo "  ! discovery FAILED: $p was not generated"; ok=0; }
 done
-[ -e "$TARGET/AGENTS.md" ] || { echo "  ! AGENTS.md does not resolve"; ok=0; }
+[ -f "$TARGET/AGENTS.md" ] || { echo "  ! AGENTS.md was not generated"; ok=0; }
 if [ "$ok" = 1 ]; then
-  echo "  ✓ validation: all three skill-discovery paths + AGENTS.md resolve"
+  echo "  ✓ validation: all three skill-discovery paths + AGENTS.md generated"
 else
   echo "  ✗ validation found issues above — fix before relying on forge-ai here"
 fi
@@ -130,5 +145,5 @@ fi
 echo "forge-ai installed."
 echo "  next: (1) fill PROJECT.md   (2) in Codex, trust the project when prompted"
 echo "        (3) open the project in any of Claude Code / Codex / OpenCode"
-echo "  note: this uses symlinks — on Windows enable them first"
-echo "        (git config --global core.symlinks true + Developer Mode), or clones get dead files."
+echo "  edit the neutral source (skills/, configs/, CLAUDE.md), then re-run ./sync.sh"
+echo "  (or sync.ps1 on Windows) to regenerate. Generated engine dirs are gitignored."

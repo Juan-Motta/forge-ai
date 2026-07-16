@@ -1,9 +1,10 @@
 # Workflow discipline for Claude Code, Codex + OpenCode
 
-> This file is the always-on instruction set. `AGENTS.md` is a symlink to it, so
-> **Claude Code** (reads `CLAUDE.md`), **Codex** (reads `AGENTS.md`), and **OpenCode**
-> (reads `AGENTS.md`, falls back to `CLAUDE.md`) all load the exact same discipline.
-> One canonical source — no drift.
+> This file is the always-on instruction set and the **canonical source**. `AGENTS.md` is
+> a generated copy of it (run `./sync.sh`), so **Claude Code** (reads `CLAUDE.md`),
+> **Codex** (reads `AGENTS.md`), and **OpenCode** (reads `AGENTS.md`, falls back to
+> `CLAUDE.md`) all load the exact same discipline. Edit `CLAUDE.md`, then re-run sync — no
+> symlinks, no drift.
 
 ## What this is
 

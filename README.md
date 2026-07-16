@@ -29,38 +29,46 @@ they pick up the same rules, the same skills, and the same guardrails.
 
 ## How it works
 
-### One canonical source, three engines
+### One neutral source, generated per engine (no symlinks)
 
-The shippable payload lives in **`template/`** — a single copy of the instructions and
-skills. `install.sh` copies it into a target project's root, then each engine discovers it
-through its own conventional path — via symlinks created in the target — so nothing is
-duplicated.
+The shippable payload lives in **`template/`** as a single **engine-neutral source** — the
+instructions, skills, rules, and per-engine configs. `install.sh` copies it into a target
+project's root, then a generator (`sync.sh` / `sync.ps1`) produces each engine's config and
+skills **by plain copy** — no symlinks, so it works identically on macOS, Linux, and
+Windows. Editing is centralized: change the neutral source, re-run sync.
 
 ```mermaid
 flowchart TD
-    subgraph SRC["Canonical payload — template/"]
-        INS["template/CLAUDE.md<br/>(AGENTS.md symlink created in the target)"]
-        SK["template/skills/&lt;name&gt;/SKILL.md"]
-        RU["template/shared/rules/*.md"]
+    subgraph SRC["Neutral source (committed, edit here)"]
+        INS["CLAUDE.md"]
+        SK["skills/&lt;name&gt;/SKILL.md"]
+        RU["shared/rules/*.md"]
+        CF["configs/claude · configs/codex · configs/opencode"]
     end
-    SRC -->|install.sh copies to target root| T["target project root"]
-    T --> CLAUDE["Claude Code<br/>reads CLAUDE.md<br/>.claude/skills → skills"]
-    T --> CODEX["Codex<br/>reads AGENTS.md<br/>.codex/skills → skills"]
-    T --> OPEN["OpenCode<br/>reads AGENTS.md<br/>.opencode/skills → skills"]
+    SRC -->|sync.sh generates| GEN["Generated (gitignored)"]
+    GEN --> CLAUDE["Claude Code<br/>CLAUDE.md · .claude/settings.json · .claude/skills"]
+    GEN --> CODEX["Codex<br/>AGENTS.md · .codex/config.toml · .codex/skills"]
+    GEN --> OPEN["OpenCode<br/>AGENTS.md · opencode.json · .opencode/skills"]
 ```
 
-- **Payload vs repo:** everything the target gets lives under `template/`. The forge-ai
-  repo's own files — `install.sh`, `README.md`, its root dev `.claude/`, `PROJECT.md`,
-  `CONTINUITY.md`, `docs/` — are **not** payload and never travel to the target. This keeps
-  the framework's own dev config from mixing into (or shipping to) consuming projects.
-- **Instructions:** `template/CLAUDE.md` is the canonical always-on instruction set. In the
-  target, `AGENTS.md` is created as a symlink to `CLAUDE.md`. Claude Code reads `CLAUDE.md`;
-  Codex and OpenCode read `AGENTS.md`. One file, no drift, all three auto-load it.
-- **Skills:** the `SKILL.md` convention is shared by all three engines. The canonical
-  `template/skills/` folder is copied to the target's `skills/` and symlinked into each
-  engine's discovery path (`.claude/skills`, `.codex/skills`, `.opencode/skills`).
-- **Rules:** `template/shared/rules/*.md` hold the discipline (severity, TDD, ship-gates,
-  memory, continuity, models, …), referenced by the skills.
+- **Neutral source vs generated:** you edit only the neutral source (`CLAUDE.md`, `skills/`,
+  `shared/rules/`, `configs/`). The per-engine artifacts (`AGENTS.md`, `opencode.json`,
+  `.claude/`, `.codex/`, `.opencode/`) are **generated and gitignored** — never edited by
+  hand, regenerated any time with `./sync.sh` (e.g. after a clone).
+- **Instructions:** `CLAUDE.md` is the canonical set. Sync copies it to `AGENTS.md` so Claude
+  Code reads `CLAUDE.md` and Codex/OpenCode read `AGENTS.md` — same content, no drift.
+- **Skills:** `skills/` is the single source of truth. Sync copies it into each engine's
+  discovery path (`.claude/skills`, `.codex/skills`, `.opencode/skills`).
+- **Configs:** `configs/claude/settings.json`, `configs/codex/config.toml`,
+  `configs/opencode.json` are the editable, project-owned gate configs. Sync places each
+  where its engine looks for it (`.claude/settings.json`, `.codex/config.toml`, root
+  `opencode.json`).
+- **Rules:** `shared/rules/*.md` hold the discipline (severity, TDD, ship-gates, memory,
+  continuity, models, …), read in place and referenced by the skills.
+
+> **Why copies, not symlinks?** Duplication is deliberate: symlinks are fragile on Windows
+> and across zip/clone mirrors. One neutral source + a generator gives a single place to
+> edit without ever fighting symlink support.
 
 ### Enforcement model — advisory + native approval
 
@@ -81,27 +89,28 @@ Tier C, out of scope; see [`docs/extending.md`](docs/extending.md).)
 
 ### Repo layout
 
-The forge-ai **repo** separates the shippable payload from the framework's own files:
+The forge-ai **repo** is minimal — the neutral payload plus the installer:
 
 ```
 forge-ai/
 ├── template/                    # ── PAYLOAD (install.sh copies this into a target) ──
-│   ├── CLAUDE.md                #    canonical always-on instructions
+│   ├── CLAUDE.md                #    canonical instructions (neutral source)
 │   ├── skills/<name>/SKILL.md   #    canonical skills (one per workflow)
 │   ├── shared/rules/*.md        #    discipline: severity, tdd, ship-gates, memory, …
-│   ├── .claude/settings.json · .codex/config.toml · opencode.json  # per-engine config
+│   ├── configs/                 #    per-engine gate config: claude/ codex/ opencode.json
+│   ├── sync.sh · sync.ps1       #    the generator (produces engine dirs from the source)
 │   ├── docs/extending.md + empty prds/ plans/ research/ solutions/ adr/  # scaffold
 │   └── state.template.md · CONTINUITY.template.md · PROJECT.template.md
 │
-├── install.sh · README.md · LICENSE   # framework tooling + docs (NOT payload)
-├── .claude/                     # root dev config for working ON forge-ai (NOT payload)
-├── PROJECT.md · CONTINUITY.md   # this repo's own project rules + session handoff
-└── docs/                        # this repo's own history: CHANGELOG.md, adr/, design notes
+├── install.sh · install.ps1     # installers (bash + PowerShell)
+└── README.md · LICENSE          # framework docs + license
 ```
 
-After `install.sh`, the **target** gets the payload at its root — `CLAUDE.md`,
-`AGENTS.md → CLAUDE.md`, `skills/`, `shared/`, the per-engine config, and the three
-`.<engine>/skills → ../skills` symlinks — with none of forge-ai's own repo files.
+After install, a **target** project has (committed) the neutral source at its root —
+`CLAUDE.md`, `skills/`, `shared/`, `configs/`, `sync.sh`/`sync.ps1` — plus
+`PROJECT.md`/`CONTINUITY.md`. The generated, **gitignored** engine artifacts — `AGENTS.md`,
+`opencode.json`, `.claude/`, `.codex/`, `.opencode/` — are produced by `sync` and
+regenerated on demand (run it once after a fresh clone).
 
 ---
 
@@ -162,34 +171,43 @@ always runs on a **different engine than the driver**:
 
 forge-ai is the framework repo — install its discipline into a target project. It's
 **copy-based**, so the discipline travels with that repo (works on any clone, no external
-dependency):
+dependency). Use the installer for your OS:
 
 ```bash
+# macOS / Linux
 ./install.sh /path/to/your-project              # first install
 ./install.sh /path/to/your-project --upgrade    # refresh framework files later
 ```
 
+```powershell
+# Windows (PowerShell)
+pwsh ./install.ps1 C:\path\to\your-project              # first install
+pwsh ./install.ps1 C:\path\to\your-project -Upgrade     # refresh framework files later
+```
+
 What it does:
 
-- **Copies the managed baseline** (overwritten on upgrade): `CLAUDE.md`,
+- **Copies the managed baseline** (overwritten on upgrade): `CLAUDE.md`, `sync.sh`/`sync.ps1`,
   `docs/extending.md`, the `*.template.md` files, and the docs scaffolding — plus the
-  framework's own entries in `skills/` and `shared/rules/`, refreshed **by name**. Your
-  own skills/rules dropped into those dirs are left untouched, so they **survive upgrades**.
-  Then it creates the symlinks (`AGENTS.md`, `.claude/skills`, `.codex/skills`,
-  `.opencode/skills`).
+  framework's own entries in `skills/` and `shared/rules/`, refreshed **by name**. Your own
+  skills/rules dropped into those dirs are left untouched, so they **survive upgrades**.
 - **Creates project-owned files only if missing** (never clobbered on re-run): `PROJECT.md`,
-  `CONTINUITY.md`, `.claude/settings.json`, `.codex/config.toml`, `opencode.json`.
+  `CONTINUITY.md`, and the neutral configs `configs/claude/settings.json`,
+  `configs/codex/config.toml`, `configs/opencode.json`. A pre-existing engine config
+  (`.claude/settings.json`, etc.) is **migrated** into `configs/` so its gate isn't lost.
+- **Generates the engine artifacts** by running `sync` (no symlinks): `AGENTS.md`,
+  `opencode.json`, and `.claude/`, `.codex/`, `.opencode/` (config + skills). These are
+  added to `.gitignore` — regenerate them any time with `./sync.sh` (or `sync.ps1`).
 - An existing `CLAUDE.md` is backed up to `CLAUDE.md.pre-forge.bak` (move its
   project-specifics into `PROJECT.md`), and `.gitignore` is merged, not replaced.
+- Runs a **post-install validation** (all three skill-discovery paths + `AGENTS.md`
+  generated) and warns if a config lacks the push/PR gate.
 
-- Runs a **post-install validation** (all three skill-discovery symlinks + `AGENTS.md`
-  resolve) and warns if a pre-existing engine config lacks the push/PR gate.
+Then fill in `PROJECT.md`, edit the neutral source as needed (`skills/`, `configs/`,
+`CLAUDE.md`) and re-run `sync`, and open the project in any of the three engines.
 
-Then fill in `PROJECT.md` and open the project in any of the three engines.
-
-> **Windows:** the layout uses symlinks. Enable them first
-> (`git config --global core.symlinks true` + Developer Mode), or clones on Windows /
-> zip mirrors get dead files and broken skill discovery.
+> **Windows:** no symlinks are used, so nothing special is required — `install.ps1` and
+> `sync.ps1` are plain PowerShell copies. (Needs PowerShell 7 / `pwsh`.)
 
 ## How to use it
 
@@ -258,6 +276,8 @@ discover automatically.
 
 ## Status
 
-Skeleton (2026-07-15). Engines: Claude Code, Codex, OpenCode. 10 skills, 10 rules.
-Live-validated: instruction + skill discovery and `council` work across all three engines.
-Pending: interactive test of the native push/PR gate.
+Engines: Claude Code, Codex, OpenCode. 11 skills, 11 rules. Neutral-source + generator model
+(no symlinks) — cross-platform (`install.sh` + `install.ps1`), validated by dry-run install on
+both bash and PowerShell (engine dirs, configs, and `AGENTS.md` generate; `--upgrade` preserves
+project-owned configs and custom skills; a pre-existing engine config is migrated into `configs/`).
+Pending: interactive test of the native push/PR gate in each engine.

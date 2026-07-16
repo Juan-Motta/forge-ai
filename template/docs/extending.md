@@ -17,8 +17,8 @@ portability.
 
 ## Tier A — Skills only (advisory, fully portable)
 
-Anything that is a *procedure or criterion*. Add these freely — no config changes, and all
-three engines pick them up automatically via the existing symlinks.
+Anything that is a *procedure or criterion*. Add these freely — no config changes; after a
+`./sync.sh` all three engines pick them up automatically.
 
 Examples:
 
@@ -44,8 +44,9 @@ Examples:
    ---
    ```
    then the steps, referencing `shared/rules/*` and `.workflow/state.md`.
-3. Done. The three symlinks (`.claude/skills`, `.codex/skills`, `.opencode/skills` →
-   `../skills`) mean every engine discovers it. No further config.
+3. Run `./sync.sh` (or `sync.ps1` on Windows). It regenerates `.claude/skills`,
+   `.codex/skills`, `.opencode/skills` from `skills/`, so every engine discovers it. No
+   further config.
 
 **Framework vs project-own skills:** `skills/` holds both. The installer's `--upgrade`
 refreshes only the **framework's own** skills (by name) and never deletes the rest — so a

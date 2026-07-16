@@ -7,8 +7,9 @@
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 
-# Repo skills are discovered under <repo>/.codex/skills (symlinked to ../skills).
-# Discipline is loaded from AGENTS.md (symlink -> CLAUDE.md) at the repo root.
+# This file is the CANONICAL source for Codex config; ./sync.sh copies it to .codex/config.toml.
+# Repo skills are generated under <repo>/.codex/skills (copied from ./skills by sync).
+# Discipline is loaded from AGENTS.md (a generated copy of CLAUDE.md) at the repo root.
 
 # To harden the ship-gate into an actual command block (still no bash script), add a
 # Codex execpolicy `.rules` file that requires approval specifically for

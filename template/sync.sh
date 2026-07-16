@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#
+# forge-ai sync — generate each engine's config + skills from the neutral source.
+#
+#   ./sync.sh
+#
+# No symlinks (Windows-safe; use sync.ps1 on Windows). The single source of truth is the
+# neutral layout at the project root:
+#   CLAUDE.md                     → instructions (also copied to AGENTS.md)
+#   skills/<name>/SKILL.md        → skills, copied into each engine's discovery dir
+#   configs/claude/settings.json  → .claude/settings.json
+#   configs/codex/config.toml     → .codex/config.toml
+#   configs/opencode.json         → opencode.json (OpenCode reads it from the root)
+#   shared/rules/*.md             → discipline (read in place at the root; not copied)
+#
+# GENERATED (do NOT edit — regenerated on every run): AGENTS.md, opencode.json,
+# .claude/, .codex/, .opencode/. Edit the neutral source above, then re-run ./sync.sh.
+# These generated paths are gitignored; regenerate them any time (e.g. after a clone).
+#
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+[ -d "$ROOT/skills" ] || { echo "error: no skills/ base found in $ROOT" >&2; exit 2; }
+
+# instructions: CLAUDE.md -> AGENTS.md (Codex + OpenCode read AGENTS.md)
+[ -f "$ROOT/CLAUDE.md" ] && cp "$ROOT/CLAUDE.md" "$ROOT/AGENTS.md"
+
+# per-engine skills copy (full mirror: replace so deletions propagate)
+for eng in .claude .codex .opencode; do
+  mkdir -p "$ROOT/$eng"
+  rm -rf "$ROOT/$eng/skills"
+  cp -R "$ROOT/skills" "$ROOT/$eng/skills"
+done
+
+# per-engine config, placed where each engine looks for it
+[ -f "$ROOT/configs/claude/settings.json" ] && cp "$ROOT/configs/claude/settings.json" "$ROOT/.claude/settings.json"
+[ -f "$ROOT/configs/codex/config.toml" ]    && cp "$ROOT/configs/codex/config.toml"    "$ROOT/.codex/config.toml"
+[ -f "$ROOT/configs/opencode.json" ]        && cp "$ROOT/configs/opencode.json"        "$ROOT/opencode.json"
+
+echo "forge-ai sync: generated AGENTS.md, opencode.json, and .claude/.codex/.opencode (config + skills) from the neutral source"
