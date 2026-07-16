@@ -1,14 +1,47 @@
 # Ship Gates
 
-Before any outward action — `git commit`, `git push`, `gh pr create` — the required
-boxes in `.workflow/state.md` must be checked:
+Which boxes are required before an outward action (`git commit`, `git push`,
+`gh pr create`) depends on the **gate profile** of the active workflow. The skill records
+its profile in `.workflow/state.md`; `finish-branch` validates the active profile before
+shipping.
+
+## Gate profiles
+
+### `standard` — used by `new-feature`, `fix-bug`
 
 - [ ] On a feature branch (not `main`)
-- [ ] Plan written and design-reviewed by the other engine
+- [ ] Plan written and design-reviewed (cross-engine — see single-engine fallback below)
 - [ ] Tests written (TDD) and passing
-- [ ] Code review clean (no open P0/P1/P2 — see `severity.md`)
+- [ ] Code review clean — no open P0/P1/P2 (`severity.md`), cross-engine
 - [ ] Change verified by actually exercising it
 - [ ] `.workflow/state.md` updated
+
+### `light` — used by `quick-fix`
+
+- [ ] On a feature branch (not `main`)
+- [ ] Change verified (ran it, or the relevant test passes)
+- [ ] Still trivial (<3 files, no behavior risk) — otherwise **escalate** to `new-feature`/`fix-bug` and switch to the `standard` profile
+
+### No gate — `prd`, `research`, `plan`, `index`, `checkpoint`, `review`, `council`
+
+These produce an artifact or advice and don't ship on their own; they feed a workflow that
+carries one of the profiles above.
+
+## Single-engine fallback (the cross-engine review items)
+
+The `standard` profile's review items assume **≥2 engines are available**. Most users run
+one CLI, so this must degrade honestly instead of becoming unsatisfiable:
+
+If no second engine is available, satisfy the review items by either:
+- a **delayed self-review** — step away, then re-read the plan/diff fresh against
+  `severity.md` as if it were someone else's; or
+- a **human reviewer**.
+
+Then log a waiver in `.workflow/state.md`, e.g.:
+`Review: single-engine self-review (no second engine available) — <date>`
+
+Cross-engine review is the default and preferred (real model diversity). The waiver just
+makes the degradation **explicit and auditable**, never silent.
 
 ## How enforcement works here (advisory + a best-effort native prompt)
 
@@ -16,7 +49,7 @@ boxes in `.workflow/state.md` must be checked:
 blocks a commit when a box is unchecked. Two things stand in — both advisory:
 
 1. **Advisory (all engines):** you are instructed — here and in the workflow skill — not
-   to ship until the boxes pass. Honor it.
+   to ship until the profile's boxes pass. Honor it.
 2. **Best-effort native prompt (per engine):** each engine can prompt for human approval
    on outward commands — but it reads **no** gate state and matches commands by pattern,
    so it is bypassable (e.g. `git -C . push`, a PR via API, another tool):
@@ -29,7 +62,3 @@ blocks a commit when a box is unchecked. Two things stand in — both advisory:
 The prompt shows the human a generic "allow this command?", **not** the checklist — so it
 is a commit-confirmation, not proof the gates are green. The approver must
 **independently check `.workflow/state.md` before approving.**
-
-> A later phase can replace the advisory layer with hook-based conditional blocking
-> (deny when a box is unchecked). That needs harness hooks/scripts, deliberately out of
-> scope for this build. See `docs/`.

@@ -25,6 +25,15 @@ Use the reviewer model + effort from `shared/rules/models.md`. Give the reviewer
 target + this instruction: report findings tagged by severity (`shared/rules/severity.md`)
 with location and a concrete fix.
 
+**Invoke the reviewer read-only.** It judges the diff/plan; it must not change it. Use
+read-only permissions (Codex `--sandbox read-only`; Claude/OpenCode: no write/edit tools)
+and hand it the plan/diff as text. Afterward, confirm the working-tree diff is unchanged.
+
+**Single-engine fallback.** If no second engine is available, do a delayed self-review (or
+use a human reviewer) and log a waiver in `.workflow/state.md` — see the fallback in
+`shared/rules/ship-gates.md`. Cross-engine is preferred; the waiver keeps the degradation
+explicit, not silent.
+
 ## 3. Collect findings
 
 Gather the reviewer's output as P0/P1/P2/P3 items. If output is missing or unparseable,

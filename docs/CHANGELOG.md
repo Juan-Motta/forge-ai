@@ -13,6 +13,13 @@ Notable changes, newest first. One short entry per shipped change. See
   `approval_policy` description). Substantive findings deferred to follow-up (see
   CONTINUITY.md): single-engine review path, per-workflow gate profiles, finish-branch
   ordering, read-only reviewer, installer config-propagation, Windows symlink note.
+- Council fixes (2, substantive): added **gate profiles** (`standard`/`light`/none) so
+  `quick-fix`/`fix-bug` aren't held to the full gate; added a **single-engine review
+  fallback** (delayed self-review or human + logged waiver); reordered `finish-branch` to
+  **record changelog/memory before the ship commit**; made `review`/`council` reviewers
+  **read-only** (+ models.md note); `install.sh` now **validates** skill-discovery +
+  AGENTS.md post-install and **warns** if a pre-existing engine config lacks the gate;
+  documented the **Windows symlink** prerequisite.
 - Add `index` skill + `docs/index.md` — a high-level project map (structure, entry points,
   conventions) for fast agent orientation; refreshable, kept high-level to resist staleness.
 - `install.sh` now refreshes framework `skills/` and `shared/rules/` **per entry (by

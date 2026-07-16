@@ -38,6 +38,8 @@ all reason the same way, e.g.:
 
 Send each advisor the **same framed question** (plus its lens), and do it
 **independently** — an advisor must not see another's answer, or you lose the diversity.
+Invoke advisors **read-only** (they advise, they don't edit — Codex `--sandbox read-only`;
+Claude/OpenCode: no write/edit tools).
 Use each engine's non-interactive mode, with the council-advisor models + effort from
 `shared/rules/models.md` (span all three engines for max diversity), e.g.:
 

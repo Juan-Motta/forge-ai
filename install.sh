@@ -96,6 +96,32 @@ if ! grep -qx '.workflow/' "$TARGET/.gitignore"; then
   printf '\n# forge-ai\n.DS_Store\n.workflow/\n' >> "$TARGET/.gitignore"
 fi
 
+# --- warn if a pre-existing engine config lacks the forge push/PR gate ---
+# (project-owned configs are created-if-missing, so an already-configured project keeps
+#  its own file — but then it may not gate ships. Warn instead of silently leaving it.)
+warn_gate() {  # $1 = file, $2 = grep needle, $3 = hint
+  if [ -f "$TARGET/$1" ] && ! grep -q "$2" "$TARGET/$1" 2>/dev/null; then
+    echo "  ! $1 exists but has no forge push/PR gate ($3) — add it manually."
+  fi
+}
+warn_gate ".claude/settings.json" "git push"      "ask-tier on git push / gh pr create"
+warn_gate ".codex/config.toml"    "approval_policy" "approval_policy"
+warn_gate "opencode.json"         "git push"      "permission.bash git push* / gh pr create*"
+
+# --- post-install validation: skill discovery + AGENTS.md must resolve ---
+ok=1
+for p in .claude/skills .codex/skills .opencode/skills; do
+  [ -e "$TARGET/$p/new-feature/SKILL.md" ] || { echo "  ! discovery FAILED: $p does not surface skills"; ok=0; }
+done
+[ -e "$TARGET/AGENTS.md" ] || { echo "  ! AGENTS.md does not resolve"; ok=0; }
+if [ "$ok" = 1 ]; then
+  echo "  ✓ validation: all three skill-discovery paths + AGENTS.md resolve"
+else
+  echo "  ✗ validation found issues above — fix before relying on forge-ai here"
+fi
+
 echo "forge-ai installed."
 echo "  next: (1) fill PROJECT.md   (2) in Codex, trust the project when prompted"
 echo "        (3) open the project in any of Claude Code / Codex / OpenCode"
+echo "  note: this uses symlinks — on Windows enable them first"
+echo "        (git config --global core.symlinks true + Developer Mode), or clones get dead files."

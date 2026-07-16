@@ -165,7 +165,14 @@ What it does:
 - An existing `CLAUDE.md` is backed up to `CLAUDE.md.pre-forge.bak` (move its
   project-specifics into `PROJECT.md`), and `.gitignore` is merged, not replaced.
 
+- Runs a **post-install validation** (all three skill-discovery symlinks + `AGENTS.md`
+  resolve) and warns if a pre-existing engine config lacks the push/PR gate.
+
 Then fill in `PROJECT.md` and open the project in any of the three engines.
+
+> **Windows:** the layout uses symlinks. Enable them first
+> (`git config --global core.symlinks true` + Developer Mode), or clones on Windows /
+> zip mirrors get dead files and broken skill discovery.
 
 ## How to use it
 

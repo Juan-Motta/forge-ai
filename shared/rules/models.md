@@ -26,6 +26,13 @@ engine(s)** to use:
 | **Research** (when delegated) | a non-driver, web/synthesis-capable engine |
 | **Council advisors** | all three (max diversity) |
 
+## Read-only for reviewers / advisors
+
+A reviewer (`review`) or council advisor must not modify the working tree it's judging.
+Invoke it read-only: Codex `--sandbox read-only`; for Claude/OpenCode restrict to
+read-only (no write/edit tools). Hand it the diff/plan as text and confirm the
+working-tree diff is unchanged afterward.
+
 ## Cost note
 
 These are quality-first defaults (top models, high effort) because review/council
