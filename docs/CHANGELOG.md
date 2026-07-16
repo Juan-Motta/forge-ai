@@ -7,6 +7,9 @@ Notable changes, newest first. One short entry per shipped change. See
 
 - Add `index` skill + `docs/index.md` — a high-level project map (structure, entry points,
   conventions) for fast agent orientation; refreshable, kept high-level to resist staleness.
+- `install.sh` now refreshes framework `skills/` and `shared/rules/` **per entry (by
+  name)** instead of wholesale replace — so a project's own skills/rules added to those
+  dirs survive `--upgrade`.
 - Fix `install.sh` skills-symlink handling: when a target already has a real
   `.claude/skills` (or `.codex`/`.opencode`) directory, warn and leave it instead of
   creating a broken nested `skills/skills` symlink; back up a real `AGENTS.md` too.

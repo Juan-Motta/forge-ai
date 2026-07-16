@@ -8,7 +8,9 @@
 # clone, no external dependency). Re-run with --upgrade to refresh the framework files.
 #
 # MANAGED (framework baseline — OVERWRITTEN on install/upgrade):
-#   CLAUDE.md, skills/, shared/rules/, docs/extending.md, *.template.md
+#   CLAUDE.md, docs/extending.md, *.template.md, and the framework's OWN entries in
+#   skills/ and shared/rules/ (refreshed by name). Your own skills/rules dropped into
+#   those dirs are left untouched — they survive upgrades (selective, not wholesale).
 # PROJECT-OWNED (created only if missing — NEVER clobbered):
 #   PROJECT.md, CONTINUITY.md, .claude/settings.json, .codex/config.toml, opencode.json
 #
@@ -32,9 +34,18 @@ if [ -f "$TARGET/CLAUDE.md" ] && ! grep -q "Workflow discipline for Claude Code"
 fi
 cp "$SRC/CLAUDE.md" "$TARGET/CLAUDE.md"
 
-# --- MANAGED: skills/ and shared/rules/ (clean replace) ---
-rm -rf "$TARGET/skills"; cp -R "$SRC/skills" "$TARGET/skills"
-mkdir -p "$TARGET/shared"; rm -rf "$TARGET/shared/rules"; cp -R "$SRC/shared/rules" "$TARGET/shared/rules"
+# --- MANAGED: framework skills/ and shared/rules/ (per-entry overwrite by name) ---
+# Refresh only the framework's own entries; anything else in these dirs (your project's
+# own skills/rules) is left untouched, so it survives --upgrade.
+mkdir -p "$TARGET/skills" "$TARGET/shared/rules"
+for d in "$SRC"/skills/*/; do
+  name="$(basename "$d")"
+  rm -rf "$TARGET/skills/$name"
+  cp -R "$d" "$TARGET/skills/$name"
+done
+for f in "$SRC"/shared/rules/*.md; do
+  cp "$f" "$TARGET/shared/rules/$(basename "$f")"
+done
 
 # --- MANAGED: templates + framework doc + docs/ scaffolding ---
 cp "$SRC/state.template.md" "$TARGET/state.template.md"

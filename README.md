@@ -153,9 +153,11 @@ dependency):
 
 What it does:
 
-- **Copies the managed baseline** (overwritten on upgrade): `CLAUDE.md`, `skills/`,
-  `shared/rules/`, `docs/extending.md`, the `*.template.md` files, and the docs scaffolding
-  — then creates the symlinks (`AGENTS.md`, `.claude/skills`, `.codex/skills`,
+- **Copies the managed baseline** (overwritten on upgrade): `CLAUDE.md`,
+  `docs/extending.md`, the `*.template.md` files, and the docs scaffolding — plus the
+  framework's own entries in `skills/` and `shared/rules/`, refreshed **by name**. Your
+  own skills/rules dropped into those dirs are left untouched, so they **survive upgrades**.
+  Then it creates the symlinks (`AGENTS.md`, `.claude/skills`, `.codex/skills`,
   `.opencode/skills`).
 - **Creates project-owned files only if missing** (never clobbered on re-run): `PROJECT.md`,
   `CONTINUITY.md`, `.claude/settings.json`, `.codex/config.toml`, `opencode.json`.

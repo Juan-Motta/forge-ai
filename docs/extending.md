@@ -47,6 +47,11 @@ Examples:
 3. Done. The three symlinks (`.claude/skills`, `.codex/skills`, `.opencode/skills` →
    `../skills`) mean every engine discovers it. No further config.
 
+**Framework vs project-own skills:** `skills/` holds both. The installer's `--upgrade`
+refreshes only the **framework's own** skills (by name) and never deletes the rest — so a
+skill you add here survives upgrades. (Same for `shared/rules/`.) Give your own skills
+names distinct from the framework's, or an upgrade will overwrite the collision.
+
 ---
 
 ## Tier B — Skills + agent-invoked scripts (deterministic, still advisory)
