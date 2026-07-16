@@ -12,7 +12,10 @@
 #   configs\codex\config.toml     -> .codex\config.toml
 #   configs\opencode.json         -> opencode.json (OpenCode reads it from the root)
 #
-# GENERATED (do NOT edit): AGENTS.md, opencode.json, .claude, .codex, .opencode. Edit the
+# Skill discovery differs per engine: Claude Code -> .claude\skills; Codex -> .agents\skills;
+# OpenCode -> any of .opencode/.claude/.agents. So .claude\skills + .agents\skills covers all.
+#
+# GENERATED (do NOT edit): AGENTS.md, opencode.json, .claude, .agents, .codex. Edit the
 # neutral source above, then re-run this script. Generated paths are gitignored.
 #
 $ErrorActionPreference = 'Stop'
@@ -26,16 +29,18 @@ if (-not (Test-Path (Join-Path $Root 'skills'))) {
 $claude = Join-Path $Root 'CLAUDE.md'
 if (Test-Path $claude) { Copy-Item $claude (Join-Path $Root 'AGENTS.md') -Force }
 
-# per-engine skills copy (full mirror: replace so deletions propagate)
-foreach ($eng in '.claude', '.codex', '.opencode') {
-  $engPath = Join-Path $Root $eng
-  New-Item -ItemType Directory -Force -Path $engPath | Out-Null
-  $skillsPath = Join-Path $engPath 'skills'
+# skills -> each engine's discovery dir (full mirror: replace so deletions propagate).
+# .claude\skills = Claude Code (+ OpenCode); .agents\skills = Codex (+ OpenCode).
+foreach ($dir in '.claude', '.agents') {
+  $dirPath = Join-Path $Root $dir
+  New-Item -ItemType Directory -Force -Path $dirPath | Out-Null
+  $skillsPath = Join-Path $dirPath 'skills'
   if (Test-Path $skillsPath) { Remove-Item -Recurse -Force $skillsPath }
   Copy-Item -Recurse (Join-Path $Root 'skills') $skillsPath
 }
 
 # per-engine config, placed where each engine looks for it
+New-Item -ItemType Directory -Force -Path (Join-Path $Root '.claude'), (Join-Path $Root '.codex') | Out-Null
 $cClaude = Join-Path $Root 'configs\claude\settings.json'
 if (Test-Path $cClaude) { Copy-Item $cClaude (Join-Path $Root '.claude\settings.json') -Force }
 $cCodex = Join-Path $Root 'configs\codex\config.toml'
@@ -43,4 +48,4 @@ if (Test-Path $cCodex) { Copy-Item $cCodex (Join-Path $Root '.codex\config.toml'
 $cOpen = Join-Path $Root 'configs\opencode.json'
 if (Test-Path $cOpen) { Copy-Item $cOpen (Join-Path $Root 'opencode.json') -Force }
 
-Write-Host "forge-ai sync: generated AGENTS.md, opencode.json, and .claude/.codex/.opencode (config + skills) from the neutral source"
+Write-Host "forge-ai sync: generated AGENTS.md, opencode.json, .claude/ (settings + skills), .agents/skills, and .codex/config.toml from the neutral source"

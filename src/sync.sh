@@ -13,8 +13,12 @@
 #   configs/opencode.json         → opencode.json (OpenCode reads it from the root)
 #   shared/rules/*.md             → discipline (read in place at the root; not copied)
 #
+# Skill discovery paths differ per engine (verified against each CLI's docs):
+#   Claude Code → .claude/skills   |   Codex → .agents/skills   |   OpenCode → any of
+#   .opencode/.claude/.agents. So .claude/skills + .agents/skills covers all three.
+#
 # GENERATED (do NOT edit — regenerated on every run): AGENTS.md, opencode.json,
-# .claude/, .codex/, .opencode/. Edit the neutral source above, then re-run ./sync.sh.
+# .claude/, .agents/, .codex/. Edit the neutral source above, then re-run ./sync.sh.
 # These generated paths are gitignored; regenerate them any time (e.g. after a clone).
 #
 set -euo pipefail
@@ -25,16 +29,18 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 # instructions: CLAUDE.md -> AGENTS.md (Codex + OpenCode read AGENTS.md)
 [ -f "$ROOT/CLAUDE.md" ] && cp "$ROOT/CLAUDE.md" "$ROOT/AGENTS.md"
 
-# per-engine skills copy (full mirror: replace so deletions propagate)
-for eng in .claude .codex .opencode; do
-  mkdir -p "$ROOT/$eng"
-  rm -rf "$ROOT/$eng/skills"
-  cp -R "$ROOT/skills" "$ROOT/$eng/skills"
+# skills -> each engine's discovery dir (full mirror: replace so deletions propagate).
+# .claude/skills = Claude Code (+ OpenCode); .agents/skills = Codex (+ OpenCode).
+for dir in .claude .agents; do
+  mkdir -p "$ROOT/$dir"
+  rm -rf "$ROOT/$dir/skills"
+  cp -R "$ROOT/skills" "$ROOT/$dir/skills"
 done
 
 # per-engine config, placed where each engine looks for it
+mkdir -p "$ROOT/.claude" "$ROOT/.codex"
 [ -f "$ROOT/configs/claude/settings.json" ] && cp "$ROOT/configs/claude/settings.json" "$ROOT/.claude/settings.json"
 [ -f "$ROOT/configs/codex/config.toml" ]    && cp "$ROOT/configs/codex/config.toml"    "$ROOT/.codex/config.toml"
 [ -f "$ROOT/configs/opencode.json" ]        && cp "$ROOT/configs/opencode.json"        "$ROOT/opencode.json"
 
-echo "forge-ai sync: generated AGENTS.md, opencode.json, and .claude/.codex/.opencode (config + skills) from the neutral source"
+echo "forge-ai sync: generated AGENTS.md, opencode.json, .claude/ (settings + skills), .agents/skills, and .codex/config.toml from the neutral source"

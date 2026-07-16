@@ -47,18 +47,20 @@ flowchart TD
     end
     SRC -->|sync.sh generates| GEN["Generated (gitignored)"]
     GEN --> CLAUDE["Claude Code<br/>CLAUDE.md · .claude/settings.json · .claude/skills"]
-    GEN --> CODEX["Codex<br/>AGENTS.md · .codex/config.toml · .codex/skills"]
-    GEN --> OPEN["OpenCode<br/>AGENTS.md · opencode.json · .opencode/skills"]
+    GEN --> CODEX["Codex<br/>AGENTS.md · .codex/config.toml · .agents/skills"]
+    GEN --> OPEN["OpenCode<br/>AGENTS.md · opencode.json · reads .claude/.agents skills"]
 ```
 
 - **Neutral source vs generated:** you edit only the neutral source (`CLAUDE.md`, `skills/`,
   `shared/rules/`, `configs/`). The per-engine artifacts (`AGENTS.md`, `opencode.json`,
-  `.claude/`, `.codex/`, `.opencode/`) are **generated and gitignored** — never edited by
+  `.claude/`, `.agents/`, `.codex/`) are **generated and gitignored** — never edited by
   hand, regenerated any time with `./sync.sh` (e.g. after a clone).
 - **Instructions:** `CLAUDE.md` is the canonical set. Sync copies it to `AGENTS.md` so Claude
   Code reads `CLAUDE.md` and Codex/OpenCode read `AGENTS.md` — same content, no drift.
-- **Skills:** `skills/` is the single source of truth. Sync copies it into each engine's
-  discovery path (`.claude/skills`, `.codex/skills`, `.opencode/skills`).
+- **Skills:** `skills/` is the single source of truth. Sync copies it into the two paths that
+  cover all three engines: `.claude/skills` (Claude Code, also read by OpenCode) and
+  `.agents/skills` (Codex, also read by OpenCode). Codex only discovers project skills under
+  `.agents/skills` — not `.codex/skills`.
 - **Configs:** `configs/claude/settings.json`, `configs/codex/config.toml`,
   `configs/opencode.json` are the editable, project-owned gate configs. Sync places each
   where its engine looks for it (`.claude/settings.json`, `.codex/config.toml`, root
@@ -111,7 +113,7 @@ forge-ai/
 After install, a **target** project has (committed) the neutral source at its root —
 `CLAUDE.md`, `skills/`, `shared/`, `configs/`, `sync.sh`/`sync.ps1` — plus
 `PROJECT.md`/`CONTINUITY.md`. The generated, **gitignored** engine artifacts — `AGENTS.md`,
-`opencode.json`, `.claude/`, `.codex/`, `.opencode/` — are produced by `sync` and
+`opencode.json`, `.claude/`, `.agents/`, `.codex/` — are produced by `sync` and
 regenerated on demand (run it once after a fresh clone).
 
 ---
@@ -199,7 +201,7 @@ What it does:
   `configs/codex/config.toml`, `configs/opencode.json`. A pre-existing engine config
   (`.claude/settings.json`, etc.) is **migrated** into `configs/` so its gate isn't lost.
 - **Generates the engine artifacts** by running `sync` (no symlinks): `AGENTS.md`,
-  `opencode.json`, and `.claude/`, `.codex/`, `.opencode/` (config + skills). These are
+  `opencode.json`, and `.claude/`, `.agents/`, `.codex/` (config + skills). These are
   added to `.gitignore` — regenerate them any time with `./sync.sh` (or `sync.ps1`).
 - An existing `CLAUDE.md` is backed up to `CLAUDE.md.pre-forge.bak` (move its
   project-specifics into `PROJECT.md`), and `.gitignore` is merged, not replaced.
@@ -217,7 +219,7 @@ Then fill in `PROJECT.md`, edit the neutral source as needed (`skills/`, `config
 ### 1. Open the project in any engine
 
 - **Claude Code** — open the folder; `CLAUDE.md` and `.claude/skills/` load automatically.
-- **Codex** — open the folder; `AGENTS.md` and `.codex/skills/` load automatically. Trust
+- **Codex** — open the folder; `AGENTS.md` and `.agents/skills/` load automatically. Trust
   the project when prompted.
 - **OpenCode** — open the folder; `AGENTS.md` and the skills load automatically;
   `opencode.json` applies the push/PR approval gate.

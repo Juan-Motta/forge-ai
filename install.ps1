@@ -8,9 +8,9 @@
 # The shippable payload is the NEUTRAL source in ./src/. Keeping it in a subfolder keeps the
 # repo root free of files that would collide when working ON forge-ai. This installer copies
 # src/* into the target's root, then runs sync.ps1 to GENERATE each engine's config + skills
-# (.claude/.codex/.opencode +
-# AGENTS.md + opencode.json). No symlinks (Windows-safe). Generated engine artifacts are
-# gitignored — regenerate any time with ./sync.ps1.
+# (.claude/ + .agents/skills + .codex/config.toml + AGENTS.md + opencode.json). No symlinks
+# (Windows-safe). Generated engine artifacts are gitignored — regenerate any time with
+# ./sync.ps1.
 #
 param(
   [Parameter(Mandatory = $true)][string]$Target,
@@ -99,7 +99,7 @@ Seed-Config 'configs/codex/config.toml'    '.codex/config.toml'
 Seed-Config 'configs/opencode.json'        'opencode.json'
 
 # --- back up any pre-existing, NON-forge per-engine skills dir before sync overwrites it ---
-foreach ($eng in '.claude', '.codex', '.opencode') {
+foreach ($eng in '.claude', '.agents') {
   $sd = Join-Path $Target "$eng/skills"
   if ((Test-Path $sd) -and -not (Test-Path (Join-Path $sd 'new-feature/SKILL.md'))) {
     Move-Item $sd "$sd.pre-forge.bak"
@@ -125,8 +125,8 @@ if (-not (Select-String -Quiet -SimpleMatch $marker $gi)) {
 
 # forge-ai (generated — regenerate with ./sync.sh)
 .claude/
+.agents/
 .codex/
-.opencode/
 /AGENTS.md
 /opencode.json
 
@@ -150,14 +150,14 @@ Warn-Gate 'configs/opencode.json'        'git push'       'permission.bash git p
 
 # --- post-install validation: generated skill copies + AGENTS.md must exist ---
 $ok = $true
-foreach ($p in '.claude/skills', '.codex/skills', '.opencode/skills') {
+foreach ($p in '.claude/skills', '.agents/skills') {
   if (-not (Test-Path (Join-Path $Target "$p/new-feature/SKILL.md"))) {
     Write-Host "  ! discovery FAILED: $p was not generated"; $ok = $false
   }
 }
 if (-not (Test-Path $tAgents)) { Write-Host "  ! AGENTS.md was not generated"; $ok = $false }
 if ($ok) {
-  Write-Host "  + validation: all three skill-discovery paths + AGENTS.md generated"
+  Write-Host "  + validation: skill-discovery paths (.claude + .agents) + AGENTS.md generated"
 } else {
   Write-Host "  x validation found issues above — fix before relying on forge-ai here"
 }

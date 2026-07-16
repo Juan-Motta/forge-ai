@@ -24,7 +24,9 @@
 #   PROJECT.md, CONTINUITY.md, configs/claude/settings.json, configs/codex/config.toml,
 #   configs/opencode.json  (edit these to customize; sync regenerates the engine dirs)
 # GENERATED (gitignored; produced by sync.sh — do NOT edit):
-#   AGENTS.md, opencode.json, .claude/, .codex/, .opencode/
+#   AGENTS.md, opencode.json, .claude/, .agents/, .codex/
+#   (skills live in .claude/skills for Claude Code + .agents/skills for Codex; OpenCode
+#    reads either — verified per each engine's docs.)
 #
 set -euo pipefail
 
@@ -97,7 +99,7 @@ seed_config configs/opencode.json        opencode.json
 
 # --- back up any pre-existing, NON-forge per-engine skills dir before sync overwrites it ---
 # (forge-generated copies contain new-feature/SKILL.md; a dir without it is the user's own.)
-for eng in .claude .codex .opencode; do
+for eng in .claude .agents; do
   sd="$TARGET/$eng/skills"
   if [ -e "$sd" ] && [ ! -e "$sd/new-feature/SKILL.md" ]; then
     mv "$sd" "$sd.pre-forge.bak"
@@ -118,7 +120,7 @@ touch "$TARGET/.gitignore"
 if ! grep -qx '# forge-ai (generated — regenerate with ./sync.sh)' "$TARGET/.gitignore"; then
   {
     printf '\n# forge-ai (generated — regenerate with ./sync.sh)\n'
-    printf '.claude/\n.codex/\n.opencode/\n/AGENTS.md\n/opencode.json\n'
+    printf '.claude/\n.agents/\n.codex/\n/AGENTS.md\n/opencode.json\n'
     printf '\n# forge-ai (local state)\n.DS_Store\n.workflow/\n'
   } >> "$TARGET/.gitignore"
 fi
@@ -135,12 +137,12 @@ warn_gate "configs/opencode.json"        "git push"       "permission.bash git p
 
 # --- post-install validation: generated skill copies + AGENTS.md must exist ---
 ok=1
-for p in .claude/skills .codex/skills .opencode/skills; do
+for p in .claude/skills .agents/skills; do
   [ -e "$TARGET/$p/new-feature/SKILL.md" ] || { echo "  ! discovery FAILED: $p was not generated"; ok=0; }
 done
 [ -f "$TARGET/AGENTS.md" ] || { echo "  ! AGENTS.md was not generated"; ok=0; }
 if [ "$ok" = 1 ]; then
-  echo "  ✓ validation: all three skill-discovery paths + AGENTS.md generated"
+  echo "  ✓ validation: skill-discovery paths (.claude + .agents) + AGENTS.md generated"
 else
   echo "  ✗ validation found issues above — fix before relying on forge-ai here"
 fi
