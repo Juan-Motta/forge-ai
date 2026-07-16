@@ -4,10 +4,11 @@
 #
 #   ./install.sh <target-dir> [--upgrade]
 #
-# The shippable payload is the NEUTRAL source at this repo's root (CLAUDE.md, skills/,
-# shared/rules/, configs/, sync.sh/ps1, docs/, *.template.md). This installer copies those
-# named items into the target's root (framework-only files like install.sh/README/LICENSE
-# are never copied), then runs sync.sh to GENERATE each engine's config + skills
+# The shippable payload is the NEUTRAL source in ./src/ (CLAUDE.md, skills/, shared/rules/,
+# configs/, sync.sh/ps1, docs/, *.template.md). Keeping it in a subfolder keeps the repo
+# root free of files that would collide when working ON forge-ai (e.g. a root CLAUDE.md or
+# docs/). This installer copies src/* into the target's root, then runs sync.sh to GENERATE
+# each engine's config + skills
 # (.claude/.codex/.opencode + AGENTS.md + opencode.json). No symlinks anywhere
 # (Windows-safe). The generated engine artifacts are gitignored — regenerate them any time
 # with ./sync.sh (or sync.ps1).
@@ -28,7 +29,7 @@
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
-PAYLOAD="$SRC"
+PAYLOAD="$SRC/src"
 TARGET="${1:-}"
 MODE="${2:-install}"
 

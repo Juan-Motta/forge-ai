@@ -5,9 +5,10 @@
 #
 #   pwsh ./install.ps1 <target-dir> [-Upgrade]
 #
-# The shippable payload is the NEUTRAL source at this repo's root. This installer copies the
-# named payload items into the target's root (framework-only files are never copied), then
-# runs sync.ps1 to GENERATE each engine's config + skills (.claude/.codex/.opencode +
+# The shippable payload is the NEUTRAL source in ./src/. Keeping it in a subfolder keeps the
+# repo root free of files that would collide when working ON forge-ai. This installer copies
+# src/* into the target's root, then runs sync.ps1 to GENERATE each engine's config + skills
+# (.claude/.codex/.opencode +
 # AGENTS.md + opencode.json). No symlinks (Windows-safe). Generated engine artifacts are
 # gitignored — regenerate any time with ./sync.ps1.
 #
@@ -18,7 +19,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $Src = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Payload = $Src
+$Payload = Join-Path $Src 'src'
 $Mode = if ($Upgrade) { 'upgrade' } else { 'install' }
 
 if (-not (Test-Path -PathType Container $Target)) { Write-Error "target dir not found: $Target"; exit 2 }

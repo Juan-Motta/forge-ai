@@ -31,7 +31,7 @@ they pick up the same rules, the same skills, and the same guardrails.
 
 ### One neutral source, generated per engine (no symlinks)
 
-The shippable payload is a single **engine-neutral source** at the repo root — the
+The shippable payload is a single **engine-neutral source** in **`src/`** — the
 instructions, skills, rules, and per-engine configs. `install.sh` copies it into a target
 project's root, then a generator (`sync.sh` / `sync.ps1`) produces each engine's config and
 skills **by plain copy** — no symlinks, so it works identically on macOS, Linux, and
@@ -89,22 +89,23 @@ Tier C, out of scope; see [`docs/extending.md`](docs/extending.md).)
 
 ### Repo layout
 
-The neutral payload lives at the repo root, next to the installers. The installer copies the
-payload items by name, so the framework-only files (`install.sh`, `install.ps1`, `README.md`,
-`LICENSE`) never travel to a target:
+The payload lives in `src/`, keeping the repo root free of files that would collide when
+working ON forge-ai (a root `CLAUDE.md`, `docs/`, etc.). `install.sh` copies `src/*` into a
+target's root; the framework-only files at the root never travel:
 
 ```
 forge-ai/
-├── CLAUDE.md                 # canonical instructions (neutral source)   ┐
-├── skills/<name>/SKILL.md    # canonical skills (one per workflow)       │
-├── shared/rules/*.md         # discipline: severity, tdd, ship-gates, …  │ PAYLOAD
-├── configs/                  # per-engine gate config: claude/ codex/ opencode.json
-├── sync.sh · sync.ps1        # the generator (produces engine dirs)      │ (copied to
-├── docs/extending.md + empty prds/ plans/ research/ solutions/ adr/      │  a target)
-├── state.template.md · CONTINUITY.template.md · PROJECT.template.md      ┘
+├── src/                          # ── PAYLOAD (install.sh copies src/* into a target) ──
+│   ├── CLAUDE.md                 #    canonical instructions (neutral source)
+│   ├── skills/<name>/SKILL.md    #    canonical skills (one per workflow)
+│   ├── shared/rules/*.md         #    discipline: severity, tdd, ship-gates, memory, …
+│   ├── configs/                  #    per-engine gate config: claude/ codex/ opencode.json
+│   ├── sync.sh · sync.ps1        #    the generator (produces engine dirs from the source)
+│   ├── docs/extending.md + empty prds/ plans/ research/ solutions/ adr/  # scaffold
+│   └── state.template.md · CONTINUITY.template.md · PROJECT.template.md
 │
-├── install.sh · install.ps1  # installers (bash + PowerShell)   ┐ framework only
-└── README.md · LICENSE       # framework docs + license          ┘ (never copied)
+├── install.sh · install.ps1      # installers (bash + PowerShell)   ┐ framework only
+└── README.md · LICENSE           # framework docs + license          ┘ (never copied)
 ```
 
 After install, a **target** project has (committed) the neutral source at its root —
