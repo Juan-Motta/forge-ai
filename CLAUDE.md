@@ -44,6 +44,7 @@ on outward actions (push / PR). It runs identically under Claude Code, Codex, an
 - `council` — multi-perspective decision analysis: several engines as advisors → synthesized verdict + minority report (for hard, expensive forks)
 - `finish-branch` — close out a branch: confirm gates → final verify → commit → push → PR
 - `checkpoint` — write a clean session handoff to `CONTINUITY.md` before closing / context reset
+- `index` — generate/refresh `docs/index.md`, a high-level project map for fast orientation
 
 ## Discipline reference (`shared/rules/`)
 

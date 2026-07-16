@@ -11,6 +11,7 @@ findable and portable across all three engines.
 | `docs/solutions/<slug>.md` | Solved-bug knowledge base (symptom→cause→fix) | `fix-bug` |
 | `docs/adr/<NNN>-<slug>.md` | Architecture decision records | `plan`, `council` |
 | `docs/CHANGELOG.md` | Human-readable history of notable changes | `finish-branch` / ship |
+| `docs/index.md` | High-level project map (structure, entry points, conventions) | `index` |
 
 ## Rules
 

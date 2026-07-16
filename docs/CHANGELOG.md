@@ -5,6 +5,8 @@ Notable changes, newest first. One short entry per shipped change. See
 
 ## 2026-07-15
 
+- Add `index` skill + `docs/index.md` — a high-level project map (structure, entry points,
+  conventions) for fast agent orientation; refreshable, kept high-level to resist staleness.
 - Add `install.sh` — copy-based installer to deploy the discipline into a target project
   (managed baseline overwritten; project-owned files created-if-missing; existing CLAUDE.md
   backed up; `.gitignore` merged). Idempotent / `--upgrade`.
