@@ -5,10 +5,11 @@
 #
 #   pwsh ./install.ps1 <target-dir> [-Upgrade]
 #
-# The shippable payload lives in ./template/ as a single NEUTRAL source. This installer
-# copies it into the target's root, then runs sync.ps1 to GENERATE each engine's config +
-# skills (.claude/.codex/.opencode + AGENTS.md + opencode.json). No symlinks (Windows-safe).
-# Generated engine artifacts are gitignored — regenerate any time with ./sync.ps1.
+# The shippable payload is the NEUTRAL source at this repo's root. This installer copies the
+# named payload items into the target's root (framework-only files are never copied), then
+# runs sync.ps1 to GENERATE each engine's config + skills (.claude/.codex/.opencode +
+# AGENTS.md + opencode.json). No symlinks (Windows-safe). Generated engine artifacts are
+# gitignored — regenerate any time with ./sync.ps1.
 #
 param(
   [Parameter(Mandatory = $true)][string]$Target,
@@ -17,13 +18,15 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $Src = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Payload = Join-Path $Src 'template'
+$Payload = $Src
 $Mode = if ($Upgrade) { 'upgrade' } else { 'install' }
 
 if (-not (Test-Path -PathType Container $Target)) { Write-Error "target dir not found: $Target"; exit 2 }
 $Target = (Resolve-Path $Target).Path
 if ($Target -eq $Src) { Write-Error "refusing to install into forge-ai itself"; exit 2 }
-if (-not (Test-Path -PathType Container $Payload)) { Write-Error "payload dir not found: $Payload (run from the forge-ai repo)"; exit 2 }
+if (-not ((Test-Path (Join-Path $Payload 'CLAUDE.md')) -and (Test-Path (Join-Path $Payload 'skills')))) {
+  Write-Error "payload not found — run this from the forge-ai repo root"; exit 2
+}
 
 Write-Host "forge-ai -> installing into: $Target  (mode: $Mode)"
 

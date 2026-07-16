@@ -8,9 +8,11 @@
 # Transient workflow state — the per-workflow checklist is local working state.
 .workflow/
 
-# Engine artifacts — generated/dev only, never part of the repo. When an agent (Claude
-# Code / Codex / OpenCode) is used to develop forge-ai it creates these; they are not
-# relevant to end users and are regenerated on demand by template/sync.sh.
+# Engine artifacts — generated/dev only, never part of the repo. The neutral source now
+# lives at the repo root, so running ./sync.sh here (dogfooding) also generates these plus
+# AGENTS.md / opencode.json. All regenerated on demand; not relevant to end users.
 .claude/
 .codex/
 .opencode/
+/AGENTS.md
+/opencode.json

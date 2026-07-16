@@ -4,11 +4,13 @@
 #
 #   ./install.sh <target-dir> [--upgrade]
 #
-# The shippable payload lives in ./template/ as a single NEUTRAL source (CLAUDE.md,
-# skills/, shared/rules/, configs/). This installer copies it into the target's root, then
-# runs sync.sh to GENERATE each engine's config + skills (.claude/.codex/.opencode +
-# AGENTS.md + opencode.json). No symlinks anywhere (Windows-safe). The generated engine
-# artifacts are gitignored — regenerate them any time with ./sync.sh (or sync.ps1).
+# The shippable payload is the NEUTRAL source at this repo's root (CLAUDE.md, skills/,
+# shared/rules/, configs/, sync.sh/ps1, docs/, *.template.md). This installer copies those
+# named items into the target's root (framework-only files like install.sh/README/LICENSE
+# are never copied), then runs sync.sh to GENERATE each engine's config + skills
+# (.claude/.codex/.opencode + AGENTS.md + opencode.json). No symlinks anywhere
+# (Windows-safe). The generated engine artifacts are gitignored — regenerate them any time
+# with ./sync.sh (or sync.ps1).
 #
 # Copy-based on purpose: the discipline travels with the target repo (works on any clone,
 # no external dependency). Re-run with --upgrade to refresh the framework files.
@@ -26,7 +28,7 @@
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
-PAYLOAD="$SRC/template"
+PAYLOAD="$SRC"
 TARGET="${1:-}"
 MODE="${2:-install}"
 
@@ -34,7 +36,7 @@ MODE="${2:-install}"
 [ -d "$TARGET" ] || { echo "error: target dir not found: $TARGET" >&2; exit 2; }
 TARGET="$(cd "$TARGET" && pwd)"
 [ "$TARGET" != "$SRC" ] || { echo "error: refusing to install into forge-ai itself" >&2; exit 2; }
-[ -d "$PAYLOAD" ] || { echo "error: payload dir not found: $PAYLOAD (run from the forge-ai repo)" >&2; exit 2; }
+{ [ -f "$PAYLOAD/CLAUDE.md" ] && [ -d "$PAYLOAD/skills" ]; } || { echo "error: payload not found — run this from the forge-ai repo root" >&2; exit 2; }
 
 echo "forge-ai → installing into: $TARGET  (mode: $MODE)"
 
