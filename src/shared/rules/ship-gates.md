@@ -10,11 +10,17 @@ shipping.
 ### `standard` — used by `new-feature`, `fix-bug`
 
 - [ ] On a feature branch (not `main`)
-- [ ] Plan written and design-reviewed (cross-engine — see single-engine fallback below)
+- [ ] Plan written and design-reviewed (cross-engine — see single-engine fallback below).
+      **`N/A: <reason>` is allowed for a simple `fix-bug`** (1–2 files, not a high-impact
+      surface) — the failing test + code review still apply. `new-feature` and high-impact
+      fixes always require it.
 - [ ] Tests written (TDD) and passing
 - [ ] Code review clean — no open P0/P1/P2 (`severity.md`), cross-engine
 - [ ] Change verified by actually exercising it
 - [ ] `.workflow/state.md` updated
+
+The active workflow records its profile in `.workflow/state.md` (the **Profile** field —
+see `state.template.md`); `finish-branch` validates that profile's boxes before shipping.
 
 ### `light` — used by `quick-fix`
 

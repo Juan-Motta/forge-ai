@@ -6,15 +6,18 @@
 ## Active workflow
 
 - **Skill:** new-feature
+- **Profile:** standard  <!-- standard (new-feature, fix-bug) | light (quick-fix) — see shared/rules/ship-gates.md -->
 - **Feature:** <name>
 - **Branch:** <feat/...>
 - **Driver:** <claude | codex | opencode>
 - **Phase:** <brainstorm | plan | design-review | tdd | code-review | verify | ship>
 
-## Ship-gate checklist
+## Ship-gate checklist (boxes for the Profile above — see shared/rules/ship-gates.md)
+
+<!-- `standard` profile shown below; for the `light` profile (quick-fix) use its shorter list. -->
 
 - [ ] On a feature branch (not `main`)
-- [ ] Plan written and design-reviewed by the other engine
+- [ ] Plan written and design-reviewed by the other engine — `N/A: <reason>` allowed for a simple fix-bug (see ship-gates.md)
 - [ ] Tests written (TDD) and passing
 - [ ] Code review clean — no open P0/P1/P2
 - [ ] Change verified by exercising it

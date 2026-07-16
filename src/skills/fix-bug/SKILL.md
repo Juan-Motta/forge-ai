@@ -10,8 +10,8 @@ Fix a defect with evidence, not guesses. Works identically under all three engin
 ## 0. Set up tracking
 
 - Confirm you are **not on `main`** — create a branch (`fix/<name>`).
-- Copy `state.template.md` to `.workflow/state.md`; set skill = `fix-bug`, feature/bug
-  name, branch, and driver.
+- Copy `state.template.md` to `.workflow/state.md`; set skill = `fix-bug`, **Profile:
+  standard**, feature/bug name, branch, and driver.
 
 ## 1. Reproduce
 

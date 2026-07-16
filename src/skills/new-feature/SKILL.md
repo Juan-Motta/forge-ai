@@ -11,7 +11,7 @@ identically under Claude Code, Codex, and OpenCode.
 ## 0. Set up tracking
 
 - Confirm you are **not on `main`** — create a branch (`feat/<name>`).
-- Copy `state.template.md` to `.workflow/state.md` and fill in the feature name + branch.
+- Copy `state.template.md` to `.workflow/state.md`; set **Profile: standard**, the feature name, and branch.
 
 ## 1. Research (when external tech is involved)
 
