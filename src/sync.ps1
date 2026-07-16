@@ -21,13 +21,17 @@
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+# validate required inputs BEFORE mutating anything
 if (-not (Test-Path (Join-Path $Root 'skills'))) {
-  Write-Error "no skills\ base found in $Root"; exit 2
+  Write-Host "error: no skills\ base found in $Root"; exit 2
+}
+$claude = Join-Path $Root 'CLAUDE.md'
+if (-not (Test-Path $claude)) {
+  Write-Host "error: no CLAUDE.md found in $Root"; exit 2
 }
 
 # instructions: CLAUDE.md -> AGENTS.md
-$claude = Join-Path $Root 'CLAUDE.md'
-if (Test-Path $claude) { Copy-Item $claude (Join-Path $Root 'AGENTS.md') -Force }
+Copy-Item $claude (Join-Path $Root 'AGENTS.md') -Force
 
 # skills -> each engine's discovery dir (full mirror: replace so deletions propagate).
 # .claude\skills = Claude Code (+ OpenCode); .agents\skills = Codex (+ OpenCode).

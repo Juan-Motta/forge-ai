@@ -136,17 +136,19 @@ warn_gate "configs/claude/settings.json" "git push"       "ask-tier on git push 
 warn_gate "configs/codex/config.toml"    "approval_policy" "approval_policy"
 warn_gate "configs/opencode.json"        "git push"       "permission.bash git push* / gh pr create*"
 
-# --- post-install validation: generated skill copies + AGENTS.md must exist ---
+# --- post-install validation: generated skills + AGENTS.md + engine configs must exist ---
 ok=1
 for p in .claude/skills .agents/skills; do
   [ -e "$TARGET/$p/new-feature/SKILL.md" ] || { echo "  ! discovery FAILED: $p was not generated"; ok=0; }
 done
-[ -f "$TARGET/AGENTS.md" ] || { echo "  ! AGENTS.md was not generated"; ok=0; }
-if [ "$ok" = 1 ]; then
-  echo "  ✓ validation: skill-discovery paths (.claude + .agents) + AGENTS.md generated"
-else
-  echo "  ✗ validation found issues above — fix before relying on forge-ai here"
+for f in AGENTS.md .claude/settings.json .codex/config.toml opencode.json; do
+  [ -f "$TARGET/$f" ] || { echo "  ! FAILED: $f was not generated"; ok=0; }
+done
+if [ "$ok" != 1 ]; then
+  echo "  ✗ install INCOMPLETE — issues above; NOT marking as installed" >&2
+  exit 1
 fi
+echo "  ✓ validation: skills (.claude + .agents), AGENTS.md, and engine configs generated"
 
 echo "forge-ai installed."
 echo "  next: (1) fill PROJECT.md   (2) in Codex, trust the project when prompted"

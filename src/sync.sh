@@ -24,10 +24,12 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
-[ -d "$ROOT/skills" ] || { echo "error: no skills/ base found in $ROOT" >&2; exit 2; }
+# validate required inputs BEFORE mutating anything
+[ -d "$ROOT/skills" ]    || { echo "error: no skills/ base found in $ROOT" >&2; exit 2; }
+[ -f "$ROOT/CLAUDE.md" ] || { echo "error: no CLAUDE.md found in $ROOT" >&2; exit 2; }
 
 # instructions: CLAUDE.md -> AGENTS.md (Codex + OpenCode read AGENTS.md)
-[ -f "$ROOT/CLAUDE.md" ] && cp "$ROOT/CLAUDE.md" "$ROOT/AGENTS.md"
+cp "$ROOT/CLAUDE.md" "$ROOT/AGENTS.md"
 
 # skills -> each engine's discovery dir (full mirror: replace so deletions propagate).
 # .claude/skills = Claude Code (+ OpenCode); .agents/skills = Codex (+ OpenCode).

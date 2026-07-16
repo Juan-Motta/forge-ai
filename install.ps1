@@ -155,12 +155,13 @@ foreach ($p in '.claude/skills', '.agents/skills') {
     Write-Host "  ! discovery FAILED: $p was not generated"; $ok = $false
   }
 }
-if (-not (Test-Path $tAgents)) { Write-Host "  ! AGENTS.md was not generated"; $ok = $false }
-if ($ok) {
-  Write-Host "  + validation: skill-discovery paths (.claude + .agents) + AGENTS.md generated"
-} else {
-  Write-Host "  x validation found issues above — fix before relying on forge-ai here"
+foreach ($f in 'AGENTS.md', '.claude/settings.json', '.codex/config.toml', 'opencode.json') {
+  if (-not (Test-Path (Join-Path $Target $f))) { Write-Host "  ! FAILED: $f was not generated"; $ok = $false }
 }
+if (-not $ok) {
+  Write-Host "  x install INCOMPLETE — issues above; NOT marking as installed"; exit 1
+}
+Write-Host "  + validation: skills (.claude + .agents), AGENTS.md, and engine configs generated"
 
 Write-Host "forge-ai installed."
 Write-Host "  next: (1) fill PROJECT.md   (2) in Codex, trust the project when prompted"
