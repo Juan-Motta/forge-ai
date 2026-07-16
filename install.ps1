@@ -102,6 +102,8 @@ if (-not (Test-Path $tProject)) {
 }
 $tCont = Join-Path $Target 'CONTINUITY.md'
 if (-not (Test-Path $tCont)) { Copy-Item (Join-Path $Payload 'CONTINUITY.template.md') $tCont }
+$tChangelog = Join-Path $Target 'docs/CHANGELOG.md'
+if (-not (Test-Path $tChangelog)) { Copy-Item (Join-Path $Payload 'docs/CHANGELOG.md') $tChangelog }
 
 # --- PROJECT-OWNED: neutral configs (create if missing; migrate a pre-existing engine
 #     config so we don't lose the project's own gate settings) ---

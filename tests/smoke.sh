@@ -18,7 +18,7 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 TB="$TMP/bash"; mkdir -p "$TB"
 "$ROOT/install.sh" "$TB" >/dev/null || fail "install.sh exited non-zero"
 for f in CLAUDE.md .claude/skills/new-feature/SKILL.md .agents/skills/new-feature/SKILL.md \
-         .claude/settings.json .codex/config.toml opencode.json AGENTS.md; do
+         .claude/settings.json .codex/config.toml opencode.json AGENTS.md docs/CHANGELOG.md; do
   [ -e "$TB/$f" ] || fail "bash: expected $f was not generated"
 done
 for f in install.sh install.ps1 README.md LICENSE src; do

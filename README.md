@@ -195,9 +195,10 @@ What it does:
   framework's own entries in `skills/` and `shared/rules/`, refreshed **by name**. Your own
   skills/rules dropped into those dirs are left untouched, so they **survive upgrades**.
 - **Creates project-owned files only if missing** (never clobbered on re-run): `PROJECT.md`,
-  `CONTINUITY.md`, and the neutral configs `configs/claude/settings.json`,
-  `configs/codex/config.toml`, `configs/opencode.json`. A pre-existing engine config
-  (`.claude/settings.json`, etc.) is **migrated** into `configs/` so its gate isn't lost.
+  `CONTINUITY.md`, a seed `docs/CHANGELOG.md`, and the neutral configs
+  `configs/claude/settings.json`, `configs/codex/config.toml`, `configs/opencode.json`. A
+  pre-existing engine config (`.claude/settings.json`, etc.) is **migrated** into `configs/`
+  so its gate isn't lost.
 - **Generates the engine artifacts** by running `sync` (no symlinks): `AGENTS.md`,
   `opencode.json`, and `.claude/`, `.agents/`, `.codex/` (config + skills). These are
   **committed with the project** (so clones work as-is); re-run `./sync.sh` (or `sync.ps1`)

@@ -100,9 +100,10 @@ for d in prds plans research solutions adr; do
   [ -e "$TARGET/docs/$d/.gitkeep" ] || touch "$TARGET/docs/$d/.gitkeep"
 done
 
-# --- PROJECT-OWNED: PROJECT.md / CONTINUITY.md (create only if missing) ---
+# --- PROJECT-OWNED: PROJECT.md / CONTINUITY.md / docs/CHANGELOG.md (create only if missing) ---
 [ -f "$TARGET/PROJECT.md" ]    || { cp "$PAYLOAD/PROJECT.template.md" "$TARGET/PROJECT.md"; echo "  + created PROJECT.md (fill in persona/info/variables/special rules)"; }
 [ -f "$TARGET/CONTINUITY.md" ] || cp "$PAYLOAD/CONTINUITY.template.md" "$TARGET/CONTINUITY.md"
+[ -f "$TARGET/docs/CHANGELOG.md" ] || cp "$PAYLOAD/docs/CHANGELOG.md" "$TARGET/docs/CHANGELOG.md"
 
 # --- PROJECT-OWNED: neutral configs (create if missing; migrate a pre-existing engine
 #     config so we don't lose the project's own gate settings) ---
