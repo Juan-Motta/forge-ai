@@ -54,11 +54,30 @@ mkdir -p "$TARGET/.claude" "$TARGET/.codex" "$TARGET/.opencode"
 [ -f "$TARGET/.codex/config.toml" ]    || cp "$SRC/.codex/config.toml" "$TARGET/.codex/config.toml"
 [ -f "$TARGET/opencode.json" ]         || cp "$SRC/opencode.json" "$TARGET/opencode.json"
 
-# --- symlinks (relative; -f replace, -n don't-deref) ---
-ln -sfn CLAUDE.md  "$TARGET/AGENTS.md"
-ln -sfn ../skills  "$TARGET/.claude/skills"
-ln -sfn ../skills  "$TARGET/.codex/skills"
-ln -sfn ../skills  "$TARGET/.opencode/skills"
+# --- symlinks (guarded: never clobber or nest inside a pre-existing real file/dir) ---
+# AGENTS.md → CLAUDE.md (back up a real, non-symlink AGENTS.md first)
+if [ -e "$TARGET/AGENTS.md" ] && [ ! -L "$TARGET/AGENTS.md" ]; then
+  mv "$TARGET/AGENTS.md" "$TARGET/AGENTS.md.pre-forge.bak"
+  echo "  ! backed up existing AGENTS.md -> AGENTS.md.pre-forge.bak"
+fi
+ln -sfn CLAUDE.md "$TARGET/AGENTS.md"
+
+# per-engine skills symlink → ../skills
+link_skills() {
+  local lp="$TARGET/$1"
+  if [ -L "$lp" ] || [ ! -e "$lp" ]; then
+    ln -sfn ../skills "$lp"                 # symlink or absent → (re)create
+  elif [ -d "$lp" ] && [ -z "$(ls -A "$lp")" ]; then
+    rmdir "$lp"; ln -s ../skills "$lp"      # empty real dir → replace
+  else
+    echo "  ! $1 already exists as a non-empty directory — left as-is (NOT symlinked)."
+    echo "    forge-ai skills live in ./skills. Move yours into ./skills, or keep them here"
+    echo "    knowing forge-ai's skills won't be discovered via $1 for this engine."
+  fi
+}
+link_skills ".claude/skills"
+link_skills ".codex/skills"
+link_skills ".opencode/skills"
 
 # --- .gitignore (merge, don't clobber) ---
 touch "$TARGET/.gitignore"

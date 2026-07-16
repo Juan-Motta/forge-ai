@@ -7,6 +7,9 @@ Notable changes, newest first. One short entry per shipped change. See
 
 - Add `index` skill + `docs/index.md` — a high-level project map (structure, entry points,
   conventions) for fast agent orientation; refreshable, kept high-level to resist staleness.
+- Fix `install.sh` skills-symlink handling: when a target already has a real
+  `.claude/skills` (or `.codex`/`.opencode`) directory, warn and leave it instead of
+  creating a broken nested `skills/skills` symlink; back up a real `AGENTS.md` too.
 - Add `install.sh` — copy-based installer to deploy the discipline into a target project
   (managed baseline overwritten; project-owned files created-if-missing; existing CLAUDE.md
   backed up; `.gitignore` merged). Idempotent / `--upgrade`.
