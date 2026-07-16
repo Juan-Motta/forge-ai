@@ -12,7 +12,7 @@ with — not pinned by this project.
 
 | Engine | Model | Effort | Invocation |
 | --- | --- | --- | --- |
-| **Codex** | `gpt-5.6-sol` | `xhigh` | `codex exec -m gpt-5.6-sol -c model_reasoning_effort="xhigh" "<prompt>"` |
+| **Codex** | `gpt-5.6-sol` | `xhigh` | `codex exec -m gpt-5.6-sol -c model_reasoning_effort="xhigh" --sandbox read-only "<prompt>"` |
 | **Claude** | `opus` | `high` | `claude -p --model opus --effort high "<prompt>"` |
 | **OpenCode** | `opencode-go/glm-5.2` | default | `opencode run -m opencode-go/glm-5.2 "<prompt>"` |
 

@@ -11,6 +11,8 @@
 # (.claude/ + .agents/skills + .codex/config.toml + AGENTS.md + opencode.json). No symlinks
 # (Windows-safe). Generated engine artifacts are COMMITTED with the target project so a
 # fresh clone works immediately; re-run sync after editing the neutral source.
+# -Upgrade is an idempotent refresh (same effect as re-running install: managed files
+# overwritten by name, project-owned preserved). It does NOT yet prune files removed upstream.
 #
 param(
   [Parameter(Mandatory = $true)][string]$Target,

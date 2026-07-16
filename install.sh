@@ -14,7 +14,9 @@
 # fresh clone works immediately; re-run sync after editing the neutral source to regenerate.
 #
 # Copy-based on purpose: the discipline travels with the target repo (works on any clone,
-# no external dependency). Re-run with --upgrade to refresh the framework files.
+# no external dependency). --upgrade is an idempotent refresh — same effect as re-running
+# install (managed files overwritten by name, project-owned files preserved). Note: it does
+# NOT yet prune framework files removed in a newer version.
 #
 # MANAGED (framework baseline — OVERWRITTEN on install/upgrade):
 #   CLAUDE.md, sync.sh/sync.ps1, docs/extending.md, *.template.md, and the framework's OWN
@@ -33,7 +35,9 @@ set -euo pipefail
 SRC="$(cd "$(dirname "$0")" && pwd)"
 PAYLOAD="$SRC/src"
 TARGET="${1:-}"
-MODE="${2:-install}"
+MODE="install"
+if [ "${2:-}" = "--upgrade" ]; then MODE="upgrade"
+elif [ -n "${2:-}" ]; then echo "usage: $0 <target-dir> [--upgrade]  (unknown arg: ${2})" >&2; exit 2; fi
 
 [ -n "$TARGET" ] || { echo "usage: $0 <target-dir> [--upgrade]" >&2; exit 2; }
 [ -d "$TARGET" ] || { echo "error: target dir not found: $TARGET" >&2; exit 2; }
