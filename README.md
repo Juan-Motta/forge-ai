@@ -161,16 +161,12 @@ flowchart LR
 
 ### Models (cross-engine roles)
 
-Defaults live in `shared/rules/models.md` (edit there to change them). The reviewer/advisor
-always runs on a **different engine than the driver**:
+The reviewer/advisor always runs on a **different engine than the driver** (model diversity is
+the point). The concrete **model IDs, effort, and read-only invocation** for each engine live
+in **one place** — `src/shared/rules/models.md` — so a CLI or model bump is a single-file
+edit; the skills read from there rather than hard-coding commands.
 
-| Engine | Model | Effort |
-| --- | --- | --- |
-| Codex | `gpt-5.6-sol` | `xhigh` |
-| Claude | `opus` | `high` |
-| OpenCode | `opencode-go/glm-5.2` | default |
-
-`council` consults all three at once; `review`/`research` use the non-driver engine.
+`council` consults all three engines at once; `review`/`research` use the non-driver engine.
 
 ---
 
