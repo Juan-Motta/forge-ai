@@ -9,7 +9,7 @@
 # root free of files that would collide when working ON forge-ai (e.g. a root CLAUDE.md or
 # docs/). This installer copies src/* into the target's root, then runs sync.sh to GENERATE
 # each engine's config + skills
-# (.claude/.codex/.opencode + AGENTS.md + opencode.json). No symlinks anywhere
+# (.claude/ + .agents/skills + .codex/config.toml + AGENTS.md + opencode.json). No symlinks anywhere
 # (Windows-safe). The generated engine artifacts are COMMITTED with the target project so a
 # fresh clone works immediately; re-run sync after editing the neutral source to regenerate.
 #
