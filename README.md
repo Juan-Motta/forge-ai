@@ -31,29 +31,36 @@ they pick up the same rules, the same skills, and the same guardrails.
 
 ### One canonical source, three engines
 
-There is a single copy of the instructions and skills. Each engine discovers them through
-its own conventional path — via symlinks — so nothing is duplicated.
+The shippable payload lives in **`template/`** — a single copy of the instructions and
+skills. `install.sh` copies it into a target project's root, then each engine discovers it
+through its own conventional path — via symlinks created in the target — so nothing is
+duplicated.
 
 ```mermaid
 flowchart TD
-    subgraph SRC["Single canonical source"]
-        INS["CLAUDE.md<br/>(AGENTS.md is a symlink to it)"]
-        SK["skills/&lt;name&gt;/SKILL.md"]
-        RU["shared/rules/*.md"]
+    subgraph SRC["Canonical payload — template/"]
+        INS["template/CLAUDE.md<br/>(AGENTS.md symlink created in the target)"]
+        SK["template/skills/&lt;name&gt;/SKILL.md"]
+        RU["template/shared/rules/*.md"]
     end
-    SRC --> CLAUDE["Claude Code<br/>reads CLAUDE.md<br/>.claude/skills → skills"]
-    SRC --> CODEX["Codex<br/>reads AGENTS.md<br/>.codex/skills → skills"]
-    SRC --> OPEN["OpenCode<br/>reads AGENTS.md<br/>.opencode/skills → skills"]
+    SRC -->|install.sh copies to target root| T["target project root"]
+    T --> CLAUDE["Claude Code<br/>reads CLAUDE.md<br/>.claude/skills → skills"]
+    T --> CODEX["Codex<br/>reads AGENTS.md<br/>.codex/skills → skills"]
+    T --> OPEN["OpenCode<br/>reads AGENTS.md<br/>.opencode/skills → skills"]
 ```
 
-- **Instructions:** `CLAUDE.md` is the canonical always-on instruction set. `AGENTS.md` is
-  a symlink to it. Claude Code reads `CLAUDE.md`; Codex and OpenCode read `AGENTS.md`. One
-  file, no drift, all three auto-load it at session start.
+- **Payload vs repo:** everything the target gets lives under `template/`. The forge-ai
+  repo's own files — `install.sh`, `README.md`, its root dev `.claude/`, `PROJECT.md`,
+  `CONTINUITY.md`, `docs/` — are **not** payload and never travel to the target. This keeps
+  the framework's own dev config from mixing into (or shipping to) consuming projects.
+- **Instructions:** `template/CLAUDE.md` is the canonical always-on instruction set. In the
+  target, `AGENTS.md` is created as a symlink to `CLAUDE.md`. Claude Code reads `CLAUDE.md`;
+  Codex and OpenCode read `AGENTS.md`. One file, no drift, all three auto-load it.
 - **Skills:** the `SKILL.md` convention is shared by all three engines. The canonical
-  `skills/` folder is symlinked into each engine's discovery path
-  (`.claude/skills`, `.codex/skills`, `.opencode/skills`).
-- **Rules:** `shared/rules/*.md` hold the discipline (severity, TDD, ship-gates, memory,
-  continuity, models, …), referenced by the skills.
+  `template/skills/` folder is copied to the target's `skills/` and symlinked into each
+  engine's discovery path (`.claude/skills`, `.codex/skills`, `.opencode/skills`).
+- **Rules:** `template/shared/rules/*.md` hold the discipline (severity, TDD, ship-gates,
+  memory, continuity, models, …), referenced by the skills.
 
 ### Enforcement model — advisory + native approval
 
@@ -74,17 +81,27 @@ Tier C, out of scope; see [`docs/extending.md`](docs/extending.md).)
 
 ### Repo layout
 
+The forge-ai **repo** separates the shippable payload from the framework's own files:
+
 ```
 forge-ai/
-├── CLAUDE.md              # canonical always-on instructions
-├── AGENTS.md  → CLAUDE.md # symlink (Codex + OpenCode read this)
-├── CONTINUITY.md          # session handoff (read first each session)
-├── skills/<name>/SKILL.md # canonical skills (one per workflow)
-├── shared/rules/*.md      # discipline: severity, tdd, ship-gates, memory, models, …
-├── .claude/  .codex/  .opencode/   # per-engine config + skills symlink
-├── docs/                  # prds/ plans/ research/ solutions/ adr/ + CHANGELOG.md
-└── state.template.md · CONTINUITY.template.md
+├── template/                    # ── PAYLOAD (install.sh copies this into a target) ──
+│   ├── CLAUDE.md                #    canonical always-on instructions
+│   ├── skills/<name>/SKILL.md   #    canonical skills (one per workflow)
+│   ├── shared/rules/*.md        #    discipline: severity, tdd, ship-gates, memory, …
+│   ├── .claude/settings.json · .codex/config.toml · opencode.json  # per-engine config
+│   ├── docs/extending.md + empty prds/ plans/ research/ solutions/ adr/  # scaffold
+│   └── state.template.md · CONTINUITY.template.md · PROJECT.template.md
+│
+├── install.sh · README.md · LICENSE   # framework tooling + docs (NOT payload)
+├── .claude/                     # root dev config for working ON forge-ai (NOT payload)
+├── PROJECT.md · CONTINUITY.md   # this repo's own project rules + session handoff
+└── docs/                        # this repo's own history: CHANGELOG.md, adr/, design notes
 ```
+
+After `install.sh`, the **target** gets the payload at its root — `CLAUDE.md`,
+`AGENTS.md → CLAUDE.md`, `skills/`, `shared/`, the per-engine config, and the three
+`.<engine>/skills → ../skills` symlinks — with none of forge-ai's own repo files.
 
 ---
 

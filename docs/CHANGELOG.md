@@ -3,6 +3,21 @@
 Notable changes, newest first. One short entry per shipped change. See
 `shared/rules/docs-layout.md`.
 
+## 2026-07-16
+
+- **Payload/`template/` split.** Moved the shippable discipline (`CLAUDE.md`, `skills/`,
+  `shared/rules/`, per-engine config, `*.template.md`, `docs/extending.md` + docs scaffold)
+  into `template/`, separating it from the framework repo's own dev/meta files at the root.
+  Rewrote `install.sh` to copy `template/*` → target root and create the discovery symlinks
+  there. Added a minimal root dev config (thin `CLAUDE.md` + `.claude/settings.json` push/PR
+  gate; no skills symlink — no dogfooding, config mínima separada). Hardened `.gitignore`
+  (`.claude/local/`, `.claude/settings.local.json`, OpenCode npm cruft) and made the
+  installer propagate the local-state ignores into targets. Side effect: `template/` is
+  symlink-free, so the previously materialized/broken symlinks in the working copy are gone
+  (symlinks now exist only in installed targets). Updated `README.md`, `docs/index.md`,
+  `PROJECT.md` to match. Verified by dry-run install into a temp target (discovery + symlinks
+  resolve on all three engine paths; `--upgrade` preserves `PROJECT.md` and custom skills).
+
 ## 2026-07-15
 
 - Council logic review (4 advisors: Codex gpt-5.6-sol, Claude opus, 2× OpenCode glm-5.2) →

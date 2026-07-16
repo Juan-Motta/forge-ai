@@ -8,3 +8,12 @@
 # Transient workflow state — the durable session handoff lives in CONTINUITY.md
 # (committed, per docs/adr/001). The per-workflow checklist is local working state.
 .workflow/
+
+# Agent runtime / local session state — never commit (dev config vs shipped payload)
+.claude/local/
+.claude/settings.local.json
+.codex/*.local.*
+.opencode/node_modules/
+.opencode/package.json
+.opencode/package-lock.json
+.opencode/bun.lock

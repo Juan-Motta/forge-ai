@@ -3,20 +3,36 @@
 > The first thing to read on a new session (auto-loaded via `CLAUDE.md` / `AGENTS.md`).
 > Keep it current; refresh it with the `checkpoint` skill before closing a session.
 
-- **Focus:** Building out forge-ai itself — interoperable workflow discipline (Claude Code, Codex, OpenCode), skills + config only, no scripts/hooks.
-- **Next step:** Council substantive findings (1)-(6) are now DONE (gate profiles, single-engine fallback, finish-branch reorder, read-only reviewers, install validation+gate-warn, Windows note). Remaining, all manual/verification: (a) test the native push/PR prompt interactively in each engine; (b) verify the exact read-only flag for `claude -p` and the `opencode` read-only path; (c) smoke-test the `models.md` CLI invocation strings end-to-end; (d) couldn't exercise install.sh's config-gate-warn via Bash (safety hook blocks touching .claude/settings.json) — logic verified by inspection, run it manually once.
+- **Focus:** Restructured the repo into a payload/`template/` split — the shippable
+  discipline now lives under `template/`, separated from forge-ai's own dev/meta files at
+  the root. Goal: developing forge-ai with an agent no longer risks mixing dev config or
+  session state into the installable payload.
+- **Next step:** Review the branch `refactor/template-payload-split`, then decide whether to
+  commit. Remaining verification: (a) open the repo root in each engine and confirm the thin
+  root `CLAUDE.md` + root `.claude/settings.json` behave as the dev config (no dogfooding —
+  root has no skills symlink by design); (b) run `install.sh` into a fresh real project once
+  and open it in each engine end-to-end (temp-dir dry-run already passes: symlinks + skill
+  discovery + AGENTS.md all resolve, upgrade preserves PROJECT.md + custom skills).
 - **Blockers:** none
 - **Active workflow:** none
-- **Updated:** 2026-07-15
+- **Updated:** 2026-07-16
 
 ## Handoff notes
 
-Tier A is essentially complete: 10 skills (prd, research, plan, new-feature, fix-bug,
-quick-fix, review, council, finish-branch, checkpoint) + 9 rules, docs layout scaffolded,
-memory + continuity disciplines in place. Enforcement is advisory + native coarse approval
-on push/PR (`.claude/settings.json`, `.codex/config.toml`, `opencode.json`). Hard
-conditional blocking (hooks) is deferred as Tier C. Never use worktrees — simple branch.
+Layout after the split:
+- `template/` = payload (`CLAUDE.md`, `skills/`, `shared/rules/`, `.claude/settings.json`,
+  `.codex/config.toml`, `opencode.json`, `*.template.md`, `docs/extending.md` + empty docs
+  scaffold). No symlinks inside `template/` — `install.sh` creates `AGENTS.md → CLAUDE.md`
+  and `.<engine>/skills → ../skills` in the target after copying.
+- Root = framework repo files: `install.sh`, `README.md`, `LICENSE`, a thin dev `CLAUDE.md`,
+  a minimal `.claude/settings.json` (push/PR gate only, no skills symlink — config mínima
+  separada, no dogfooding), `PROJECT.md`, `CONTINUITY.md`, and this repo's own `docs/`
+  (CHANGELOG, adr/, design notes, index.md).
+- `.gitignore` hardened: `.claude/local/`, `.claude/settings.local.json`, and OpenCode
+  local npm cruft are ignored so agent runtime state never gets committed. `install.sh` now
+  propagates the local-state ignores into the target's `.gitignore` too.
+- Fixed as a side effect: the earlier materialized/broken symlinks in this working copy are
+  gone (template/ is symlink-free; symlinks exist only in installed targets).
 
-Live discovery validated 2026-07-15 on all 3 engines (Claude Code, Codex, OpenCode):
-instructions auto-load, all 10 skills discovered via symlink, CONTINUITY.md read — all
-pass. Still unverified: the native push/PR gate (needs an interactive test).
+Docs updated to match: `README.md` (canonical-source + repo-layout sections), `docs/index.md`
+(payload vs repo tables), `PROJECT.md` (project info + rule paths → `template/…`).

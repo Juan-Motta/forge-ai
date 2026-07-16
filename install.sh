@@ -4,8 +4,13 @@
 #
 #   ./install.sh <target-dir> [--upgrade]
 #
-# Copy-based on purpose: the discipline travels with the target repo (works on any
-# clone, no external dependency). Re-run with --upgrade to refresh the framework files.
+# The shippable payload lives in ./template/. This installer copies template/* into the
+# target's root (where the engines discover config) and creates the discovery symlinks
+# there. forge-ai's own repo files (this installer, README, PROJECT.md, CONTINUITY.md,
+# docs/, the root dev .claude) are NOT part of the payload and never travel to the target.
+#
+# Copy-based on purpose: the discipline travels with the target repo (works on any clone,
+# no external dependency). Re-run with --upgrade to refresh the framework files.
 #
 # MANAGED (framework baseline — OVERWRITTEN on install/upgrade):
 #   CLAUDE.md, docs/extending.md, *.template.md, and the framework's OWN entries in
@@ -17,6 +22,7 @@
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
+PAYLOAD="$SRC/template"
 TARGET="${1:-}"
 MODE="${2:-install}"
 
@@ -24,6 +30,7 @@ MODE="${2:-install}"
 [ -d "$TARGET" ] || { echo "error: target dir not found: $TARGET" >&2; exit 2; }
 TARGET="$(cd "$TARGET" && pwd)"
 [ "$TARGET" != "$SRC" ] || { echo "error: refusing to install into forge-ai itself" >&2; exit 2; }
+[ -d "$PAYLOAD" ] || { echo "error: payload dir not found: $PAYLOAD (run from the forge-ai repo)" >&2; exit 2; }
 
 echo "forge-ai → installing into: $TARGET  (mode: $MODE)"
 
@@ -32,38 +39,38 @@ if [ -f "$TARGET/CLAUDE.md" ] && ! grep -q "Workflow discipline for Claude Code"
   cp "$TARGET/CLAUDE.md" "$TARGET/CLAUDE.md.pre-forge.bak"
   echo "  ! backed up existing CLAUDE.md -> CLAUDE.md.pre-forge.bak (move project-specifics into PROJECT.md)"
 fi
-cp "$SRC/CLAUDE.md" "$TARGET/CLAUDE.md"
+cp "$PAYLOAD/CLAUDE.md" "$TARGET/CLAUDE.md"
 
 # --- MANAGED: framework skills/ and shared/rules/ (per-entry overwrite by name) ---
 # Refresh only the framework's own entries; anything else in these dirs (your project's
 # own skills/rules) is left untouched, so it survives --upgrade.
 mkdir -p "$TARGET/skills" "$TARGET/shared/rules"
-for d in "$SRC"/skills/*/; do
+for d in "$PAYLOAD"/skills/*/; do
   name="$(basename "$d")"
   rm -rf "$TARGET/skills/$name"
   cp -R "$d" "$TARGET/skills/$name"
 done
-for f in "$SRC"/shared/rules/*.md; do
+for f in "$PAYLOAD"/shared/rules/*.md; do
   cp "$f" "$TARGET/shared/rules/$(basename "$f")"
 done
 
 # --- MANAGED: templates + framework doc + docs/ scaffolding ---
-cp "$SRC/state.template.md" "$TARGET/state.template.md"
-cp "$SRC/CONTINUITY.template.md" "$TARGET/CONTINUITY.template.md"
-cp "$SRC/PROJECT.template.md" "$TARGET/PROJECT.template.md"
-mkdir -p "$TARGET/docs"; cp "$SRC/docs/extending.md" "$TARGET/docs/extending.md"
+cp "$PAYLOAD/state.template.md" "$TARGET/state.template.md"
+cp "$PAYLOAD/CONTINUITY.template.md" "$TARGET/CONTINUITY.template.md"
+cp "$PAYLOAD/PROJECT.template.md" "$TARGET/PROJECT.template.md"
+mkdir -p "$TARGET/docs"; cp "$PAYLOAD/docs/extending.md" "$TARGET/docs/extending.md"
 for d in prds plans research solutions adr; do
   mkdir -p "$TARGET/docs/$d"
   [ -e "$TARGET/docs/$d/.gitkeep" ] || touch "$TARGET/docs/$d/.gitkeep"
 done
 
 # --- PROJECT-OWNED: create only if missing ---
-[ -f "$TARGET/PROJECT.md" ]    || { cp "$SRC/PROJECT.template.md" "$TARGET/PROJECT.md"; echo "  + created PROJECT.md (fill in persona/info/variables/special rules)"; }
-[ -f "$TARGET/CONTINUITY.md" ] || cp "$SRC/CONTINUITY.template.md" "$TARGET/CONTINUITY.md"
+[ -f "$TARGET/PROJECT.md" ]    || { cp "$PAYLOAD/PROJECT.template.md" "$TARGET/PROJECT.md"; echo "  + created PROJECT.md (fill in persona/info/variables/special rules)"; }
+[ -f "$TARGET/CONTINUITY.md" ] || cp "$PAYLOAD/CONTINUITY.template.md" "$TARGET/CONTINUITY.md"
 mkdir -p "$TARGET/.claude" "$TARGET/.codex" "$TARGET/.opencode"
-[ -f "$TARGET/.claude/settings.json" ] || cp "$SRC/.claude/settings.json" "$TARGET/.claude/settings.json"
-[ -f "$TARGET/.codex/config.toml" ]    || cp "$SRC/.codex/config.toml" "$TARGET/.codex/config.toml"
-[ -f "$TARGET/opencode.json" ]         || cp "$SRC/opencode.json" "$TARGET/opencode.json"
+[ -f "$TARGET/.claude/settings.json" ] || cp "$PAYLOAD/.claude/settings.json" "$TARGET/.claude/settings.json"
+[ -f "$TARGET/.codex/config.toml" ]    || cp "$PAYLOAD/.codex/config.toml" "$TARGET/.codex/config.toml"
+[ -f "$TARGET/opencode.json" ]         || cp "$PAYLOAD/opencode.json" "$TARGET/opencode.json"
 
 # --- symlinks (guarded: never clobber or nest inside a pre-existing real file/dir) ---
 # AGENTS.md → CLAUDE.md (back up a real, non-symlink AGENTS.md first)
@@ -93,7 +100,7 @@ link_skills ".opencode/skills"
 # --- .gitignore (merge, don't clobber) ---
 touch "$TARGET/.gitignore"
 if ! grep -qx '.workflow/' "$TARGET/.gitignore"; then
-  printf '\n# forge-ai\n.DS_Store\n.workflow/\n' >> "$TARGET/.gitignore"
+  printf '\n# forge-ai\n.DS_Store\n.workflow/\n.claude/local/\n.claude/settings.local.json\n' >> "$TARGET/.gitignore"
 fi
 
 # --- warn if a pre-existing engine config lacks the forge push/PR gate ---
