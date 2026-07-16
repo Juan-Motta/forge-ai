@@ -61,4 +61,15 @@ if bash "$FS/sync.sh" >/dev/null 2>&1; then fail "sync.sh should fail without CL
 [ -e "$FS/AGENTS.md" ] && fail "sync.sh produced output despite missing CLAUDE.md"
 echo "ok: sync fails non-zero on missing input"
 
+# --- 6. --upgrade prunes framework files removed upstream, keeps project-owned ones ---
+# Simulate a framework skill that existed at a prior install (in the manifest) but was
+# dropped upstream (not in payload); and a project skill (never in the manifest).
+printf 'skill:ghost\n' >> "$TB/.forge-manifest"
+mkdir -p "$TB/skills/ghost";   printf -- '---\nname: ghost\n---\n'   > "$TB/skills/ghost/SKILL.md"
+mkdir -p "$TB/skills/keep-me"; printf -- '---\nname: keep-me\n---\n' > "$TB/skills/keep-me/SKILL.md"
+"$ROOT/install.sh" "$TB" --upgrade >/dev/null || fail "prune-case upgrade exited non-zero"
+[ -e "$TB/skills/ghost" ] && fail "framework skill removed upstream was not pruned"
+[ -e "$TB/skills/keep-me/SKILL.md" ] || fail "project skill was wrongly pruned"
+echo "ok: --upgrade prunes upstream-removed framework files, keeps project files"
+
 echo "ALL PASS"

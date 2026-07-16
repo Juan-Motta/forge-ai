@@ -47,6 +47,24 @@ Copy-Item (Join-Path $Payload 'CLAUDE.md') $tClaude -Force
 
 # --- MANAGED: framework skills/ and shared/rules/ (per-entry overwrite by name) ---
 New-Item -ItemType Directory -Force -Path (Join-Path $Target 'skills'), (Join-Path $Target 'shared/rules') | Out-Null
+$newSkills = @(Get-ChildItem -Directory (Join-Path $Payload 'skills')).Name
+$newRules  = @(Get-ChildItem -File (Join-Path $Payload 'shared/rules') -Filter *.md).Name
+
+# Prune framework entries removed upstream (see install.sh for rationale). Project-owned
+# skills/rules aren't in the manifest, so they're untouched. No manifest yet = skip prune.
+$manifest = Join-Path $Target '.forge-manifest'
+if (Test-Path $manifest) {
+  foreach ($line in Get-Content $manifest) {
+    if ($line -like 'skill:*') {
+      $n = $line.Substring(6)
+      if ($newSkills -notcontains $n) { Remove-Item -Recurse -Force (Join-Path $Target "skills/$n") -ErrorAction SilentlyContinue; Write-Host "  - pruned framework skill removed upstream: $n" }
+    } elseif ($line -like 'rule:*') {
+      $n = $line.Substring(5)
+      if ($newRules -notcontains $n) { Remove-Item -Force (Join-Path $Target "shared/rules/$n") -ErrorAction SilentlyContinue; Write-Host "  - pruned framework rule removed upstream: $n" }
+    }
+  }
+}
+
 foreach ($d in Get-ChildItem -Directory (Join-Path $Payload 'skills')) {
   $dest = Join-Path $Target "skills/$($d.Name)"
   if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
@@ -55,6 +73,9 @@ foreach ($d in Get-ChildItem -Directory (Join-Path $Payload 'skills')) {
 foreach ($f in Get-ChildItem -File (Join-Path $Payload 'shared/rules') -Filter *.md) {
   Copy-Item $f.FullName (Join-Path $Target "shared/rules/$($f.Name)") -Force
 }
+
+# Record the framework-owned manifest for the next upgrade's prune.
+Set-Content -Path $manifest -Value (@($newSkills | ForEach-Object { "skill:$_" }) + @($newRules | ForEach-Object { "rule:$_" }))
 
 # --- MANAGED: sync scripts (the generator) ---
 Copy-Item (Join-Path $Payload 'sync.sh')  (Join-Path $Target 'sync.sh')  -Force

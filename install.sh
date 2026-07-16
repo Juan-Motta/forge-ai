@@ -58,6 +58,22 @@ cp "$PAYLOAD/CLAUDE.md" "$TARGET/CLAUDE.md"
 # Refresh only the framework's own entries; anything else in these dirs (your project's
 # own skills/rules) is left untouched, so it survives --upgrade.
 mkdir -p "$TARGET/skills" "$TARGET/shared/rules"
+new_skills="$(cd "$PAYLOAD/skills" && ls -d */ 2>/dev/null | sed 's#/##')"
+new_rules="$(cd "$PAYLOAD/shared/rules" && ls *.md 2>/dev/null)"
+
+# Prune framework entries removed upstream: anything in the last-install manifest that is no
+# longer in the current payload is a framework file deleted upstream — remove it. Project-owned
+# skills/rules are never in the manifest, so they are untouched. (No manifest yet = skip prune.)
+manifest="$TARGET/.forge-manifest"
+if [ -f "$manifest" ]; then
+  while IFS= read -r line; do
+    case "$line" in
+      skill:*) n="${line#skill:}"; printf '%s\n' "$new_skills" | grep -qxF "$n" || { rm -rf "$TARGET/skills/$n"; echo "  - pruned framework skill removed upstream: $n"; } ;;
+      rule:*)  n="${line#rule:}";  printf '%s\n' "$new_rules"  | grep -qxF "$n" || { rm -f  "$TARGET/shared/rules/$n"; echo "  - pruned framework rule removed upstream: $n"; } ;;
+    esac
+  done < "$manifest"
+fi
+
 for d in "$PAYLOAD"/skills/*/; do
   name="$(basename "$d")"
   rm -rf "$TARGET/skills/$name"
@@ -66,6 +82,9 @@ done
 for f in "$PAYLOAD"/shared/rules/*.md; do
   cp "$f" "$TARGET/shared/rules/$(basename "$f")"
 done
+
+# Record the framework-owned manifest for the next upgrade's prune.
+{ printf '%s\n' "$new_skills" | sed 's/^/skill:/'; printf '%s\n' "$new_rules" | sed 's/^/rule:/'; } > "$manifest"
 
 # --- MANAGED: sync scripts (the generator) ---
 cp "$PAYLOAD/sync.sh" "$TARGET/sync.sh"; chmod +x "$TARGET/sync.sh"
