@@ -15,8 +15,9 @@
 # Skill discovery differs per engine: Claude Code -> .claude\skills; Codex -> .agents\skills;
 # OpenCode -> any of .opencode/.claude/.agents. So .claude\skills + .agents\skills covers all.
 #
-# GENERATED (do NOT edit): AGENTS.md, opencode.json, .claude, .agents, .codex. Edit the
-# neutral source above, then re-run this script. Generated paths are gitignored.
+# GENERATED (do NOT hand-edit): AGENTS.md, opencode.json, .claude, .agents, .codex. Edit
+# the neutral source above, then re-run this script. In an installed project these are
+# committed (a clone works as-is); in the forge-ai repo itself they're gitignored dev artifacts.
 #
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path

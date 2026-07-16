@@ -45,7 +45,7 @@ flowchart TD
         RU["shared/rules/*.md"]
         CF["configs/claude · configs/codex · configs/opencode"]
     end
-    SRC -->|sync.sh generates| GEN["Generated (gitignored)"]
+    SRC -->|sync.sh generates| GEN["Generated (committed with the project)"]
     GEN --> CLAUDE["Claude Code<br/>CLAUDE.md · .claude/settings.json · .claude/skills"]
     GEN --> CODEX["Codex<br/>AGENTS.md · .codex/config.toml · .agents/skills"]
     GEN --> OPEN["OpenCode<br/>AGENTS.md · opencode.json · reads .claude/.agents skills"]
@@ -53,8 +53,8 @@ flowchart TD
 
 - **Neutral source vs generated:** you edit only the neutral source (`CLAUDE.md`, `skills/`,
   `shared/rules/`, `configs/`). The per-engine artifacts (`AGENTS.md`, `opencode.json`,
-  `.claude/`, `.agents/`, `.codex/`) are **generated and gitignored** — never edited by
-  hand, regenerated any time with `./sync.sh` (e.g. after a clone).
+  `.claude/`, `.agents/`, `.codex/`) are **generated and committed with the project** — so a
+  clone works immediately — but never hand-edited; re-run `./sync.sh` after editing the source.
 - **Instructions:** `CLAUDE.md` is the canonical set. Sync copies it to `AGENTS.md` so Claude
   Code reads `CLAUDE.md` and Codex/OpenCode read `AGENTS.md` — same content, no drift.
 - **Skills:** `skills/` is the single source of truth. Sync copies it into the two paths that
@@ -110,11 +110,13 @@ forge-ai/
 └── README.md · LICENSE           # framework docs + license          ┘ (never copied)
 ```
 
-After install, a **target** project has (committed) the neutral source at its root —
-`CLAUDE.md`, `skills/`, `shared/`, `configs/`, `sync.sh`/`sync.ps1` — plus
-`PROJECT.md`/`CONTINUITY.md`. The generated, **gitignored** engine artifacts — `AGENTS.md`,
-`opencode.json`, `.claude/`, `.agents/`, `.codex/` — are produced by `sync` and
-regenerated on demand (run it once after a fresh clone).
+After install, a **target** project commits both the neutral source at its root —
+`CLAUDE.md`, `skills/`, `shared/`, `configs/`, `sync.sh`/`sync.ps1`, `PROJECT.md`,
+`CONTINUITY.md` — **and** the generated engine artifacts — `AGENTS.md`, `opencode.json`,
+`.claude/`, `.agents/`, `.codex/`. Committing the generated layer means a fresh clone of the
+project works immediately, with no post-clone step and no dependency on forge-ai; you only
+re-run `sync` after editing the neutral source. (Only local state — `.workflow/`,
+`.claude/settings.local.json` — is gitignored.)
 
 ---
 
@@ -202,11 +204,13 @@ What it does:
   (`.claude/settings.json`, etc.) is **migrated** into `configs/` so its gate isn't lost.
 - **Generates the engine artifacts** by running `sync` (no symlinks): `AGENTS.md`,
   `opencode.json`, and `.claude/`, `.agents/`, `.codex/` (config + skills). These are
-  added to `.gitignore` — regenerate them any time with `./sync.sh` (or `sync.ps1`).
+  **committed with the project** (so clones work as-is); re-run `./sync.sh` (or `sync.ps1`)
+  after editing the neutral source. Only local state is added to `.gitignore`.
 - An existing `CLAUDE.md` is backed up to `CLAUDE.md.pre-forge.bak` (move its
   project-specifics into `PROJECT.md`), and `.gitignore` is merged, not replaced.
-- Runs a **post-install validation** (all three skill-discovery paths + `AGENTS.md`
-  generated) and warns if a config lacks the push/PR gate.
+- Runs a **post-install validation** (skill-discovery paths `.claude`/`.agents`, `AGENTS.md`,
+  and engine configs generated) that **exits non-zero** if anything is missing, and warns if
+  a config lacks the push/PR gate.
 
 Then fill in `PROJECT.md`, edit the neutral source as needed (`skills/`, `configs/`,
 `CLAUDE.md`) and re-run `sync`, and open the project in any of the three engines.

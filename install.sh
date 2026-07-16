@@ -10,8 +10,8 @@
 # docs/). This installer copies src/* into the target's root, then runs sync.sh to GENERATE
 # each engine's config + skills
 # (.claude/.codex/.opencode + AGENTS.md + opencode.json). No symlinks anywhere
-# (Windows-safe). The generated engine artifacts are gitignored — regenerate them any time
-# with ./sync.sh (or sync.ps1).
+# (Windows-safe). The generated engine artifacts are COMMITTED with the target project so a
+# fresh clone works immediately; re-run sync after editing the neutral source to regenerate.
 #
 # Copy-based on purpose: the discipline travels with the target repo (works on any clone,
 # no external dependency). Re-run with --upgrade to refresh the framework files.
@@ -23,7 +23,7 @@
 # PROJECT-OWNED (created only if missing — NEVER clobbered):
 #   PROJECT.md, CONTINUITY.md, configs/claude/settings.json, configs/codex/config.toml,
 #   configs/opencode.json  (edit these to customize; sync regenerates the engine dirs)
-# GENERATED (gitignored; produced by sync.sh — do NOT edit):
+# GENERATED (committed with the target; produced by sync.sh — do NOT hand-edit):
 #   AGENTS.md, opencode.json, .claude/, .agents/, .codex/
 #   (skills live in .claude/skills for Claude Code + .agents/skills for Codex; OpenCode
 #    reads either — verified per each engine's docs.)
@@ -116,13 +116,16 @@ fi
 # --- GENERATE engine dirs + AGENTS.md + opencode.json via sync (no symlinks) ---
 bash "$TARGET/sync.sh" >/dev/null
 
-# --- .gitignore (merge, don't clobber): generated engine artifacts + local state ---
+# --- .gitignore (merge, don't clobber): ONLY local state ---
+# The generated engine artifacts (.claude/, .agents/, .codex/, AGENTS.md, opencode.json)
+# are COMMITTED with the project so a fresh clone works immediately — no post-clone step,
+# no dependency on forge-ai. Re-run ./sync.sh after editing the neutral source to regenerate
+# them. Only genuinely local/transient state is ignored here.
 touch "$TARGET/.gitignore"
-if ! grep -qx '# forge-ai (generated — regenerate with ./sync.sh)' "$TARGET/.gitignore"; then
+if ! grep -qx '# forge-ai (local state — do not commit)' "$TARGET/.gitignore"; then
   {
-    printf '\n# forge-ai (generated — regenerate with ./sync.sh)\n'
-    printf '.claude/\n.agents/\n.codex/\n/AGENTS.md\n/opencode.json\n'
-    printf '\n# forge-ai (local state)\n.DS_Store\n.workflow/\n'
+    printf '\n# forge-ai (local state — do not commit)\n'
+    printf '.DS_Store\n.workflow/\n.claude/settings.local.json\n'
   } >> "$TARGET/.gitignore"
 fi
 
@@ -154,4 +157,4 @@ echo "forge-ai installed."
 echo "  next: (1) fill PROJECT.md   (2) in Codex, trust the project when prompted"
 echo "        (3) open the project in any of Claude Code / Codex / OpenCode"
 echo "  edit the neutral source (skills/, configs/, CLAUDE.md), then re-run ./sync.sh"
-echo "  (or sync.ps1 on Windows) to regenerate. Generated engine dirs are gitignored."
+echo "  (or sync.ps1 on Windows) to regenerate. Generated dirs are committed — clones work as-is."

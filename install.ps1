@@ -9,8 +9,8 @@
 # repo root free of files that would collide when working ON forge-ai. This installer copies
 # src/* into the target's root, then runs sync.ps1 to GENERATE each engine's config + skills
 # (.claude/ + .agents/skills + .codex/config.toml + AGENTS.md + opencode.json). No symlinks
-# (Windows-safe). Generated engine artifacts are gitignored — regenerate any time with
-# ./sync.ps1.
+# (Windows-safe). Generated engine artifacts are COMMITTED with the target project so a
+# fresh clone works immediately; re-run sync after editing the neutral source.
 #
 param(
   [Parameter(Mandatory = $true)][string]$Target,
@@ -116,23 +116,19 @@ if ((Test-Path $tAgents) -and -not (Has-ForgeMarker $tAgents)) {
 # --- GENERATE engine dirs + AGENTS.md + opencode.json via sync (no symlinks) ---
 & (Join-Path $Target 'sync.ps1') | Out-Null
 
-# --- .gitignore (merge, don't clobber): generated engine artifacts + local state ---
+# --- .gitignore (merge, don't clobber): ONLY local state (generated files are committed) ---
 $gi = Join-Path $Target '.gitignore'
 if (-not (Test-Path $gi)) { New-Item -ItemType File -Path $gi | Out-Null }
-$marker = '# forge-ai (generated — regenerate with ./sync.sh)'
+$marker = '# forge-ai (local state — do not commit)'
 if (-not (Select-String -Quiet -SimpleMatch $marker $gi)) {
+  # Generated engine artifacts are COMMITTED with the project (clone works as-is); only
+  # local/transient state is ignored. Re-run ./sync.ps1 after editing the neutral source.
   $block = @"
 
-# forge-ai (generated — regenerate with ./sync.sh)
-.claude/
-.agents/
-.codex/
-/AGENTS.md
-/opencode.json
-
-# forge-ai (local state)
+# forge-ai (local state — do not commit)
 .DS_Store
 .workflow/
+.claude/settings.local.json
 "@
   Add-Content -Path $gi -Value $block
 }
@@ -167,4 +163,4 @@ Write-Host "forge-ai installed."
 Write-Host "  next: (1) fill PROJECT.md   (2) in Codex, trust the project when prompted"
 Write-Host "        (3) open the project in any of Claude Code / Codex / OpenCode"
 Write-Host "  edit the neutral source (skills/, configs/, CLAUDE.md), then re-run ./sync.ps1"
-Write-Host "  to regenerate. Generated engine dirs are gitignored."
+Write-Host "  to regenerate. Generated dirs are committed — clones work as-is."

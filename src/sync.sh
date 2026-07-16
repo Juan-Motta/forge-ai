@@ -17,9 +17,10 @@
 #   Claude Code → .claude/skills   |   Codex → .agents/skills   |   OpenCode → any of
 #   .opencode/.claude/.agents. So .claude/skills + .agents/skills covers all three.
 #
-# GENERATED (do NOT edit — regenerated on every run): AGENTS.md, opencode.json,
+# GENERATED (do NOT hand-edit — regenerated on every run): AGENTS.md, opencode.json,
 # .claude/, .agents/, .codex/. Edit the neutral source above, then re-run ./sync.sh.
-# These generated paths are gitignored; regenerate them any time (e.g. after a clone).
+# In an installed project these are committed (so a clone works as-is); in the forge-ai
+# repo itself they're gitignored dev artifacts.
 #
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
