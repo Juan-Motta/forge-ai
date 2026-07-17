@@ -20,7 +20,7 @@ shipping.
 - [ ] `.workflow/state.md` updated
 
 The active workflow records its profile in `.workflow/state.md` (the **Profile** field —
-see `state.template.md`); `finish-branch` validates that profile's boxes before shipping.
+see `shared/state.template.md`); `finish-branch` validates that profile's boxes before shipping.
 
 ### `light` — used by `quick-fix`
 

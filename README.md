@@ -32,29 +32,33 @@ the three CLIs at the project and they pick up the same rules, skills, and guard
 ### One neutral source, generated per engine (no symlinks)
 
 The shippable payload is a single **engine-neutral source** in **`src/`** — the
-instructions, skills, rules, and per-engine configs. `install.sh` copies it into a target
-project's root, then a generator (`sync.sh` / `sync.ps1`) produces each engine's config and
-skills **by plain copy** — no symlinks, so it works identically on macOS, Linux, and
-Windows. Editing is centralized: change the neutral source, re-run sync.
+instructions, skills, rules, and per-engine configs. This source and its generators live in
+the **forge-ai repo**; they never travel into a target project. `install.sh` copies only the
+runtime files a target needs and runs a generator (`sync.sh` / `sync.ps1`) that produces each
+engine's config and skills **by plain copy** straight into the target — no symlinks, so it
+works identically on macOS, Linux, and Windows. Editing is centralized: change the neutral
+source in forge-ai, then re-run the installer against the target (**thin install** — the
+target gets only what the agent needs at runtime, none of the build machinery).
 
 ```mermaid
 flowchart TD
-    subgraph SRC["Neutral source (committed, edit here)"]
+    subgraph SRC["Neutral source (lives in forge-ai, edit here)"]
         INS["CLAUDE.md"]
         SK["skills/&lt;name&gt;/SKILL.md"]
         RU["shared/rules/*.md"]
         CF["configs/claude · configs/codex · configs/opencode"]
     end
-    SRC -->|sync.sh generates| GEN["Generated (committed with the project)"]
+    SRC -->|install.sh runs sync --out target| GEN["Generated into the target (committed with the project)"]
     GEN --> CLAUDE["Claude Code<br/>CLAUDE.md · .claude/settings.json · .claude/skills"]
     GEN --> CODEX["Codex<br/>AGENTS.md · .codex/config.toml · .agents/skills"]
     GEN --> OPEN["OpenCode<br/>AGENTS.md · opencode.json · reads .claude/.agents skills"]
 ```
 
-- **Neutral source vs generated:** you edit only the neutral source (`CLAUDE.md`, `skills/`,
-  `shared/rules/`, `configs/`). The per-engine artifacts (`AGENTS.md`, `opencode.json`,
-  `.claude/`, `.agents/`, `.codex/`) are **generated and committed with the project** — so a
-  clone works immediately — but never hand-edited; re-run `./sync.sh` after editing the source.
+- **Neutral source vs generated:** you edit only the neutral source in forge-ai (`CLAUDE.md`,
+  `skills/`, `shared/rules/`, `configs/`). The per-engine artifacts (`AGENTS.md`,
+  `opencode.json`, `.claude/`, `.agents/`, `.codex/`) are **generated into the target and
+  committed with it** — so a clone works immediately — but never hand-edited. The target holds
+  no source or generator; re-run the installer against it after editing the source.
 - **Instructions:** `CLAUDE.md` is the canonical set. Sync copies it to `AGENTS.md` so Claude
   Code reads `CLAUDE.md` and Codex/OpenCode read `AGENTS.md` — same content, no drift.
 - **Skills:** `skills/` is the single source of truth. Sync copies it into the two paths that
@@ -62,9 +66,10 @@ flowchart TD
   `.agents/skills` (Codex, also read by OpenCode). Codex only discovers project skills under
   `.agents/skills` — not `.codex/skills`.
 - **Configs:** `configs/claude/settings.json`, `configs/codex/config.toml`,
-  `configs/opencode.json` are the editable, project-owned gate configs. Sync places each
-  where its engine looks for it (`.claude/settings.json`, `.codex/config.toml`, root
-  `opencode.json`).
+  `configs/opencode.json` are the editable gate configs in the forge-ai source. Sync places
+  each where its engine looks for it in the target (`.claude/settings.json`,
+  `.codex/config.toml`, root `opencode.json`) as a generated baseline. Per-project Claude
+  overrides go in `.claude/settings.local.json` (gitignored, never touched by the installer).
 - **Rules:** `shared/rules/*.md` hold the discipline (severity, TDD, ship-gates, memory,
   continuity, models, …), read in place and referenced by the skills.
 
@@ -87,36 +92,41 @@ matches by command pattern (so it's bypassable):
 
 The prompt is a commit-confirmation, not proof the gates are green: **the approver must
 check `.workflow/state.md` first.** (Real hard blocking would need per-engine hooks —
-Tier C, out of scope; see [`docs/extending.md`](docs/extending.md).)
+Tier C, out of scope; see [`src/docs/extending.md`](src/docs/extending.md).)
 
 ### Repo layout
 
 The payload lives in `src/`, keeping the repo root free of files that would collide when
-working ON forge-ai (a root `CLAUDE.md`, `docs/`, etc.). `install.sh` copies `src/*` into a
-target's root; the framework-only files at the root never travel:
+working ON forge-ai (a root `CLAUDE.md`, `docs/`, etc.). `install.sh` reads `src/` but copies
+only the runtime subset into a target; the source, generators, and seed templates stay here:
 
 ```
 forge-ai/
-├── src/                          # ── PAYLOAD (install.sh copies src/* into a target) ──
-│   ├── CLAUDE.md                 #    canonical instructions (neutral source)
-│   ├── skills/<name>/SKILL.md    #    canonical skills (one per workflow)
+├── src/                          # ── SOURCE (stays in forge-ai; only runtime is copied) ──
+│   ├── CLAUDE.md                 #    canonical instructions (copied to the target)
+│   ├── skills/<name>/SKILL.md    #    canonical skills → generated into .claude/ + .agents/
 │   ├── shared/rules/*.md         #    discipline: severity, tdd, ship-gates, memory, …
-│   ├── configs/                  #    per-engine gate config: claude/ codex/ opencode.json
-│   ├── sync.sh · sync.ps1        #    the generator (produces engine dirs from the source)
+│   ├── shared/state.template.md  #    workflow-state seed (copied to the target)
+│   ├── configs/                  #    gate-config source → generated engine configs (not copied)
+│   ├── sync.sh · sync.ps1        #    the generator (never copied into the target)
 │   ├── docs/extending.md + empty prds/ plans/ research/ solutions/ adr/  # scaffold
-│   └── state.template.md · CONTINUITY.template.md · PROJECT.template.md
+│   └── CONTINUITY.template.md · PROJECT.template.md   # seed-only (never copied)
 │
 ├── install.sh · install.ps1      # installers (bash + PowerShell)   ┐ framework only
 └── README.md · LICENSE           # framework docs + license          ┘ (never copied)
 ```
 
-After install, a **target** project commits both the neutral source at its root —
-`CLAUDE.md`, `skills/`, `shared/`, `configs/`, `sync.sh`/`sync.ps1`, `PROJECT.md`,
-`CONTINUITY.md` — **and** the generated engine artifacts — `AGENTS.md`, `opencode.json`,
+After a **thin install**, a target project holds only runtime files: the managed
+`CLAUDE.md`, `shared/rules/`, `shared/state.template.md`; the project-owned `PROJECT.md`,
+`CONTINUITY.md`, `docs/`; and the generated engine artifacts — `AGENTS.md`, `opencode.json`,
 `.claude/`, `.agents/`, `.codex/`. Committing the generated layer means a fresh clone of the
-project works immediately, with no post-clone step and no dependency on forge-ai; you only
-re-run `sync` after editing the neutral source. (Only local state — `.workflow/`,
-`.claude/settings.local.json` — is gitignored.)
+project works immediately, with no post-clone step and no dependency on forge-ai. There is no
+source or generator in the target — to customize or upgrade, edit the forge-ai source and
+re-run the installer against the project. (Only local state — `.workflow/`,
+`.claude/settings.local.json` — is gitignored.) Running an upgrade over a project installed
+by an older, non-thin version cleans up the leftover machinery automatically (`sync.sh`,
+templates, `docs/extending.md` removed; `configs/` and a neutral `skills/` backed up to
+`*.pre-forge.bak`).
 
 ---
 
@@ -172,45 +182,52 @@ edit; the skills read from there rather than hard-coding commands.
 
 ## Installation
 
-forge-ai is the framework repo — install its discipline into a target project. It's
-**copy-based**, so the discipline travels with that repo (works on any clone, no external
-dependency). Use the installer for your OS:
+forge-ai is the framework repo — install its discipline into a target project. It's a
+**thin install**: only the agent's runtime files land in the target (the generated engine
+artifacts + a small managed baseline), so a clone of that project works with no dependency on
+forge-ai, while all build machinery stays here. With no target argument the installer uses
+the current directory:
 
 ```bash
 # macOS / Linux
-./install.sh /path/to/your-project              # first install
-./install.sh /path/to/your-project --upgrade    # refresh framework files later
+cd /path/to/your-project && /path/to/forge-ai/install.sh   # install into the current dir
+./install.sh /path/to/your-project                         # or name the target explicitly
+./install.sh /path/to/your-project --upgrade               # refresh framework files later
 ```
 
 ```powershell
 # Windows (PowerShell)
-pwsh ./install.ps1 C:\path\to\your-project              # first install
-pwsh ./install.ps1 C:\path\to\your-project -Upgrade     # refresh framework files later
+pwsh /path/to/forge-ai/install.ps1                          # install into the current dir
+pwsh ./install.ps1 C:\path\to\your-project                  # or name the target explicitly
+pwsh ./install.ps1 C:\path\to\your-project -Upgrade         # refresh framework files later
 ```
 
 What it does:
 
-- **Copies the managed baseline** (overwritten on upgrade): `CLAUDE.md`, `sync.sh`/`sync.ps1`,
-  `docs/extending.md`, the `*.template.md` files, and the docs scaffolding — plus the
-  framework's own entries in `skills/` and `shared/rules/`, refreshed **by name**. Your own
-  skills/rules dropped into those dirs are left untouched, so they **survive upgrades**.
+- **Copies the managed runtime baseline** (overwritten on upgrade): `CLAUDE.md`,
+  `shared/state.template.md`, the framework's own entries in `shared/rules/` (refreshed **by
+  name**), and the docs scaffolding. Your own rules dropped into `shared/rules/` are left
+  untouched, so they **survive upgrades**. The source, generators (`sync.sh`/`sync.ps1`),
+  `configs/`, and seed templates are **not** copied — they live only in forge-ai.
 - **Creates project-owned files only if missing** (never clobbered on re-run): `PROJECT.md`,
-  `CONTINUITY.md`, a seed `docs/CHANGELOG.md`, and the neutral configs
-  `configs/claude/settings.json`, `configs/codex/config.toml`, `configs/opencode.json`. A
-  pre-existing engine config (`.claude/settings.json`, etc.) is **migrated** into `configs/`
-  so its gate isn't lost.
-- **Generates the engine artifacts** by running `sync` (no symlinks): `AGENTS.md`,
-  `opencode.json`, and `.claude/`, `.agents/`, `.codex/` (config + skills). These are
-  **committed with the project** (so clones work as-is); re-run `./sync.sh` (or `sync.ps1`)
-  after editing the neutral source. Only local state is added to `.gitignore`.
+  `CONTINUITY.md`, a seed `docs/CHANGELOG.md`. Per-project Claude overrides go in
+  `.claude/settings.local.json` (gitignored, never touched).
+- **Generates the engine artifacts** by running `sync --out <target>` (no symlinks):
+  `AGENTS.md`, `opencode.json`, and `.claude/`, `.agents/`, `.codex/` (config + skills) as a
+  baseline from the forge-ai source. These are **committed with the project** (so clones work
+  as-is); to change them, edit the forge-ai source and re-run the installer.
+- **Self-heals an older, non-thin install** on upgrade: leftover machinery (`sync.sh`,
+  `sync.ps1`, root templates, `docs/extending.md`) is removed, and a pre-existing `configs/`
+  or neutral `skills/` is backed up to `*.pre-forge.bak` (never silently deleted).
 - An existing `CLAUDE.md` is backed up to `CLAUDE.md.pre-forge.bak` (move its
   project-specifics into `PROJECT.md`), and `.gitignore` is merged, not replaced.
 - Runs a **post-install validation** (skill-discovery paths `.claude`/`.agents`, `AGENTS.md`,
   and engine configs generated) that **exits non-zero** if anything is missing, and warns if
   a config lacks the push/PR gate.
 
-Then fill in `PROJECT.md`, edit the neutral source as needed (`skills/`, `configs/`,
-`CLAUDE.md`) and re-run `sync`, and open the project in any of the three engines.
+Then fill in `PROJECT.md` in the target, edit the neutral source in forge-ai as needed
+(`skills/`, `configs/`, `CLAUDE.md`) and re-run the installer against the project, and open
+the project in any of the three engines.
 
 > **Windows:** no symlinks are used, so nothing special is required — `install.ps1` and
 > `sync.ps1` are plain PowerShell copies. (Needs PowerShell 7 / `pwsh`.)
@@ -270,12 +287,12 @@ override the safety/ship-gate baseline (on conflict, the baseline wins). All thr
 load `PROJECT.md` via golden rule #2 (OpenCode also force-loads it via `opencode.json`
 `instructions`).
 
-**To add project rules:** copy `PROJECT.template.md` → `PROJECT.md`, fill the four
-sections, commit. No per-engine config needed. See `shared/rules/project-rules.md`.
+**To add project rules:** the installer already seeds `PROJECT.md` in the target — fill the
+four sections and commit. No per-engine config needed. See `shared/rules/project-rules.md`.
 
 ## Extending
 
-See [`docs/extending.md`](docs/extending.md) — it defines three tiers (skills-only,
+See [`src/docs/extending.md`](src/docs/extending.md) — it defines three tiers (skills-only,
 skills + invoked scripts, hooks), a decision checklist, and the steps to add a new skill.
 Most new functionality is a single `skills/<name>/SKILL.md` that all three engines
 discover automatically.
@@ -283,7 +300,8 @@ discover automatically.
 ## Status
 
 Engines: Claude Code, Codex, OpenCode. 11 skills, 11 rules. Neutral-source + generator model
-(no symlinks) — cross-platform (`install.sh` + `install.ps1`), validated by dry-run install on
-both bash and PowerShell (engine dirs, configs, and `AGENTS.md` generate; `--upgrade` preserves
-project-owned configs and custom skills; a pre-existing engine config is migrated into `configs/`).
-Pending: interactive test of the native push/PR gate in each engine.
+(no symlinks), **thin install** (only runtime lands in the target; machinery stays in forge-ai)
+— cross-platform (`install.sh` + `install.ps1`), validated by dry-run install on both bash and
+PowerShell (engine dirs, configs, and `AGENTS.md` generate; bare run targets the cwd; `--upgrade`
+preserves project-owned files and rules and self-heals an older non-thin install; bash↔pwsh
+parity). Pending: interactive test of the native push/PR gate in each engine.

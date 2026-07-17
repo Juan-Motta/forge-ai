@@ -1,10 +1,11 @@
 # Workflow discipline for Claude Code, Codex + OpenCode
 
-> This file is the always-on instruction set and the **canonical source**. `AGENTS.md` is
-> a generated copy of it (run `./sync.sh`), so **Claude Code** (reads `CLAUDE.md`),
-> **Codex** (reads `AGENTS.md`), and **OpenCode** (reads `AGENTS.md`, falls back to
-> `CLAUDE.md`) all load the exact same discipline. Edit `CLAUDE.md`, then re-run sync — no
-> symlinks, no drift.
+> This file is the always-on instruction set. `AGENTS.md` is a generated copy of it, so
+> **Claude Code** (reads `CLAUDE.md`), **Codex** (reads `AGENTS.md`), and **OpenCode**
+> (reads `AGENTS.md`, falls back to `CLAUDE.md`) all load the exact same discipline — no
+> symlinks, no drift. Both are generated from the forge-ai source; to change the discipline,
+> edit the source there and re-run the forge-ai installer against this project (don't
+> hand-edit `CLAUDE.md`/`AGENTS.md` here — a re-install overwrites them).
 
 ## What this is
 
@@ -26,7 +27,7 @@ state and is bypassable. It runs identically under Claude Code, Codex, and OpenC
 - **Pick the right workflow skill** for the task (see index below) and follow it.
 - **`.workflow/state.md` is the source of truth** for the active workflow: its checklist
   gates shipping. Keep it updated as you progress. If it doesn't exist for the current
-  task, start from `state.template.md`.
+  task, start from `shared/state.template.md`.
 - **Do not ship until the gates pass.** Before `git commit` / `git push` /
   `gh pr create`, every required box in `.workflow/state.md` must be checked. See
   `shared/rules/ship-gates.md`.

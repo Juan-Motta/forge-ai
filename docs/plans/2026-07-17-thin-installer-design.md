@@ -156,22 +156,49 @@ The post-install message drops the "re-run `./sync.sh`" guidance (no sync in the
 New guidance: to customize or upgrade, edit the forge-ai source and re-run
 `install.sh --upgrade <target>`.
 
-## Tests (`tests/smoke.sh` + pwsh parity)
+### 9. Migration / self-healing (added during implementation)
 
-- **#1 (no leak):** extend the leak assertion to require that `skills/`, `configs/`,
-  `sync.sh`, `sync.ps1`, `PROJECT.template.md`, `CONTINUITY.template.md`, and
-  `docs/extending.md` are **absent** from the target. Assert `shared/state.template.md`
-  exists and root `state.template.md` does not.
-- **#2 (parity):** unchanged — bash and pwsh targets must be byte-identical.
-- **#3 / #6 (upgrade preserve/prune):** rewrite for the centralized model. Custom skills are
-  no longer in `target/skills/`; the preserve/prune assertions move to
-  `target/shared/rules/` (a project-owned rule survives upgrade; a framework rule dropped
-  upstream is pruned).
-- **#4 (data-loss guard):** unchanged — a user's own pre-existing engine skills dir is
-  backed up.
-- **#5 (sync fails on missing input):** adjust to the new `sync --out` signature.
-- **New:** assert that a bare `./install.sh` (no args) installs into cwd, and that a bare
-  run from inside the forge-ai repo is refused.
+A target installed by an **older, non-thin** version still carries the machinery
+(`sync.sh`, `sync.ps1`, `configs/`, neutral `skills/`, root `state.template.md`,
+`*.template.md`, `docs/extending.md`). Re-running the thin installer over it must not leave a
+confusing half-migrated tree, so install/upgrade self-heals near the start:
+
+- **Removed outright** (framework-owned, no user content): `sync.sh`, `sync.ps1`,
+  `state.template.md` (root — moved to `shared/`), `PROJECT.template.md`,
+  `CONTINUITY.template.md`, `docs/extending.md`.
+- **Backed up, never deleted** (may hold pre-forge user edits): `configs/` →
+  `configs.pre-forge.bak`, neutral `skills/` → `skills.pre-forge.bak`. This preserves the
+  "no data loss" invariant; the user moves anything worth keeping into the forge-ai source.
+
+The whole block is gated on a **prior forge install** (`.forge-manifest` present), so a
+first install into a project that happens to have its own unrelated `configs/` or `skills/`
+dir never touches them. On a fresh thin install the block is a no-op.
+
+### Docs consistency
+
+`README.md`, `src/CLAUDE.md` (header), and `src/shared/rules/ship-gates.md` describe the old
+copy-the-source model and are updated to the thin model (default cwd, no sync/source in the
+target, customize/upgrade from forge-ai, `state.template.md` under `shared/`).
+
+## Tests (`tests/smoke.sh` + pwsh parity) — as implemented
+
+- **#1 (thin payload + no leak):** assert runtime files present (incl.
+  `shared/state.template.md`, `shared/rules/*.md`, seeded `PROJECT.md`/`CONTINUITY.md`) and
+  that `skills/`, `configs/`, `sync.sh`, `sync.ps1`, `state.template.md` (root),
+  `PROJECT.template.md`, `CONTINUITY.template.md`, `docs/extending.md` are **absent**.
+- **#2 (parity):** bash and pwsh targets byte-identical (`diff -rq`).
+- **#3 (upgrade preserve):** project-owned `PROJECT.md` and a project rule in
+  `shared/rules/` survive `--upgrade`.
+- **#4 (data-loss guard):** a user's own pre-existing engine skills dir is backed up.
+- **#5 (sync):** `sync.sh` fails non-zero on missing input; `sync.sh --out <dir>` generates
+  into that dir and not into the source.
+- **#6 (prune):** a framework rule dropped upstream is pruned; a project rule is kept.
+- **#7 (default cwd + guard):** a bare `install.sh` (no args) installs into cwd; a bare run
+  from the forge-ai root or `src/` is refused.
+- **#8 (migration self-heal):** an older bloated layout is cleaned up on upgrade —
+  machinery removed, `configs/` and neutral `skills/` backed up to `*.pre-forge.bak`.
+- **#9 (self-heal gate):** a first install (no `.forge-manifest`) into a project with its
+  own unrelated `configs/`/`skills/` leaves them untouched.
 
 ## Out of scope
 

@@ -3,19 +3,29 @@
 # forge-ai installer (Windows / PowerShell) — copy the workflow discipline into a target
 # project. Mirror of install.sh.
 #
-#   pwsh ./install.ps1 <target-dir> [-Upgrade]
+#   pwsh ./install.ps1 [target-dir] [-Upgrade]
 #
-# The shippable payload is the NEUTRAL source in ./src/. Keeping it in a subfolder keeps the
-# repo root free of files that would collide when working ON forge-ai. This installer copies
-# src/* into the target's root, then runs sync.ps1 to GENERATE each engine's config + skills
-# (.claude/ + .agents/skills + .codex/config.toml + AGENTS.md + opencode.json). No symlinks
-# (Windows-safe). Generated engine artifacts are COMMITTED with the target project so a
-# fresh clone works immediately; re-run sync after editing the neutral source.
-# -Upgrade is an idempotent refresh (same effect as re-running install: managed files
-# overwritten by name, project-owned preserved). It does NOT yet prune files removed upstream.
+# With no target-dir, installs into the current working directory.
+#
+# THIN INSTALL: the target receives only what the agent needs at RUNTIME. All framework
+# machinery (the neutral source in ./src/, the generators sync.sh/ps1, the generation
+# inputs in configs/, and the seed templates) stays in the forge-ai repo — never copied
+# into the target. To customize or upgrade, edit the forge-ai source and re-run this
+# installer against the target (-Upgrade, or a bare re-run from inside the project).
+#
+# This installer copies the runtime subset into the target, then runs `sync.ps1 -Out <target>`
+# to GENERATE each engine's config + skills straight into the target. No symlinks. The
+# generated engine artifacts are COMMITTED with the target so a fresh clone works with no
+# forge-ai dependency at runtime.
+#
+# LANDS IN THE TARGET (runtime only): CLAUDE.md, AGENTS.md, opencode.json, .claude/,
+#   .agents/, .codex/ (generated), shared/rules/*.md + shared/state.template.md (managed),
+#   docs/ scaffolding + CHANGELOG, PROJECT.md + CONTINUITY.md (project-owned, seeded).
+# STAYS IN forge-ai (never copied): src/skills (neutral), configs/, sync.sh, sync.ps1,
+#   *.template.md, docs/extending.md.
 #
 param(
-  [Parameter(Mandatory = $true)][string]$Target,
+  [Parameter(Mandatory = $false)][string]$Target,
   [switch]$Upgrade
 )
 $ErrorActionPreference = 'Stop'
@@ -23,18 +33,46 @@ $ErrorActionPreference = 'Stop'
 $Src = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Payload = Join-Path $Src 'src'
 $Mode = if ($Upgrade) { 'upgrade' } else { 'install' }
+if (-not $Target) { $Target = (Get-Location).Path }
 
 if (-not (Test-Path -PathType Container $Target)) { Write-Error "target dir not found: $Target"; exit 2 }
 $Target = (Resolve-Path $Target).Path
-if ($Target -eq $Src) { Write-Error "refusing to install into forge-ai itself"; exit 2 }
 if (-not ((Test-Path (Join-Path $Payload 'CLAUDE.md')) -and (Test-Path (Join-Path $Payload 'skills')))) {
-  Write-Error "payload not found — run this from the forge-ai repo root"; exit 2
+  Write-Error "payload not found — run this from the forge-ai repo"; exit 2
 }
+if ($Target -eq $Src) { Write-Error "refusing to install into forge-ai itself"; exit 2 }
+if ($Target -eq $Payload) { Write-Error "refusing to install into the forge-ai payload dir (src/)"; exit 2 }
 
 Write-Host "forge-ai -> installing into: $Target  (mode: $Mode)"
 
 function Has-ForgeMarker([string]$file) {
   return (Test-Path $file) -and (Select-String -Quiet -SimpleMatch 'Workflow discipline for Claude Code' $file)
+}
+
+# --- self-healing: drop machinery this version no longer installs into the target ---
+# (thin model — migrates a target from an older, bloated install.) Gated on a prior forge
+# install (.forge-manifest present) so a FIRST install never touches an unrelated project's
+# own configs/ or skills/ dirs.
+if (Test-Path (Join-Path $Target '.forge-manifest')) {
+  foreach ($f in 'sync.sh', 'sync.ps1', 'state.template.md', 'PROJECT.template.md', 'CONTINUITY.template.md', 'docs/extending.md') {
+    $p = Join-Path $Target $f
+    if (Test-Path $p) { Remove-Item -Force $p; Write-Host "  - removed obsolete framework file: $f" }
+  }
+  # configs/ and neutral skills/ may hold pre-forge user edits — back up rather than delete.
+  $tConfigs = Join-Path $Target 'configs'
+  if (Test-Path -PathType Container $tConfigs) {
+    $bak = Join-Path $Target 'configs.pre-forge.bak'
+    if (Test-Path $bak) { Remove-Item -Recurse -Force $bak }
+    Move-Item $tConfigs $bak
+    Write-Host "  ! configs/ is obsolete (engine configs are generated now) -> configs.pre-forge.bak; per-project Claude tweaks go in .claude/settings.local.json"
+  }
+  $tSkills = Join-Path $Target 'skills'
+  if (Test-Path -PathType Container $tSkills) {
+    $bak = Join-Path $Target 'skills.pre-forge.bak'
+    if (Test-Path $bak) { Remove-Item -Recurse -Force $bak }
+    Move-Item $tSkills $bak
+    Write-Host "  ! neutral skills/ is obsolete (skills are generated now) -> skills.pre-forge.bak; add custom skills to the forge-ai repo"
+  }
 }
 
 # --- MANAGED: CLAUDE.md (back up a pre-existing, non-forge one) ---
@@ -45,48 +83,34 @@ if ((Test-Path $tClaude) -and -not (Has-ForgeMarker $tClaude)) {
 }
 Copy-Item (Join-Path $Payload 'CLAUDE.md') $tClaude -Force
 
-# --- MANAGED: framework skills/ and shared/rules/ (per-entry overwrite by name) ---
-New-Item -ItemType Directory -Force -Path (Join-Path $Target 'skills'), (Join-Path $Target 'shared/rules') | Out-Null
-$newSkills = @(Get-ChildItem -Directory (Join-Path $Payload 'skills')).Name
-$newRules  = @(Get-ChildItem -File (Join-Path $Payload 'shared/rules') -Filter *.md).Name
+# --- MANAGED: framework shared/rules/ (per-entry overwrite by name) ---
+New-Item -ItemType Directory -Force -Path (Join-Path $Target 'shared/rules') | Out-Null
+$newRules = @(Get-ChildItem -File (Join-Path $Payload 'shared/rules') -Filter *.md).Name
 
-# Prune framework entries removed upstream (see install.sh for rationale). Project-owned
-# skills/rules aren't in the manifest, so they're untouched. No manifest yet = skip prune.
+# Prune framework rules removed upstream (see install.sh for rationale). Project-owned rules
+# aren't in the manifest, so they're untouched. No manifest yet = skip prune.
 $manifest = Join-Path $Target '.forge-manifest'
 if (Test-Path $manifest) {
   foreach ($line in Get-Content $manifest) {
-    if ($line -like 'skill:*') {
-      $n = $line.Substring(6)
-      if ($newSkills -notcontains $n) { Remove-Item -Recurse -Force (Join-Path $Target "skills/$n") -ErrorAction SilentlyContinue; Write-Host "  - pruned framework skill removed upstream: $n" }
-    } elseif ($line -like 'rule:*') {
+    if ($line -like 'rule:*') {
       $n = $line.Substring(5)
       if ($newRules -notcontains $n) { Remove-Item -Force (Join-Path $Target "shared/rules/$n") -ErrorAction SilentlyContinue; Write-Host "  - pruned framework rule removed upstream: $n" }
     }
   }
 }
 
-foreach ($d in Get-ChildItem -Directory (Join-Path $Payload 'skills')) {
-  $dest = Join-Path $Target "skills/$($d.Name)"
-  if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
-  Copy-Item -Recurse $d.FullName $dest
-}
 foreach ($f in Get-ChildItem -File (Join-Path $Payload 'shared/rules') -Filter *.md) {
   Copy-Item $f.FullName (Join-Path $Target "shared/rules/$($f.Name)") -Force
 }
 
-# Record the framework-owned manifest for the next upgrade's prune.
-Set-Content -Path $manifest -Value (@($newSkills | ForEach-Object { "skill:$_" }) + @($newRules | ForEach-Object { "rule:$_" }))
+# Record the framework-owned manifest for the next upgrade's prune (rules only).
+Set-Content -Path $manifest -Value (@($newRules | ForEach-Object { "rule:$_" }))
 
-# --- MANAGED: sync scripts (the generator) ---
-Copy-Item (Join-Path $Payload 'sync.sh')  (Join-Path $Target 'sync.sh')  -Force
-Copy-Item (Join-Path $Payload 'sync.ps1') (Join-Path $Target 'sync.ps1') -Force
+# --- MANAGED: workflow state template (in shared/) ---
+Copy-Item (Join-Path $Payload 'shared/state.template.md') (Join-Path $Target 'shared/state.template.md') -Force
 
-# --- MANAGED: templates + framework doc + docs/ scaffolding ---
-foreach ($t in 'state.template.md', 'CONTINUITY.template.md', 'PROJECT.template.md') {
-  Copy-Item (Join-Path $Payload $t) (Join-Path $Target $t) -Force
-}
+# --- MANAGED: docs/ scaffolding ---
 New-Item -ItemType Directory -Force -Path (Join-Path $Target 'docs') | Out-Null
-Copy-Item (Join-Path $Payload 'docs/extending.md') (Join-Path $Target 'docs/extending.md') -Force
 foreach ($d in 'prds', 'plans', 'research', 'solutions', 'adr') {
   $dd = Join-Path $Target "docs/$d"
   New-Item -ItemType Directory -Force -Path $dd | Out-Null
@@ -94,7 +118,7 @@ foreach ($d in 'prds', 'plans', 'research', 'solutions', 'adr') {
   if (-not (Test-Path $gk)) { New-Item -ItemType File -Path $gk | Out-Null }
 }
 
-# --- PROJECT-OWNED: PROJECT.md / CONTINUITY.md (create only if missing) ---
+# --- PROJECT-OWNED: PROJECT.md / CONTINUITY.md / docs/CHANGELOG.md (create only if missing) ---
 $tProject = Join-Path $Target 'PROJECT.md'
 if (-not (Test-Path $tProject)) {
   Copy-Item (Join-Path $Payload 'PROJECT.template.md') $tProject
@@ -105,30 +129,12 @@ if (-not (Test-Path $tCont)) { Copy-Item (Join-Path $Payload 'CONTINUITY.templat
 $tChangelog = Join-Path $Target 'docs/CHANGELOG.md'
 if (-not (Test-Path $tChangelog)) { Copy-Item (Join-Path $Payload 'docs/CHANGELOG.md') $tChangelog }
 
-# --- PROJECT-OWNED: neutral configs (create if missing; migrate a pre-existing engine
-#     config so we don't lose the project's own gate settings) ---
-function Seed-Config([string]$cfgRel, [string]$preRel) {
-  $cfg = Join-Path $Target $cfgRel
-  if (Test-Path $cfg) { return }
-  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $cfg) | Out-Null
-  $pre = Join-Path $Target $preRel
-  if (Test-Path $pre) {
-    Copy-Item $pre $cfg
-    Write-Host "  + migrated existing $preRel -> $cfgRel (edit configs/ from now on)"
-  } else {
-    Copy-Item (Join-Path $Payload $cfgRel) $cfg
-  }
-}
-Seed-Config 'configs/claude/settings.json' '.claude/settings.json'
-Seed-Config 'configs/codex/config.toml'    '.codex/config.toml'
-Seed-Config 'configs/opencode.json'        'opencode.json'
-
 # --- back up any pre-existing, NON-forge per-engine skills dir before sync overwrites it ---
 foreach ($eng in '.claude', '.agents') {
   $sd = Join-Path $Target "$eng/skills"
   if ((Test-Path $sd) -and -not (Test-Path (Join-Path $sd '.forge-generated'))) {
     Move-Item $sd "$sd.pre-forge.bak"
-    Write-Host "  ! backed up existing $eng/skills -> $eng/skills.pre-forge.bak (put custom skills in ./skills)"
+    Write-Host "  ! backed up existing $eng/skills -> $eng/skills.pre-forge.bak (add custom skills to the forge-ai repo)"
   }
 }
 # back up a real, non-forge AGENTS.md before sync overwrites it
@@ -138,16 +144,15 @@ if ((Test-Path $tAgents) -and -not (Has-ForgeMarker $tAgents)) {
   Write-Host "  ! backed up existing AGENTS.md -> AGENTS.md.pre-forge.bak"
 }
 
-# --- GENERATE engine dirs + AGENTS.md + opencode.json via sync (no symlinks) ---
-& (Join-Path $Target 'sync.ps1') | Out-Null
+# --- GENERATE engine dirs + AGENTS.md + opencode.json via sync (reads the forge-ai source,
+#     writes straight into the target) ---
+& (Join-Path $Src 'src/sync.ps1') -Out $Target | Out-Null
 
 # --- .gitignore (merge, don't clobber): ONLY local state (generated files are committed) ---
 $gi = Join-Path $Target '.gitignore'
 if (-not (Test-Path $gi)) { New-Item -ItemType File -Path $gi | Out-Null }
 $marker = '# forge-ai (local state — do not commit)'
 if (-not (Select-String -Quiet -SimpleMatch $marker $gi)) {
-  # Generated engine artifacts are COMMITTED with the project (clone works as-is); only
-  # local/transient state is ignored. Re-run ./sync.ps1 after editing the neutral source.
   $block = @"
 
 # forge-ai (local state — do not commit)
@@ -158,16 +163,16 @@ if (-not (Select-String -Quiet -SimpleMatch $marker $gi)) {
   Add-Content -Path $gi -Value $block
 }
 
-# --- warn if a project-owned config lacks the forge push/PR gate ---
+# --- warn if the generated config lacks the forge push/PR gate ---
 function Warn-Gate([string]$rel, [string]$needle, [string]$hint) {
   $f = Join-Path $Target $rel
   if ((Test-Path $f) -and -not (Select-String -Quiet -SimpleMatch $needle $f)) {
-    Write-Host "  ! $rel has no forge push/PR gate ($hint) — add it, then re-run ./sync.ps1."
+    Write-Host "  ! $rel has no forge push/PR gate ($hint) — add it to the forge-ai source, then re-run."
   }
 }
-Warn-Gate 'configs/claude/settings.json' 'git push'       'ask-tier on git push / gh pr create'
-Warn-Gate 'configs/codex/config.toml'    'approval_policy' 'approval_policy'
-Warn-Gate 'configs/opencode.json'        'git push'       'permission.bash git push* / gh pr create*'
+Warn-Gate '.claude/settings.json' 'git push'       'ask-tier on git push / gh pr create'
+Warn-Gate '.codex/config.toml'    'approval_policy' 'approval_policy'
+Warn-Gate 'opencode.json'         'git push'       'permission.bash git push* / gh pr create*'
 
 # --- post-install validation: generated skill copies + AGENTS.md must exist ---
 $ok = $true
@@ -176,7 +181,7 @@ foreach ($p in '.claude/skills', '.agents/skills') {
     Write-Host "  ! discovery FAILED: $p was not generated"; $ok = $false
   }
 }
-foreach ($f in 'AGENTS.md', '.claude/settings.json', '.codex/config.toml', 'opencode.json') {
+foreach ($f in 'AGENTS.md', '.claude/settings.json', '.codex/config.toml', 'opencode.json', 'shared/state.template.md') {
   if (-not (Test-Path (Join-Path $Target $f))) { Write-Host "  ! FAILED: $f was not generated"; $ok = $false }
 }
 if (-not $ok) {
@@ -187,5 +192,5 @@ Write-Host "  + validation: skills (.claude + .agents), AGENTS.md, and engine co
 Write-Host "forge-ai installed."
 Write-Host "  next: (1) fill PROJECT.md   (2) in Codex, trust the project when prompted"
 Write-Host "        (3) open the project in any of Claude Code / Codex / OpenCode"
-Write-Host "  edit the neutral source (skills/, configs/, CLAUDE.md), then re-run ./sync.ps1"
-Write-Host "  to regenerate. Generated dirs are committed — clones work as-is."
+Write-Host "  to customize or upgrade: edit the forge-ai source, then re-run this installer"
+Write-Host "  against the project (-Upgrade, or a bare re-run from inside it)."
