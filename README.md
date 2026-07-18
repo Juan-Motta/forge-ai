@@ -299,9 +299,12 @@ discover automatically.
 
 ## Status
 
+**v0.1.0 — first stable release.** Verified end-to-end on all three engines — **Claude Code,
+Codex, and OpenCode** — driving a real project.
+
 Engines: Claude Code, Codex, OpenCode. 11 skills, 11 rules. Neutral-source + generator model
 (no symlinks), **thin install** (only runtime lands in the target; machinery stays in forge-ai)
 — cross-platform (`install.sh` + `install.ps1`), validated by dry-run install on both bash and
 PowerShell (engine dirs, configs, and `AGENTS.md` generate; bare run targets the cwd; `--upgrade`
 preserves project-owned files and rules and self-heals an older non-thin install; bash↔pwsh
-parity). Pending: interactive test of the native push/PR gate in each engine.
+parity), and by interactive use of the native push/PR gate in each engine.

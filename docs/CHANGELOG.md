@@ -4,7 +4,10 @@ Notable changes to the forge-ai framework itself, newest first. This is the fram
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
-## Unreleased
+## 0.1.0 — 2026-07-18
+
+First stable release. Verified end-to-end on all three engines — **Claude Code, Codex, and
+OpenCode** — driving a real project.
 
 - **Thin installer + default target = cwd.** `install.sh`/`install.ps1` run with no argument
   now install into the current directory, and arg parsing is position-agnostic. The target
