@@ -184,6 +184,40 @@
           "owner": "research"
         }
       ]
+    },
+    "simplify": {
+      "positive": [
+        "clean up this code without changing behavior, the tests still pass",
+        "reduce the nesting and duplication in this module now that it works",
+        "refactor this to read more simply, behavior stays the same"
+      ],
+      "negative": [
+        {
+          "prompt": "give me a second opinion on this diff and flag any bugs",
+          "owner": "review"
+        },
+        {
+          "prompt": "the tests are failing, track down and fix the defect",
+          "owner": "fix-bug"
+        }
+      ]
+    },
+    "adr": {
+      "positive": [
+        "record the reasoning behind choosing event sourcing as a decision record",
+        "write an ADR documenting why we picked this module boundary",
+        "capture the context and consequences of this architecture decision so it survives"
+      ],
+      "negative": [
+        {
+          "prompt": "we're torn between two architectures, get several perspectives and a verdict",
+          "owner": "council"
+        },
+        {
+          "prompt": "compare a few designs on fixed axes and pick one",
+          "owner": "plan"
+        }
+      ]
     }
   }
 }

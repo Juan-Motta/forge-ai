@@ -33,7 +33,7 @@ Capture: the goal, the chosen approach + the comparison table, the files/units t
 edge cases, the tests that will prove it (TDD — `shared/rules/tdd.md`), and acceptance
 criteria. Keep units small and single-purpose. Save to `docs/plans/<feature>.md`
 (`shared/rules/docs-layout.md`) and reference it from `.workflow/state.md`. Record any
-significant architecture decision as an ADR in `docs/adr/`.
+significant architecture decision as an ADR (the `adr` skill) in `docs/adr/`.
 
 ## 5. Hand off to implementation
 

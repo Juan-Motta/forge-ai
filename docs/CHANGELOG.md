@@ -9,6 +9,15 @@ development log; it is **not** the seed shipped to installed projects (that live
 Bundles all of Phase 2 (skill quality machinery, honest enforcement, anti-rationalization
 anatomy) plus the first Phase-3 distribution work.
 
+- **Phase 3 — two new skills: `adr` and `simplify`** (13 skills total). `adr` records an
+  architecture decision as an ADR (`docs/adr/<NNN>-<slug>.md`: context, decision, alternatives
+  with why they lost, consequences) — closing the repo-first memory loop (`docs/adr/` was
+  scaffolded but no skill wrote to it). `simplify` is a post-green, behavior-preserving cleanup
+  pass (dead code, nesting, duplication, names; tests stay green throughout) — the refactor step
+  is the first thing skipped under pressure, so it gets its own skill. Both carry the full
+  anti-rationalization anatomy; `plan` now points at `adr` and `new-feature` at `simplify`.
+  Routing evals updated (rank-1 95%, 0 collisions across 13 skills); strengthening surfaced a
+  weak `new-feature` description (missing "implement/build" vocabulary), now fixed.
 - **Phase 3 — version stamp + `npx` distribution.** A root `VERSION` file is now the single
   source of truth; the installers stamp it into `.forge-version` in the target and print a
   direction-aware **drift advisory** on `--upgrade` when the target's recorded version differs

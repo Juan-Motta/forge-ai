@@ -1,6 +1,6 @@
 ---
 name: new-feature
-description: Full feature workflow — research, plan, cross-engine design review, TDD, code review, verify, and ship behind the ship-gate. Use when starting any new feature or behavior change under Claude Code, Codex, or OpenCode.
+description: Full feature workflow — research, plan, cross-engine design review, TDD, code review, verify, and ship behind the ship-gate. Use when starting or implementing any new feature or behavior change — build it end to end with tests and review — under Claude Code, Codex, or OpenCode.
 ---
 
 # new-feature
@@ -42,6 +42,7 @@ minimally, then refactor. Never write implementation before a failing test exist
 
 Review the diff with the `review` skill (the other engine) + a self-pass. Fix all
 P0/P1/P2. Repeat until a single pass is clean. Record iterations in `.workflow/state.md`.
+Then run `simplify` for a behavior-preserving cleanup pass while the suite is green.
 
 ## 6. Verify
 
