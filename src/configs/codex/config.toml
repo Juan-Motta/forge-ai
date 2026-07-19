@@ -8,7 +8,8 @@ approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 
 # This file is the CANONICAL source for Codex config; ./sync.sh copies it to .codex/config.toml.
-# Repo skills are generated under <repo>/.codex/skills (copied from ./skills by sync).
+# Repo skills are generated under <repo>/.agents/skills (Codex discovers project skills there —
+# NOT under .codex/skills). Sync also writes <repo>/.claude/skills (Claude Code + OpenCode).
 # Discipline is loaded from AGENTS.md (a generated copy of CLAUDE.md) at the repo root.
 
 # To harden the ship-gate into an actual command block (still no bash script), add a

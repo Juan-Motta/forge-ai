@@ -14,6 +14,16 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
+# Write a `standard`-profile workflow state with the full 6-gate checklist (matches
+# shared/rules/ship-gates.md). $1 = file, $2 = green (all checked) | red (last box unchecked).
+write_state() {
+  { printf '## Active workflow\n- **Profile:** standard\n## Ship-gate checklist\n'
+    printf -- '- [x] On a feature branch\n- [x] Plan reviewed\n- [x] Tests passing\n'
+    printf -- '- [x] Code review clean\n- [x] Change verified\n'
+    if [ "$2" = green ]; then printf -- '- [x] State updated\n'; else printf -- '- [ ] State updated\n'; fi
+  } > "$1"
+}
+
 # --- 1. bash install: thin runtime payload, no machinery leak, AGENTS.md == CLAUDE.md ---
 TB="$TMP/bash"; mkdir -p "$TB"
 "$ROOT/install.sh" "$TB" >/dev/null || fail "install.sh exited non-zero"
@@ -122,10 +132,12 @@ echo "ok: first install leaves an unrelated project's own configs/ and skills/ u
 TC="$TMP/gates"; mkdir -p "$TC/.workflow"
 "$ROOT/install.sh" "$TC" >/dev/null || fail "check-gates case install exited non-zero"
 GATES="$TC/shared/scripts/check-gates.sh"
-printf '## Active workflow\n- **Profile:** standard\n## Ship-gate checklist\n- [x] a\n- [x] b\n' > "$TC/.workflow/state.md"
+write_state "$TC/.workflow/state.md" green
 ( cd "$TC" && sh "$GATES" >/dev/null 2>&1 ) || fail "check-gates: a fully-checked state should exit 0"
-printf '## Active workflow\n- **Profile:** standard\n## Ship-gate checklist\n- [x] a\n- [ ] b\n' > "$TC/.workflow/state.md"
+write_state "$TC/.workflow/state.md" red
 if ( cd "$TC" && sh "$GATES" >/dev/null 2>&1 ); then fail "check-gates: an unchecked box should exit non-zero"; fi
+printf '## Active workflow\n- **Profile:** standard\n## Ship-gate checklist\n- [x] a\n- [x] b\n' > "$TC/.workflow/state.md"
+if ( cd "$TC" && sh "$GATES" >/dev/null 2>&1 ); then fail "check-gates: a standard checklist missing required gates must not pass"; fi
 [ -f "$TC/nope.md" ] && fail "test setup error"
 ( cd "$TC" && sh "$GATES" nope.md >/dev/null 2>&1 ) && fail "check-gates: a missing state file should exit non-zero" || true
 echo "ok: check-gates passes a green state and blocks an unchecked box"
@@ -150,12 +162,14 @@ SL="$TH/.claude/settings.local.json"
 grep -q "claude-gate-hook" "$SL" || fail "local settings file does not reference the gate hook"
 mkdir -p "$TH/.workflow"
 GHOOK="$TH/shared/scripts/claude-gate-hook.sh"
-printf '## Active workflow\n- **Profile:** standard\n## Ship-gate checklist\n- [x] a\n- [ ] b\n' > "$TH/.workflow/state.md"
+write_state "$TH/.workflow/state.md" red
 rc=0; ( cd "$TH" && printf '{"tool_input":{"command":"git commit -m x"}}' | sh "$GHOOK" >/dev/null 2>&1 ) || rc=$?
 [ "$rc" = 2 ] || fail "gate hook should exit 2 (block) on a red state + ship action, got $rc"
-printf '## Active workflow\n- **Profile:** standard\n## Ship-gate checklist\n- [x] a\n- [x] b\n' > "$TH/.workflow/state.md"
+write_state "$TH/.workflow/state.md" green
 ( cd "$TH" && printf '{"tool_input":{"command":"git push"}}' | sh "$GHOOK" >/dev/null 2>&1 ) || fail "gate hook should allow (exit 0) on a green state"
 ( cd "$TH" && printf '{"tool_input":{"command":"ls -la"}}' | sh "$GHOOK" >/dev/null 2>&1 ) || fail "gate hook should allow (exit 0) a non-ship command"
+rm -f "$TH/.workflow/state.md"
+( cd "$TH" && printf '{"tool_input":{"command":"git push"}}' | sh "$GHOOK" >/dev/null 2>&1 ) || fail "gate hook should fail OPEN (exit 0) when state is missing/unverifiable"
 TH2="$TMP/nohooks"; mkdir -p "$TH2"; "$ROOT/install.sh" "$TH2" >/dev/null
 [ -f "$TH2/.claude/settings.local.json" ] && fail "bare install wrongly created the opt-in local settings file"
 echo "ok: --with-hooks installs the Claude gate; it blocks a red ship and allows a green one"
@@ -184,5 +198,26 @@ TN="$ANC/proj-noiso"; mkdir -p "$TN"
 "$ROOT/install.sh" "$TN" --no-isolate >/dev/null || fail "--no-isolate install exited non-zero"
 if [ -f "$TN/.claude/settings.local.json" ]; then fail "--no-isolate must not write a local settings file when no other feature is enabled"; fi
 echo "ok: auto-isolation adds claudeMdExcludes under an ancestor; --no-isolate opts out"
+
+# --- 15. re-install must NOT relocate a project's own top-level configs/ or skills/ (not an old install) ---
+TR="$TMP/reinstall"; mkdir -p "$TR/skills/mine" "$TR/configs"
+printf 'mine\n' > "$TR/skills/mine/SKILL.md"; printf 'mine\n' > "$TR/configs/app.json"
+"$ROOT/install.sh" "$TR" >/dev/null || fail "first install (with own dirs) exited non-zero"
+"$ROOT/install.sh" "$TR" >/dev/null || fail "second install exited non-zero"
+[ -f "$TR/skills/mine/SKILL.md" ] || fail "re-install relocated the project's own skills/ (self-heal over-fired)"
+[ -f "$TR/configs/app.json" ] || fail "re-install relocated the project's own configs/"
+[ -e "$TR/skills.pre-forge.bak" ] && fail "re-install wrongly backed up a non-old-install skills/"
+echo "ok: re-install leaves a project's own configs/ and skills/ in place"
+
+# --- 16. the npx entry point installs on POSIX (must use bash, not sh — install.sh needs pipefail) ---
+if command -v node >/dev/null 2>&1; then
+  TX="$TMP/npx"; mkdir -p "$TX"
+  node "$ROOT/bin/forge-ai.mjs" "$TX" >/dev/null 2>&1 || fail "npx wrapper (node bin/forge-ai.mjs) exited non-zero"
+  [ -f "$TX/CLAUDE.md" ] || fail "npx wrapper did not install (no CLAUDE.md)"
+  [ "$(node "$ROOT/bin/forge-ai.mjs" --version)" = "$(head -n1 "$ROOT/VERSION" | tr -d '[:space:]')" ] || fail "npx --version mismatch"
+  echo "ok: npx entry point installs on POSIX and reports the version"
+else
+  echo "skip: node not installed — npx entry-point case skipped"
+fi
 
 echo "ALL PASS"

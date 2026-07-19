@@ -87,20 +87,26 @@ function Has-ForgeMarker([string]$file) {
 # install (.forge-manifest present) so a FIRST install never touches an unrelated project's
 # own configs/ or skills/ dirs.
 if (Test-Path (Join-Path $Target '.forge-manifest')) {
+  # Detect a genuinely OLD (pre-thin) forge install by its machinery; only then migrate
+  # configs/skills, so a routine re-install never relocates an app's own top-level dirs.
+  $oldInstall = $false
+  foreach ($f in 'sync.sh', 'sync.ps1', 'state.template.md', 'PROJECT.template.md', 'CONTINUITY.template.md', 'docs/extending.md') {
+    if (Test-Path (Join-Path $Target $f)) { $oldInstall = $true }
+  }
   foreach ($f in 'sync.sh', 'sync.ps1', 'state.template.md', 'PROJECT.template.md', 'CONTINUITY.template.md', 'docs/extending.md') {
     $p = Join-Path $Target $f
     if (Test-Path $p) { Remove-Item -Force $p; Write-Host "  - removed obsolete framework file: $f" }
   }
   # configs/ and neutral skills/ may hold pre-forge user edits — back up rather than delete.
   $tConfigs = Join-Path $Target 'configs'
-  if (Test-Path -PathType Container $tConfigs) {
+  if ($oldInstall -and (Test-Path -PathType Container $tConfigs)) {
     $bak = Join-Path $Target 'configs.pre-forge.bak'
     if (Test-Path $bak) { Remove-Item -Recurse -Force $bak }
     Move-Item $tConfigs $bak
     Write-Host "  ! configs/ is obsolete (engine configs are generated now) -> configs.pre-forge.bak; per-project Claude tweaks go in .claude/settings.local.json"
   }
   $tSkills = Join-Path $Target 'skills'
-  if (Test-Path -PathType Container $tSkills) {
+  if ($oldInstall -and (Test-Path -PathType Container $tSkills)) {
     $bak = Join-Path $Target 'skills.pre-forge.bak'
     if (Test-Path $bak) { Remove-Item -Recurse -Force $bak }
     Move-Item $tSkills $bak
@@ -127,7 +133,14 @@ if (Test-Path $manifest) {
   foreach ($line in Get-Content $manifest) {
     if ($line -like 'rule:*') {
       $n = $line.Substring(5)
-      if ($newRules -notcontains $n) { Remove-Item -Force (Join-Path $Target "shared/rules/$n") -ErrorAction SilentlyContinue; Write-Host "  - pruned framework rule removed upstream: $n" }
+      # Treat the committed manifest as untrusted: a prune target must be a bare *.md filename,
+      # never a path/traversal, so a tampered entry can't delete outside shared/rules/.
+      if ($n -match '[\\/]' -or $n -match '\.\.' -or $n -eq '' -or $n -notmatch '\.md$') {
+        [Console]::Error.WriteLine("  ! ignoring unsafe manifest rule entry: $n")
+      } elseif ($newRules -notcontains $n) {
+        Remove-Item -Force (Join-Path $Target "shared/rules/$n") -ErrorAction SilentlyContinue
+        Write-Host "  - pruned framework rule removed upstream: $n"
+      }
     }
   }
 }

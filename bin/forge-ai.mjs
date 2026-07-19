@@ -45,9 +45,14 @@ if (args.includes('--help') || args.includes('-h')) {
 }
 
 const isWin = platform() === 'win32';
-const cmd = isWin ? 'pwsh' : 'sh';
+// Windows: install.ps1 declares PowerShell switches (-Upgrade, ...), not POSIX long-flags,
+// so translate them; an unmapped arg (e.g. the target dir) passes through untouched.
+const winFlag = { '--upgrade': '-Upgrade', '--with-hooks': '-WithHooks', '--git-init': '-GitInit', '--no-isolate': '-NoIsolate' };
+// POSIX: run with `bash`, NOT `sh` — install.sh uses `set -o pipefail`, which dash (the /bin/sh
+// on Debian/Ubuntu) does not support, so `sh install.sh` would abort immediately.
+const cmd = isWin ? 'pwsh' : 'bash';
 const cmdArgs = isWin
-  ? ['-NoProfile', '-File', join(pkgRoot, 'install.ps1'), ...args]
+  ? ['-NoProfile', '-File', join(pkgRoot, 'install.ps1'), ...args.map((a) => winFlag[a] ?? a)]
   : [join(pkgRoot, 'install.sh'), ...args];
 
 const r = spawnSync(cmd, cmdArgs, { stdio: 'inherit' });

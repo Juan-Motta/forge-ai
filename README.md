@@ -4,8 +4,10 @@
 
 forge-ai gives an AI coding agent a consistent, opinionated way of working — research →
 plan → TDD → cross-engine review → verify → ship — plus shared memory and session
-continuity. The discipline is **skills + config only** — no runtime hooks; the only scripts
-are the installer and the `sync` generator (both run outside the agent's turn). Point any of
+continuity. The discipline is **skills + config first** — no runtime hooks by default. The
+build-time scripts (the installer and the `sync` generator) run outside the agent's turn; a
+couple of small helper scripts ship into the project too (`check-gates`, and the opt-in
+`--with-hooks` gate hook), invoked by the workflow rather than by a default hook. Point any of
 the three CLIs at the project and they pick up the same rules, skills, and guardrails.
 
 ---

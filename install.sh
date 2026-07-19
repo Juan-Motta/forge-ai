@@ -93,17 +93,25 @@ fi
 # (.forge-manifest present) so a FIRST install never touches an unrelated project's own
 # configs/ or skills/ dirs.
 if [ -f "$TARGET/.forge-manifest" ]; then
-  # Framework-owned, no user content — removed outright.
+  # Detect a genuinely OLD (pre-thin) forge install: it left this machinery at the target root.
+  # A modern thin install — or an unrelated app that happens to keep its own top-level configs/
+  # or skills/ — does NOT. Gate the configs/skills migration on this signal so a routine
+  # re-install never relocates a project's own configs/ or skills/ just because a manifest exists.
+  old_install=0
+  for f in sync.sh sync.ps1 state.template.md PROJECT.template.md CONTINUITY.template.md docs/extending.md; do
+    [ -e "$TARGET/$f" ] && old_install=1
+  done
+  # Framework-owned machinery, no user content — removed outright.
   for f in sync.sh sync.ps1 state.template.md PROJECT.template.md CONTINUITY.template.md docs/extending.md; do
     [ -e "$TARGET/$f" ] && { rm -f "$TARGET/$f"; echo "  - removed obsolete framework file: $f"; }
   done
-  # configs/ and the neutral skills/ may hold pre-forge user edits under the old model —
-  # back them up rather than delete, so nothing is lost during migration.
-  if [ -d "$TARGET/configs" ]; then
+  # Only migrate configs/ and the neutral skills/ when this was actually an old bloated install
+  # (back them up rather than delete, so nothing is lost).
+  if [ "$old_install" = 1 ] && [ -d "$TARGET/configs" ]; then
     rm -rf "$TARGET/configs.pre-forge.bak"; mv "$TARGET/configs" "$TARGET/configs.pre-forge.bak"
     echo "  ! configs/ is obsolete (engine configs are generated now) -> configs.pre-forge.bak; per-project Claude tweaks go in .claude/settings.local.json"
   fi
-  if [ -d "$TARGET/skills" ]; then
+  if [ "$old_install" = 1 ] && [ -d "$TARGET/skills" ]; then
     rm -rf "$TARGET/skills.pre-forge.bak"; mv "$TARGET/skills" "$TARGET/skills.pre-forge.bak"
     echo "  ! neutral skills/ is obsolete (skills are generated now) -> skills.pre-forge.bak; add custom skills to the forge-ai repo"
   fi
@@ -129,7 +137,16 @@ manifest="$TARGET/.forge-manifest"
 if [ -f "$manifest" ]; then
   while IFS= read -r line; do
     case "$line" in
-      rule:*) n="${line#rule:}"; printf '%s\n' "$new_rules" | grep -qxF "$n" || { rm -f "$TARGET/shared/rules/$n"; echo "  - pruned framework rule removed upstream: $n"; } ;;
+      rule:*)
+        n="${line#rule:}"
+        # The manifest is committed (and with --git-init, git-added), so treat it as untrusted:
+        # a prune target must be a bare *.md filename — never a path or traversal — so a tampered
+        # entry can't delete outside shared/rules/.
+        case "$n" in
+          */*|*..*|"") echo "  ! ignoring unsafe manifest rule entry: $n" >&2 ;;
+          *.md) printf '%s\n' "$new_rules" | grep -qxF "$n" || { rm -f "$TARGET/shared/rules/$n"; echo "  - pruned framework rule removed upstream: $n"; } ;;
+          *) echo "  ! ignoring non-.md manifest rule entry: $n" >&2 ;;
+        esac ;;
     esac
   done < "$manifest"
 fi
