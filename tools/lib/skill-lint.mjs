@@ -135,12 +135,13 @@ export function lintSkills({ skillsDir, claudeMd, srcDir }) {
     // exit-criteria checklist can't gate its own "done" in a no-hooks system.
     if (!/^##\s+Verification\b/im.test(text))
       err(r, 'missing "## Verification" section (exit-criteria checklist)');
-    // Anti-rationalization anatomy is the enforcement of an advisory system;
-    // still rolling out across the catalog, so absence is a warning for now.
+    // Anti-rationalization anatomy is the enforcement of an advisory system —
+    // now present catalog-wide, so absence is a hard error (a new skill ships
+    // with the rebuttals or it doesn't ship).
     if (!/^##\s+Common rationalizations\b/im.test(text))
-      warn(r, 'no "## Common rationalizations" table (anti-rationalization anatomy)');
+      err(r, 'missing "## Common rationalizations" table (anti-rationalization anatomy)');
     if (!/^##\s+Red flags\b/im.test(text))
-      warn(r, 'no "## Red flags" section (anti-rationalization anatomy)');
+      err(r, 'missing "## Red flags" section (anti-rationalization anatomy)');
     const lineCount = text.split(/\r?\n/).length;
     if (lineCount > SKILL_MAX_LINES)
       warn(r, `${lineCount} lines > ${SKILL_MAX_LINES} (move detail to supporting files)`);

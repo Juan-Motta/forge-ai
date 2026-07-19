@@ -44,6 +44,22 @@ treat it as a failed review — re-run, do not fabricate a verdict.
 - Resolve all P0/P1/P2 (P3 optional). Re-run the reviewer until a pass is clean.
 - Record each iteration and its result in `.workflow/state.md` (which engine, findings).
 
+## Common rationalizations
+
+| Rationalization | Reality |
+| --- | --- |
+| "Same-engine review is fine." | The whole point is a *different* model's blind spots. A same-engine pass is an echo, not diversity — use the other engine or log a waiver. |
+| "The reviewer output was empty — I'll just say it passed." | Missing or unparseable output is a *failed* review; re-run it. Never fabricate a verdict. |
+| "P2s aren't worth fixing." | The loop exits only on no P0/P1/P2. P3s are optional; P2s block. |
+| "I'll let the reviewer edit the fix while it's at it." | The reviewer is read-only — it judges, it doesn't touch the diff. Confirm the working tree is unchanged afterward. |
+
+## Red flags
+
+- Reviewer engine == driver engine, with no waiver logged.
+- A "clean" verdict with no reviewer output behind it.
+- The loop has run many passes without converging — escalate, don't grind.
+- The working-tree diff changed during the review.
+
 ## Verification
 
 The loop exits only when a single pass from the reviewer yields no P0/P1/P2. State that

@@ -64,6 +64,22 @@ Write the framed question, each advisor's one-line position, the verdict, and th
 report into `.workflow/state.md` (or the relevant plan/decision doc), so the decision is
 auditable later.
 
+## Common rationalizations
+
+| Rationalization | Reality |
+| --- | --- |
+| "I'll ask one engine twice for the two views." | A panel of one engine is groupthink. Advisors must span ≥2 distinct engines or it isn't a council. |
+| "Let the advisors see each other's answers to build on them." | Independence is the whole point — shared answers collapse the diversity into one view. Consult each blind. |
+| "They all agreed, so I'll drop the minority report." | The minority report is mandatory. If all agreed, state the biggest residual risk — it's the guard against groupthink. |
+| "This is a routine call — run a council to be safe." | Council is for expensive, hard-to-reverse forks. For an obvious default, just decide; don't burn the ceremony. |
+
+## Red flags
+
+- All advisors are the same engine.
+- Advisors saw each other's positions before answering.
+- The verdict has no minority report / residual-risk note.
+- You convened a council for a decision that had an obvious default.
+
 ## Verification
 
 Before returning, confirm the output contains: the framed question, ≥2 distinct-engine

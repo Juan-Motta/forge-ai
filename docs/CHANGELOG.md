@@ -6,6 +6,13 @@ development log; it is **not** the seed shipped to installed projects (that live
 
 ## Unreleased
 
+- **Phase 2 — anti-rationalization anatomy (priority #3): all 11 skills retrofitted.** Each
+  skill now carries a skill-specific **Common Rationalizations** table (the excuses an agent
+  uses to skip a step, each rebutted), a **Red Flags** section, and an exit-criteria
+  **Verification** checklist. In a no-hooks advisory system this anatomy *is* the enforcement —
+  it's the layer that holds the process under time/sunk-cost/authority pressure. The linter now
+  treats all three sections as hard errors (a new skill ships with the rebuttals or it doesn't
+  ship). Lint + evals + 22 tests + smoke all green.
 - **Phase 2 — skill quality machinery (priority #1): linter + routing evals + CI.** New
   dependency-free Node tooling under `tools/` (dev-only — never shipped into a target). A
   **structural + forge-ai-bespoke skill linter** (`lint-skills.mjs`) enforces frontmatter,

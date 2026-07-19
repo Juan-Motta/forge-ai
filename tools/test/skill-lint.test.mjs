@@ -39,6 +39,12 @@ description: Does a thing well. Use when you need the thing under Claude Code, C
 # good
 ## Process
 Do it.
+## Common rationalizations
+| Excuse | Reality |
+| --- | --- |
+| skip it | don't |
+## Red flags
+- something is off
 ## Verification
 - [ ] It worked.
 `;
@@ -137,14 +143,46 @@ no verification heading here
   rmSync(s.root, { recursive: true, force: true });
 });
 
-test('missing anti-rationalization anatomy is a warning, not an error', () => {
-  // GOOD has Verification but no rationalizations/red-flags → warnings only.
-  const s = scaffold({ good: GOOD });
+test('missing anti-rationalization anatomy is an error', () => {
+  const body = `---
+name: good
+description: Does a thing. Use when needed under Claude Code, Codex, or OpenCode.
+---
+# good
+## Process
+steps here
+## Verification
+- [ ] done
+`;
+  const s = scaffold({ good: body });
   const res = run(s);
-  assert.equal(errorsFor(res, 'good').length, 0);
-  const warns = res.results.find((r) => r.skill === 'good').warnings;
-  assert.ok(warns.some((w) => /Common rationalizations/.test(w)));
-  assert.ok(warns.some((w) => /Red flags/.test(w)));
+  const errs = errorsFor(res, 'good');
+  assert.ok(errs.some((e) => /Common rationalizations/.test(e)));
+  assert.ok(errs.some((e) => /Red flags/.test(e)));
+  rmSync(s.root, { recursive: true, force: true });
+});
+
+test('a skill with full anatomy passes clean', () => {
+  const full = `---
+name: full
+description: Does a thing. Use when needed under Claude Code, Codex, or OpenCode.
+---
+# full
+## Process
+Do it.
+## Common rationalizations
+| Excuse | Reality |
+| --- | --- |
+| skip it | don't |
+## Red flags
+- something is off
+## Verification
+- [ ] done
+`;
+  const s = scaffold({ full });
+  const res = run(s);
+  assert.equal(errorsFor(res, 'full').length, 0);
+  assert.equal(res.results.find((r) => r.skill === 'full').warnings.length, 0);
   rmSync(s.root, { recursive: true, force: true });
 });
 
