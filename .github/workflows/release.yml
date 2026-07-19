@@ -1,0 +1,45 @@
+name: Release on version bump
+
+# When VERSION changes on main (i.e. a release is cut in a merged PR), create the annotated
+# tag v<VERSION> and a GitHub Release, using that version's section of docs/CHANGELOG.md as the
+# notes. Idempotent: if the tag already exists it does nothing.
+
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Tag + release if VERSION is new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(head -n1 VERSION | tr -d '[:space:]')"
+          tag="v${version}"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "$tag already exists — nothing to do"; exit 0
+          fi
+          # Extract this version's changelog section: from "## <version>" to the next "## ".
+          notes_file="$(mktemp)"
+          awk -v v="$version" '
+            $0 ~ ("^## " v "( |$)") { f = 1; next }
+            /^## / { f = 0 }
+            f { print }
+          ' docs/CHANGELOG.md > "$notes_file"
+          [ -s "$notes_file" ] || printf 'Release %s\n' "$tag" > "$notes_file"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -F "$notes_file"
+          git push origin "$tag"
+          gh release create "$tag" --title "$tag" --notes-file "$notes_file"
+          echo "released $tag"
