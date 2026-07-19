@@ -1,0 +1,189 @@
+{
+  "_comment": "Routing eval cases. positive[] = realistic user asks that MUST route to the owning skill (owner ranks top_k, default 3). negative[] = asks owned by a sibling skill; the sibling (owner) MUST outrank this skill. Paraphrase how users talk — never copy the description. Every skill in src/skills/ must have an entry (run-evals enforces coverage).",
+  "skills": {
+    "prd": {
+      "positive": [
+        "write a product requirements doc for the new billing feature",
+        "capture the problem, users, and goals before we design the checkout flow",
+        "I need to spec out what the notifications system should do and who it's for"
+      ],
+      "negative": [
+        {
+          "prompt": "compare a few approaches for the caching layer and pick one",
+          "owner": "plan"
+        },
+        {
+          "prompt": "check the current Stripe API docs before we build",
+          "owner": "research"
+        }
+      ]
+    },
+    "research": {
+      "positive": [
+        "look up the current best practice for rotating JWT secrets before we build",
+        "check the latest library documentation for the payment SDK",
+        "find prior art on how other products do rate limiting"
+      ],
+      "negative": [
+        {
+          "prompt": "write the product requirements and success criteria first",
+          "owner": "prd"
+        },
+        {
+          "prompt": "wrap up the branch and open the pull request",
+          "owner": "finish-branch"
+        }
+      ]
+    },
+    "plan": {
+      "positive": [
+        "compare two or three designs for the job queue and choose one with rationale",
+        "turn this rough idea into a reviewed design before I write code",
+        "work out the migration approach and write down the plan"
+      ],
+      "negative": [
+        {
+          "prompt": "check the current docs for the sdk we're going to use",
+          "owner": "research"
+        },
+        {
+          "prompt": "capture the users and goals for this feature first",
+          "owner": "prd"
+        }
+      ]
+    },
+    "new-feature": {
+      "positive": [
+        "build the CSV export feature end to end with tests and review",
+        "add user avatars as a full feature from scratch",
+        "implement the whole onboarding flow with proper testing before shipping"
+      ],
+      "negative": [
+        {
+          "prompt": "the invoice totals are coming out wrong, fix it",
+          "owner": "fix-bug"
+        },
+        { "prompt": "fix a typo in the footer text", "owner": "quick-fix" }
+      ]
+    },
+    "fix-bug": {
+      "positive": [
+        "the invoice total is wrong, reproduce it and fix the defect",
+        "debug why login fails intermittently and repair it",
+        "there's a defect in pagination, track down the cause and correct it"
+      ],
+      "negative": [
+        {
+          "prompt": "build a brand new analytics dashboard feature",
+          "owner": "new-feature"
+        },
+        {
+          "prompt": "change the label on the submit button",
+          "owner": "quick-fix"
+        }
+      ]
+    },
+    "quick-fix": {
+      "positive": [
+        "fix a typo in the README",
+        "bump the copyright year in the footer, trivial change",
+        "tweak one config value, nothing risky"
+      ],
+      "negative": [
+        {
+          "prompt": "reproduce and repair the wrong-total defect",
+          "owner": "fix-bug"
+        },
+        {
+          "prompt": "add a whole new settings page from scratch",
+          "owner": "new-feature"
+        }
+      ]
+    },
+    "review": {
+      "positive": [
+        "get a second opinion on this diff and flag any issues",
+        "cross-review my design for correctness problems",
+        "look over this code change and give me severity-tagged findings"
+      ],
+      "negative": [
+        {
+          "prompt": "we're torn between two architectures, get several perspectives and a verdict",
+          "owner": "council"
+        },
+        {
+          "prompt": "the failing test needs to pass, fix the underlying bug",
+          "owner": "fix-bug"
+        }
+      ]
+    },
+    "council": {
+      "positive": [
+        "we're at a hard architectural fork, get several engines to weigh in and decide",
+        "should we use event sourcing or plain CRUD — this is an expensive, hard-to-reverse call",
+        "I need a multi-perspective verdict with a minority report on this strategy"
+      ],
+      "negative": [
+        {
+          "prompt": "give me a second opinion on this pull request diff",
+          "owner": "review"
+        },
+        {
+          "prompt": "compare the two designs and write the plan",
+          "owner": "plan"
+        }
+      ]
+    },
+    "finish-branch": {
+      "positive": [
+        "the feature is done, confirm the gates and open the PR",
+        "wrap up this branch: commit, push, and create the pull request",
+        "close out the work and ship it as a pull request"
+      ],
+      "negative": [
+        {
+          "prompt": "write a handoff note before I stop for the day",
+          "owner": "checkpoint"
+        },
+        {
+          "prompt": "start building a new feature from scratch",
+          "owner": "new-feature"
+        }
+      ]
+    },
+    "checkpoint": {
+      "positive": [
+        "write a session handoff before I close this down",
+        "save the current state and the exact next step to continuity",
+        "context is getting full, record where we are before a reset"
+      ],
+      "negative": [
+        {
+          "prompt": "confirm the gates and open the pull request",
+          "owner": "finish-branch"
+        },
+        {
+          "prompt": "generate a high-level map of the project structure",
+          "owner": "index"
+        }
+      ]
+    },
+    "index": {
+      "positive": [
+        "generate a high-level map of the codebase so I can orient fast",
+        "refresh the project index doc with the key locations and conventions",
+        "create an orientation map of where everything lives"
+      ],
+      "negative": [
+        {
+          "prompt": "write a handoff to continuity before I stop",
+          "owner": "checkpoint"
+        },
+        {
+          "prompt": "check the current documentation for the library",
+          "owner": "research"
+        }
+      ]
+    }
+  }
+}

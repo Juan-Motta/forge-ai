@@ -1,6 +1,6 @@
 ---
 name: prd
-description: Write a product requirements doc before designing — capture the problem, users, goals/non-goals, requirements, and success criteria, then hand off to plan. Use at the start of a substantial feature under Claude Code, Codex, or OpenCode.
+description: Write a product requirements doc before designing — the spec for what to build and who it's for: the problem, users, goals/non-goals, requirements, and success criteria, then hand off to plan. Use at the start of a substantial feature to spec out what a system should do, under Claude Code, Codex, or OpenCode.
 ---
 
 # prd

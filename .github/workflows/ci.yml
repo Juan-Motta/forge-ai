@@ -17,6 +17,8 @@ jobs:
       # No dependencies to install — the tooling is Node built-ins only.
       - name: Lint skills (structural + forge-ai rules)
         run: node tools/lint-skills.mjs
+      - name: Routing / collision evals
+        run: node tools/run-evals.mjs
       - name: Tool unit tests
         run: node --test 'tools/test/*.test.mjs'
 

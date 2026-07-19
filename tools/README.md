@@ -30,11 +30,31 @@ npm run lint:skills
 - Missing `## Verification` section (tracked by the Phase-2 anatomy retrofit).
 - `SKILL.md` over 500 lines (progressive-disclosure budget).
 
+## Routing evals (`run-evals.mjs`)
+
+Deterministic, dependency-free approximation of skill routing — a stemmed TF-IDF cosine over the
+skill `description`s. Catches the two dominant trigger bugs: a description missing the vocabulary
+users actually say (false negative) and two descriptions so similar neither routes reliably
+(collision). Cases live in `evals/routing-cases.json`.
+
+```bash
+node tools/run-evals.mjs                 # report + enforce
+node tools/run-evals.mjs --min-rank1 80  # raise the rank-1 floor
+npm run eval:routing
+```
+
+**Fails (exit 1) on:** a skill with no eval case (coverage), a positive prompt whose owner falls
+outside top-k, a negative prompt whose true owner does not outrank the sibling, a description
+collision ≥ 0.75, or a rank-1 rate below the floor (default 70). Near-collisions ≥ 0.50 print as
+warnings. A failing positive usually means **improve the description**, not the eval — if a
+realistic prompt can't rank, the description is missing its vocabulary.
+
 ## Tests
 
 ```bash
 node --test 'tools/test/*.test.mjs'
-npm run test:tools
+npm run test:tools     # skill-lint + routing unit tests
+npm run check          # lint + evals + tests (what CI runs)
 ```
 
-Both run in CI (`.github/workflows/ci.yml`) on every push/PR alongside the installer smoke test.
+All run in CI (`.github/workflows/ci.yml`) on every push/PR alongside the installer smoke test.
