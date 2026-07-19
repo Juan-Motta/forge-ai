@@ -95,3 +95,15 @@ blocks a commit when a box is unchecked. Three things stand in — none of them 
 The prompt shows the human a generic "allow this command?", **not** the checklist — so it
 is a commit-confirmation, not proof the gates are green. The approver must
 **independently check `.workflow/state.md` before approving** (or run `check-gates.sh`).
+
+### Opt-in hard block (Tier C, Claude Code only)
+
+For the one engine that supports it, `install.sh --with-hooks` (`-WithHooks` on PowerShell)
+installs a Claude Code `PreToolUse` hook into `.claude/settings.local.json` that runs
+`shared/scripts/claude-gate-hook.sh` — the same `check-gates.sh` behind a hook — and **exits 2
+to actually block** `git commit` / `git push` / `gh pr create` when the gates are incomplete.
+This is the only place forge-ai can hard-block. It is deliberately **not the default**: it's
+per-developer (the local settings file is gitignored), Claude-Code-specific (breaks the
+cross-engine promise, so it stays opt-in), and fails **open** if it can't verify. The gate is
+still *attested* — it confirms the recorded boxes, not the underlying work. Codex/OpenCode have
+the mechanism (see `docs/extending.md` Tier C) but no adapter ships yet.

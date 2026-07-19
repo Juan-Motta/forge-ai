@@ -3,7 +3,7 @@
 # forge-ai installer (Windows / PowerShell) — copy the workflow discipline into a target
 # project. Mirror of install.sh.
 #
-#   pwsh ./install.ps1 [target-dir] [-Upgrade]
+#   pwsh ./install.ps1 [target-dir] [-Upgrade] [-WithHooks]
 #
 # With no target-dir, installs into the current working directory.
 #
@@ -26,12 +26,19 @@
 #
 param(
   [Parameter(Mandatory = $false)][string]$Target,
-  [switch]$Upgrade
+  [switch]$Upgrade,
+  [switch]$WithHooks
 )
 $ErrorActionPreference = 'Stop'
 
 $Src = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Payload = Join-Path $Src 'src'
+$forgeVersion = "unknown"
+$versionFile = Join-Path $Src 'VERSION'
+if (Test-Path -LiteralPath $versionFile -PathType Leaf) {
+  $v = (Get-Content -LiteralPath $versionFile -TotalCount 1)
+  if ($v) { $forgeVersion = $v.Trim() }
+}
 $Mode = if ($Upgrade) { 'upgrade' } else { 'install' }
 if (-not $Target) { $Target = (Get-Location).Path }
 
@@ -43,7 +50,25 @@ if (-not ((Test-Path (Join-Path $Payload 'CLAUDE.md')) -and (Test-Path (Join-Pat
 if ($Target -eq $Src) { Write-Error "refusing to install into forge-ai itself"; exit 2 }
 if ($Target -eq $Payload) { Write-Error "refusing to install into the forge-ai payload dir (src/)"; exit 2 }
 
-Write-Host "forge-ai -> installing into: $Target  (mode: $Mode)"
+Write-Host "forge-ai $forgeVersion -> installing into: $Target  (mode: $Mode)"
+
+# --- version drift advisory (informational only, never blocks) ---
+$priorVersion = ""
+$fvFile = Join-Path $Target '.forge-version'
+if (Test-Path -LiteralPath $fvFile -PathType Leaf) {
+  $pv = (Get-Content -LiteralPath $fvFile -TotalCount 1)
+  if ($pv) { $priorVersion = $pv.Trim() }
+}
+if ($priorVersion -and $priorVersion -ne $forgeVersion -and $forgeVersion -ne 'unknown' -and $priorVersion -ne 'unknown') {
+  try { $isUpgrade = ([version]$priorVersion -lt [version]$forgeVersion) }
+  catch { $isUpgrade = ($priorVersion -lt $forgeVersion) }
+  if ($isUpgrade) {
+    Write-Host "  ~ upgrading this target: forge-ai $priorVersion -> $forgeVersion"
+  } else {
+    Write-Host "  ! this target was installed by a NEWER forge-ai ($priorVersion) than you're running ($forgeVersion)."
+    Write-Host "    You may be downgrading it; teammates pinned to $priorVersion could see drift. (advisory only)"
+  }
+}
 
 function Has-ForgeMarker([string]$file) {
   return (Test-Path $file) -and (Select-String -Quiet -SimpleMatch 'Workflow discipline for Claude Code' $file)
@@ -106,6 +131,9 @@ foreach ($f in Get-ChildItem -File (Join-Path $Payload 'shared/rules') -Filter *
 # Record the framework-owned manifest for the next upgrade's prune (rules only).
 Set-Content -Path $manifest -Value (@($newRules | ForEach-Object { "rule:$_" }))
 
+# Stamp the version that produced this install, for drift detection on the next run.
+Set-Content -Path (Join-Path $Target '.forge-version') -Value $forgeVersion
+
 # --- MANAGED: workflow state template (in shared/) ---
 Copy-Item (Join-Path $Payload 'shared/state.template.md') (Join-Path $Target 'shared/state.template.md') -Force
 
@@ -156,6 +184,36 @@ if ((Test-Path $tAgents) -and -not (Has-ForgeMarker $tAgents)) {
 # --- GENERATE engine dirs + AGENTS.md + opencode.json via sync (reads the forge-ai source,
 #     writes straight into the target) ---
 & (Join-Path $Src 'src/sync.ps1') -Out $Target | Out-Null
+
+# --- OPT-IN Tier-C: Claude Code hard-block gate hook (only with -WithHooks) ---
+if ($WithHooks) {
+  $sl = Join-Path $Target '.claude/settings.local.json'
+  if (Test-Path -LiteralPath $sl -PathType Leaf) {
+    if (Select-String -LiteralPath $sl -Pattern 'claude-gate-hook' -Quiet) {
+      Write-Host "  = Claude gate hook already present in .claude/settings.local.json"
+    } else {
+      Write-Host "  ! .claude/settings.local.json exists — NOT overwriting it. To enable the gate, add a"
+      Write-Host "    PreToolUse Bash hook running: pwsh -File `"`$env:CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.ps1`""
+    }
+  } else {
+    $hookJson = @'
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "pwsh -NoProfile -File \"$env:CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.ps1\"" }
+        ]
+      }
+    ]
+  }
+}
+'@
+    Set-Content -Path $sl -Value $hookJson
+    Write-Host "  + Claude gate hook -> .claude/settings.local.json (opt-in, Claude-only, hard-blocks ship on incomplete gates)"
+  }
+}
 
 # --- .gitignore (merge, don't clobber): ONLY local state (generated files are committed) ---
 $gi = Join-Path $Target '.gitignore'

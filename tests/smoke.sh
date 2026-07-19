@@ -22,7 +22,8 @@ for f in CLAUDE.md AGENTS.md opencode.json PROJECT.md CONTINUITY.md \
          .claude/skills/new-feature/SKILL.md .agents/skills/new-feature/SKILL.md \
          .claude/settings.json .codex/config.toml docs/CHANGELOG.md \
          shared/state.template.md \
-         shared/scripts/check-gates.sh shared/scripts/check-gates.ps1; do
+         shared/scripts/check-gates.sh shared/scripts/check-gates.ps1 \
+         shared/scripts/claude-gate-hook.sh shared/scripts/claude-gate-hook.ps1; do
   [ -e "$TB/$f" ] || fail "bash: expected runtime file $f was not produced"
 done
 [ -x "$TB/shared/scripts/check-gates.sh" ] || fail "bash: check-gates.sh is not executable"
@@ -128,5 +129,35 @@ if ( cd "$TC" && sh "$GATES" >/dev/null 2>&1 ); then fail "check-gates: an unche
 [ -f "$TC/nope.md" ] && fail "test setup error"
 ( cd "$TC" && sh "$GATES" nope.md >/dev/null 2>&1 ) && fail "check-gates: a missing state file should exit non-zero" || true
 echo "ok: check-gates passes a green state and blocks an unchecked box"
+
+# --- 11. .forge-version: fresh install stamps VERSION; an older prior triggers an upgrade advisory ---
+TV="$TMP/version"; mkdir -p "$TV"
+"$ROOT/install.sh" "$TV" >/dev/null || fail "version-case install exited non-zero"
+want="$(head -n1 "$ROOT/VERSION" | tr -d '[:space:]')"
+got="$(head -n1 "$TV/.forge-version" 2>/dev/null | tr -d '[:space:]')"
+[ "$got" = "$want" ] || fail ".forge-version stamp '$got' != VERSION '$want'"
+printf '0.0.1\n' > "$TV/.forge-version"
+up_out="$("$ROOT/install.sh" "$TV" --upgrade 2>&1)"
+printf '%s' "$up_out" | grep -q "upgrading this target" || fail "older prior did not produce an upgrade advisory"
+[ "$(head -n1 "$TV/.forge-version" | tr -d '[:space:]')" = "$want" ] || fail "upgrade did not re-stamp .forge-version"
+echo "ok: .forge-version stamped on install; drift advisory on version change"
+
+# --- 12. --with-hooks (opt-in Claude gate): writes settings.local.json; hook blocks a red state ---
+TH="$TMP/hooks"; mkdir -p "$TH"
+"$ROOT/install.sh" "$TH" --with-hooks >/dev/null || fail "--with-hooks install exited non-zero"
+SL="$TH/.claude/settings.local.json"
+[ -f "$SL" ] || fail "--with-hooks did not write the local settings file"
+grep -q "claude-gate-hook" "$SL" || fail "local settings file does not reference the gate hook"
+mkdir -p "$TH/.workflow"
+GHOOK="$TH/shared/scripts/claude-gate-hook.sh"
+printf '## Active workflow\n- **Profile:** standard\n## Ship-gate checklist\n- [x] a\n- [ ] b\n' > "$TH/.workflow/state.md"
+rc=0; ( cd "$TH" && printf '{"tool_input":{"command":"git commit -m x"}}' | sh "$GHOOK" >/dev/null 2>&1 ) || rc=$?
+[ "$rc" = 2 ] || fail "gate hook should exit 2 (block) on a red state + ship action, got $rc"
+printf '## Active workflow\n- **Profile:** standard\n## Ship-gate checklist\n- [x] a\n- [x] b\n' > "$TH/.workflow/state.md"
+( cd "$TH" && printf '{"tool_input":{"command":"git push"}}' | sh "$GHOOK" >/dev/null 2>&1 ) || fail "gate hook should allow (exit 0) on a green state"
+( cd "$TH" && printf '{"tool_input":{"command":"ls -la"}}' | sh "$GHOOK" >/dev/null 2>&1 ) || fail "gate hook should allow (exit 0) a non-ship command"
+TH2="$TMP/nohooks"; mkdir -p "$TH2"; "$ROOT/install.sh" "$TH2" >/dev/null
+[ -f "$TH2/.claude/settings.local.json" ] && fail "bare install wrongly created the opt-in local settings file"
+echo "ok: --with-hooks installs the Claude gate; it blocks a red ship and allows a green one"
 
 echo "ALL PASS"

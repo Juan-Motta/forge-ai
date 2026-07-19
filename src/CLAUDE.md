@@ -45,7 +45,9 @@ state and is bypassable. It runs identically under Claude Code, Codex, and OpenC
 - `fix-bug` — bug fix with systematic debugging (reproduce → root cause → failing test → fix → review → verify → ship)
 - `quick-fix` — trivial changes (<3 files, no behavior risk); escalate if scope grows
 - `review` — cross-engine second opinion on a plan or diff (P0–P3 findings)
+- `simplify` — post-green, behavior-preserving cleanup pass (reduce complexity, tests stay green)
 - `council` — multi-perspective decision analysis: several engines as advisors → synthesized verdict + minority report (for hard, expensive forks)
+- `adr` — record an architecture decision (context, alternatives, consequences) → `docs/adr/`
 - `finish-branch` — close out a branch: confirm gates → final verify → commit → push → PR
 - `checkpoint` — write a clean session handoff to `CONTINUITY.md` before closing / context reset
 - `index` — generate/refresh `docs/index.md`, a high-level project map for fast orientation
