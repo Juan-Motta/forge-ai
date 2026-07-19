@@ -122,7 +122,7 @@ test('index entry with no skill dir is an error', () => {
   rmSync(s.root, { recursive: true, force: true });
 });
 
-test('missing Verification section is a warning, not an error', () => {
+test('missing Verification section is an error', () => {
   const body = `---
 name: good
 description: Does a thing. Use when needed under Claude Code, Codex, or OpenCode.
@@ -133,8 +133,18 @@ no verification heading here
 `;
   const s = scaffold({ good: body });
   const res = run(s);
+  assert.ok(errorsFor(res, 'good').some((e) => /Verification/.test(e)));
+  rmSync(s.root, { recursive: true, force: true });
+});
+
+test('missing anti-rationalization anatomy is a warning, not an error', () => {
+  // GOOD has Verification but no rationalizations/red-flags → warnings only.
+  const s = scaffold({ good: GOOD });
+  const res = run(s);
   assert.equal(errorsFor(res, 'good').length, 0);
-  assert.ok(res.results.find((r) => r.skill === 'good').warnings.some((w) => /Verification/.test(w)));
+  const warns = res.results.find((r) => r.skill === 'good').warnings;
+  assert.ok(warns.some((w) => /Common rationalizations/.test(w)));
+  assert.ok(warns.some((w) => /Red flags/.test(w)));
   rmSync(s.root, { recursive: true, force: true });
 });
 

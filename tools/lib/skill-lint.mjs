@@ -130,9 +130,17 @@ export function lintSkills({ skillsDir, claudeMd, srcDir }) {
         err(r, `broken reference: ${rel} (not found under src/)`);
     }
 
-    // --- Anatomy (warnings — Phase-2 retrofit tracks these) ---
+    // --- Anatomy ---
+    // Verification is now mandatory (all skills carry it) — a skill without an
+    // exit-criteria checklist can't gate its own "done" in a no-hooks system.
     if (!/^##\s+Verification\b/im.test(text))
-      warn(r, 'no "## Verification" section (recommended anatomy)');
+      err(r, 'missing "## Verification" section (exit-criteria checklist)');
+    // Anti-rationalization anatomy is the enforcement of an advisory system;
+    // still rolling out across the catalog, so absence is a warning for now.
+    if (!/^##\s+Common rationalizations\b/im.test(text))
+      warn(r, 'no "## Common rationalizations" table (anti-rationalization anatomy)');
+    if (!/^##\s+Red flags\b/im.test(text))
+      warn(r, 'no "## Red flags" section (anti-rationalization anatomy)');
     const lineCount = text.split(/\r?\n/).length;
     if (lineCount > SKILL_MAX_LINES)
       warn(r, `${lineCount} lines > ${SKILL_MAX_LINES} (move detail to supporting files)`);

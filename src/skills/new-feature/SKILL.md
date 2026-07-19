@@ -54,3 +54,29 @@ Only when every required box in `.workflow/state.md` is checked (`shared/rules/s
 Commit, then push / open PR — approve the native prompt **only if the gates are green**.
 Record the change in `docs/CHANGELOG.md` and save any reusable learning
 (`shared/rules/memory.md`). Or run `finish-branch` to do the wrap-up.
+
+## Common rationalizations
+
+| Rationalization | Reality |
+| --- | --- |
+| "I understand this — skip the plan." | Even familiar work benefits from comparing approaches and a written plan the reviewer can check. A plan gap that builds the wrong thing is a P1 (`shared/rules/severity.md`). |
+| "I'll write the tests after the code." | TDD is red → green → refactor. Implementation before a failing test isn't TDD and silently skips cases. |
+| "The reviewer is just another AI — its findings don't count." | The whole point is a second, differently-trained model catching what you miss. Resolve P0/P1/P2 before shipping. |
+| "I'll do the design review after I've built it." | Reviewing after implementation only sees code consistent with an *unreviewed* plan. Review the plan first, where the cheap fixes are. |
+| "Tests pass, no need to actually run it." | Exercise the real change — tests alone miss integration, wiring, and UX defects. |
+
+## Red flags
+
+- No plan file, or a plan with a single approach and no comparison.
+- Implementation code exists before any failing test.
+- You reviewed with the same engine that wrote the code (no cross-engine pass).
+- You're about to ship on green tests without exercising the change end-to-end.
+
+## Verification
+
+- [ ] Plan written with a compared, chosen approach + acceptance criteria.
+- [ ] Design reviewed cross-engine; P0/P1/P2 resolved.
+- [ ] TDD followed — a failing test preceded each piece of implementation.
+- [ ] Code review clean on a single pass (cross-engine + self-pass).
+- [ ] Change exercised for real; outcome observed and noted.
+- [ ] Every required ship-gate box checked; `docs/CHANGELOG.md` updated.
