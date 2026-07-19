@@ -6,6 +6,47 @@ development log; it is **not** the seed shipped to installed projects (that live
 
 ## Unreleased
 
+- **Council-review fixes (5 real bugs + hardening).** A 4-engine review (Claude Opus 4.8 +
+  Codex gpt-5.6-sol + opencode glm-5.2 + kimi-k3), every finding verified against the code:
+  - **npx was broken on real platforms.** `bin/forge-ai.mjs` ran `sh install.sh`, but the script
+    needs bash `pipefail` (dash — the `/bin/sh` on Debian/Ubuntu — aborts) → now runs `bash`.
+    On Windows it forwarded POSIX `--flags` to `install.ps1`, which declares `-Switch` params →
+    now translates them.
+  - **The PowerShell gate hook was a silent no-op** — it read stdin into the reserved automatic
+    `$input` (empty in `-File` mode), so `--with-hooks` never blocked on Windows. Fixed by
+    reading into a normal variable; verified it now blocks a red ship.
+  - **The gate hooks ignored their own fail-open contract** — a missing/unverifiable state
+    (`check-gates` exit 3) was mapped to *block*, not *allow*. Both `.sh`/`.ps1` now fail open on
+    non-`1` exits and only block on genuinely-unmet gates.
+  - **`check-gates` didn't validate the profile's required gates** — a `standard` state with the
+    gates deleted (or any 2 checked boxes) read green. It now enforces the required count per
+    profile (standard = 6, light = 3) and rejects unknown profiles.
+  - **Docs/config that lied**: `configs/codex/config.toml` claimed skills live in `.codex/skills`
+    (they're `.agents/skills`); the README opening claimed "no runtime hooks / only scripts are
+    installer + generator" (helper scripts ship + run in-turn); `extending.md` claimed sync
+    generates `.codex/.opencode` skills. All corrected.
+  - **Installer hardening**: the self-heal migration now fires only on a genuine old-install
+    signal (its machinery) so a re-install never relocates a project's own top-level `configs/`
+    or `skills/`; the manifest rule-prune now validates entries as bare `*.md` names (a committed,
+    untrusted manifest can't drive a path-traversal delete).
+  - **Closed the root cause — the untested paths.** Added a **Windows CI job** (install.ps1 +
+    the npx wrapper's flag translation + the pwsh hook block/fail-open) and POSIX smoke cases for
+    the npx entry point and the re-install self-heal guard. bash↔pwsh parity throughout; 16 smoke
+    cases, 24 tool tests, all green. (Dropped one glm false positive — a claimed `gh pr create`
+    glob bug that the code doesn't have.)
+- **Auto-isolation from ancestor CLAUDE.md (default-on).** Codex (git-root scope) and OpenCode
+  (first-AGENTS.md-wins) already confine to the project, but Claude Code walks to the filesystem
+  root and concatenates *every* ancestor `CLAUDE.md`/`.claude/rules` into the project — so a
+  forge-ai target nested under a directory with its own instructions silently inherits them
+  (verified against Claude Code's memory docs; there is no `stop_traversal` setting yet).
+  The installer now detects ancestor `CLAUDE.md`/`CLAUDE.local.md`/`.claude/rules` above the
+  target and writes `claudeMdExcludes` into the gitignored `.claude/settings.local.json`, giving
+  Claude Code the same project-scoped isolation as the other two engines. `--no-isolate`
+  (`-NoIsolate`) keeps inheritance. The global `~/.claude` config is never excluded. Unified with
+  `--with-hooks` into one settings-writer that forge-ai owns only when it created the file
+  (tracked via a `localsettings:managed` manifest marker) — a `settings.local.json` you own is
+  never clobbered. bash↔pwsh parity; smoke.sh gains an isolation case (14 total). Surfaced while
+  dogfooding: an ancestor project's (outdated) security rule bled into a nested project's council.
 - **Installer git awareness.** The workflow (branches/commits) and the ship gates operate on
   git, so the installer now checks whether the target is a repo. If it isn't, it prints an
   **advisory** (never touches VCS on its own — forge-ai's no-surprises ethos); pass `--git-init`

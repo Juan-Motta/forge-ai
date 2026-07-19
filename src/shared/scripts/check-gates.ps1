@@ -47,6 +47,23 @@ if ($total -eq 0) {
     exit 3
 }
 
+# Validate the checklist carries the REQUIRED gates for its profile (standard = 6, light = 3,
+# per shared/rules/ship-gates.md) — otherwise a state file that deletes gates reads green.
+$required = switch ($profile) {
+    'standard' { 6; break }
+    'light'    { 3; break }
+    default {
+        [Console]::Error.WriteLine("check-gates: unknown gate profile '$profile' — can't determine required gates.")
+        [Console]::Error.WriteLine("  Set Profile to 'standard' or 'light' in the Active workflow section.")
+        exit 3
+    }
+}
+if ($total -lt $required) {
+    [Console]::Error.WriteLine("check-gates: profile '$profile' requires $required gates but the checklist has only $total —")
+    [Console]::Error.WriteLine("  required ship-gate boxes are missing. Restore them from shared/state.template.md.")
+    exit 1
+}
+
 $unmet = $unmetLines.Count
 if ($unmet -gt 0) {
     [Console]::Error.WriteLine("check-gates: profile '$profile' — $($total - $unmet)/$total boxes checked — UNMET.")

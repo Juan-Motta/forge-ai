@@ -49,6 +49,22 @@ if [ "$total" -eq 0 ]; then
   exit 3
 fi
 
+# Validate the checklist actually carries the REQUIRED gates for its profile — otherwise a
+# state file that deletes required gates (or claims a profile it doesn't satisfy) reads green.
+# Required counts mirror shared/rules/ship-gates.md (standard = 6, light = 3).
+case "$profile" in
+  standard) required=6 ;;
+  light)    required=3 ;;
+  *)        echo "check-gates: unknown gate profile '$profile' — can't determine required gates." >&2
+            echo "  Set Profile to 'standard' or 'light' in the Active workflow section." >&2
+            exit 3 ;;
+esac
+if [ "$total" -lt "$required" ]; then
+  echo "check-gates: profile '$profile' requires $required gates but the checklist has only $total —" >&2
+  echo "  required ship-gate boxes are missing. Restore them from shared/state.template.md." >&2
+  exit 1
+fi
+
 if [ "$unmet" -gt 0 ]; then
   echo "check-gates: profile '$profile' — $((total - unmet))/$total boxes checked — UNMET." >&2
   echo "Unchecked ship-gate boxes (do NOT ship):" >&2

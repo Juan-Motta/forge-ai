@@ -33,20 +33,26 @@ if (args.includes('--version') || args.includes('-v')) {
 if (args.includes('--help') || args.includes('-h')) {
   console.log(`forge-ai ${version()} — install the cross-engine workflow discipline into a project.
 
-  npx forge-ai [target-dir] [--upgrade] [--with-hooks] [--git-init]
+  npx forge-ai [target-dir] [--upgrade] [--with-hooks] [--git-init] [--no-isolate]
 
   target-dir    where to install (default: current directory)
   --upgrade     refresh framework files in an existing install
   --with-hooks  also install the opt-in Claude Code hard-block gate hook (Claude only)
   --git-init    if the target is not a git repo, initialize one + baseline commit
+  --no-isolate  keep inheriting ancestor CLAUDE.md (default: auto-isolate via claudeMdExcludes)
   --version     print the forge-ai version`);
   process.exit(0);
 }
 
 const isWin = platform() === 'win32';
-const cmd = isWin ? 'pwsh' : 'sh';
+// Windows: install.ps1 declares PowerShell switches (-Upgrade, ...), not POSIX long-flags,
+// so translate them; an unmapped arg (e.g. the target dir) passes through untouched.
+const winFlag = { '--upgrade': '-Upgrade', '--with-hooks': '-WithHooks', '--git-init': '-GitInit', '--no-isolate': '-NoIsolate' };
+// POSIX: run with `bash`, NOT `sh` — install.sh uses `set -o pipefail`, which dash (the /bin/sh
+// on Debian/Ubuntu) does not support, so `sh install.sh` would abort immediately.
+const cmd = isWin ? 'pwsh' : 'bash';
 const cmdArgs = isWin
-  ? ['-NoProfile', '-File', join(pkgRoot, 'install.ps1'), ...args]
+  ? ['-NoProfile', '-File', join(pkgRoot, 'install.ps1'), ...args.map((a) => winFlag[a] ?? a)]
   : [join(pkgRoot, 'install.sh'), ...args];
 
 const r = spawnSync(cmd, cmdArgs, { stdio: 'inherit' });

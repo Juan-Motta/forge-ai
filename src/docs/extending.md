@@ -44,9 +44,9 @@ Examples:
    ---
    ```
    then the steps, referencing `shared/rules/*` and `.workflow/state.md`.
-3. Run `./sync.sh` (or `sync.ps1` on Windows). It regenerates `.claude/skills`,
-   `.codex/skills`, `.opencode/skills` from `skills/`, so every engine discovers it. No
-   further config.
+3. Run `./sync.sh` (or `sync.ps1` on Windows). It regenerates `.claude/skills` (Claude Code +
+   OpenCode) and `.agents/skills` (Codex + OpenCode) from `skills/` — a full mirror (deletions
+   propagate), so every engine discovers the skill. No further config.
 
 **Framework vs project-own skills:** `skills/` holds both. The installer's `--upgrade`
 refreshes only the **framework's own** skills (by name) and never deletes the rest — so a

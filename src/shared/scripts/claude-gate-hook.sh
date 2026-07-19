@@ -27,11 +27,15 @@ if [ ! -f "$gates" ]; then
   exit 0
 fi
 
-if sh "$gates" >/dev/null 2>&1; then
+rc=0
+sh "$gates" >/dev/null 2>&1 || rc=$?
+if [ "$rc" -eq 0 ]; then exit 0; fi        # gates complete → allow
+if [ "$rc" -ne 1 ]; then                    # can't verify (e.g. no state, exit 3) → fail OPEN
+  echo "forge-ai gate-hook: could not verify gates (check-gates exit $rc); allowing (fail-open)." >&2
   exit 0
 fi
 
-# Ship-gate incomplete → block with the detail.
+# rc == 1: ship-gate incomplete → block with the detail.
 echo "forge-ai gate: ship BLOCKED — ship-gate boxes are not complete." >&2
 sh "$gates" 2>&1 | sed 's/^/  /' >&2 || true
 echo "  (opt-in --with-hooks gate; Claude Code only. Finish the boxes in" >&2

@@ -3,7 +3,7 @@
 # forge-ai installer (Windows / PowerShell) — copy the workflow discipline into a target
 # project. Mirror of install.sh.
 #
-#   pwsh ./install.ps1 [target-dir] [-Upgrade] [-WithHooks] [-GitInit]
+#   pwsh ./install.ps1 [target-dir] [-Upgrade] [-WithHooks] [-GitInit] [-NoIsolate]
 #
 # With no target-dir, installs into the current working directory.
 #
@@ -28,7 +28,8 @@ param(
   [Parameter(Mandatory = $false)][string]$Target,
   [switch]$Upgrade,
   [switch]$WithHooks,
-  [switch]$GitInit
+  [switch]$GitInit,
+  [switch]$NoIsolate
 )
 $ErrorActionPreference = 'Stop'
 
@@ -45,6 +46,12 @@ if (-not $Target) { $Target = (Get-Location).Path }
 
 if (-not (Test-Path -PathType Container $Target)) { Write-Error "target dir not found: $Target"; exit 2 }
 $Target = (Resolve-Path $Target).Path
+# Did a prior forge install own .claude/settings.local.json? (read before the manifest is rewritten)
+$priorLocalManaged = $false
+$mf = Join-Path $Target '.forge-manifest'
+if ((Test-Path -LiteralPath $mf -PathType Leaf) -and (Select-String -LiteralPath $mf -Pattern '^localsettings:managed$' -Quiet)) {
+  $priorLocalManaged = $true
+}
 if (-not ((Test-Path (Join-Path $Payload 'CLAUDE.md')) -and (Test-Path (Join-Path $Payload 'skills')))) {
   Write-Error "payload not found — run this from the forge-ai repo"; exit 2
 }
@@ -80,20 +87,26 @@ function Has-ForgeMarker([string]$file) {
 # install (.forge-manifest present) so a FIRST install never touches an unrelated project's
 # own configs/ or skills/ dirs.
 if (Test-Path (Join-Path $Target '.forge-manifest')) {
+  # Detect a genuinely OLD (pre-thin) forge install by its machinery; only then migrate
+  # configs/skills, so a routine re-install never relocates an app's own top-level dirs.
+  $oldInstall = $false
+  foreach ($f in 'sync.sh', 'sync.ps1', 'state.template.md', 'PROJECT.template.md', 'CONTINUITY.template.md', 'docs/extending.md') {
+    if (Test-Path (Join-Path $Target $f)) { $oldInstall = $true }
+  }
   foreach ($f in 'sync.sh', 'sync.ps1', 'state.template.md', 'PROJECT.template.md', 'CONTINUITY.template.md', 'docs/extending.md') {
     $p = Join-Path $Target $f
     if (Test-Path $p) { Remove-Item -Force $p; Write-Host "  - removed obsolete framework file: $f" }
   }
   # configs/ and neutral skills/ may hold pre-forge user edits — back up rather than delete.
   $tConfigs = Join-Path $Target 'configs'
-  if (Test-Path -PathType Container $tConfigs) {
+  if ($oldInstall -and (Test-Path -PathType Container $tConfigs)) {
     $bak = Join-Path $Target 'configs.pre-forge.bak'
     if (Test-Path $bak) { Remove-Item -Recurse -Force $bak }
     Move-Item $tConfigs $bak
     Write-Host "  ! configs/ is obsolete (engine configs are generated now) -> configs.pre-forge.bak; per-project Claude tweaks go in .claude/settings.local.json"
   }
   $tSkills = Join-Path $Target 'skills'
-  if (Test-Path -PathType Container $tSkills) {
+  if ($oldInstall -and (Test-Path -PathType Container $tSkills)) {
     $bak = Join-Path $Target 'skills.pre-forge.bak'
     if (Test-Path $bak) { Remove-Item -Recurse -Force $bak }
     Move-Item $tSkills $bak
@@ -120,7 +133,14 @@ if (Test-Path $manifest) {
   foreach ($line in Get-Content $manifest) {
     if ($line -like 'rule:*') {
       $n = $line.Substring(5)
-      if ($newRules -notcontains $n) { Remove-Item -Force (Join-Path $Target "shared/rules/$n") -ErrorAction SilentlyContinue; Write-Host "  - pruned framework rule removed upstream: $n" }
+      # Treat the committed manifest as untrusted: a prune target must be a bare *.md filename,
+      # never a path/traversal, so a tampered entry can't delete outside shared/rules/.
+      if ($n -match '[\\/]' -or $n -match '\.\.' -or $n -eq '' -or $n -notmatch '\.md$') {
+        [Console]::Error.WriteLine("  ! ignoring unsafe manifest rule entry: $n")
+      } elseif ($newRules -notcontains $n) {
+        Remove-Item -Force (Join-Path $Target "shared/rules/$n") -ErrorAction SilentlyContinue
+        Write-Host "  - pruned framework rule removed upstream: $n"
+      }
     }
   }
 }
@@ -186,34 +206,49 @@ if ((Test-Path $tAgents) -and -not (Has-ForgeMarker $tAgents)) {
 #     writes straight into the target) ---
 & (Join-Path $Src 'src/sync.ps1') -Out $Target | Out-Null
 
-# --- OPT-IN Tier-C: Claude Code hard-block gate hook (only with -WithHooks) ---
-if ($WithHooks) {
-  $sl = Join-Path $Target '.claude/settings.local.json'
-  if (Test-Path -LiteralPath $sl -PathType Leaf) {
-    if (Select-String -LiteralPath $sl -Pattern 'claude-gate-hook' -Quiet) {
-      Write-Host "  = Claude gate hook already present in .claude/settings.local.json"
-    } else {
-      Write-Host "  ! .claude/settings.local.json exists — NOT overwriting it. To enable the gate, add a"
-      Write-Host "    PreToolUse Bash hook running: pwsh -File `"`$env:CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.ps1`""
-    }
-  } else {
-    $hookJson = @'
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          { "type": "command", "command": "pwsh -NoProfile -File \"$env:CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.ps1\"" }
-        ]
-      }
-    ]
+# --- Claude Code .claude/settings.local.json: auto-isolation + opt-in gate hook ---
+# Auto-isolation (default; -NoIsolate to keep inheritance) adds claudeMdExcludes so Claude Code
+# doesn't blend ancestor CLAUDE.md/.claude/rules into this project (Codex/OpenCode already scope
+# to the project root). -WithHooks adds the Tier-C PreToolUse gate. Both land in the one
+# gitignored file; forge-ai only (re)writes it when absent or a prior install owned it.
+$excludes = @()
+if (-not $NoIsolate) {
+  $d = Split-Path -Parent $Target
+  $homeDir = [System.IO.Path]::GetFullPath($HOME)
+  while ($d -and $d -ne (Split-Path -Parent $d)) {
+    if (Test-Path -LiteralPath (Join-Path $d 'CLAUDE.md') -PathType Leaf)       { $excludes += (Join-Path $d 'CLAUDE.md') }
+    if (Test-Path -LiteralPath (Join-Path $d 'CLAUDE.local.md') -PathType Leaf) { $excludes += (Join-Path $d 'CLAUDE.local.md') }
+    if ((Test-Path -LiteralPath (Join-Path $d '.claude/rules') -PathType Container) -and ($d -ne $homeDir)) { $excludes += (Join-Path $d '.claude/rules/**') }
+    $d = Split-Path -Parent $d
   }
 }
-'@
-    Set-Content -Path $sl -Value $hookJson
-    Write-Host "  + Claude gate hook -> .claude/settings.local.json (opt-in, Claude-only, hard-blocks ship on incomplete gates)"
+
+$sl = Join-Path $Target '.claude/settings.local.json'
+if ($excludes.Count -gt 0 -or $WithHooks) {
+  if ((Test-Path -LiteralPath $sl -PathType Leaf) -and (-not $priorLocalManaged)) {
+    Write-Host "  ! .claude/settings.local.json exists and isn't forge-ai-managed — not touching it."
+    Write-Host "    (skipped auto-isolation / gate hook; remove that file and re-run, or edit it by hand.)"
+  } else {
+    $settings = [ordered]@{}
+    if ($excludes.Count -gt 0) { $settings['claudeMdExcludes'] = $excludes }
+    if ($WithHooks) {
+      $settings['hooks'] = [ordered]@{
+        PreToolUse = @(
+          [ordered]@{
+            matcher = 'Bash'
+            hooks   = @([ordered]@{ type = 'command'; command = 'pwsh -NoProfile -File "$env:CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.ps1"' })
+          }
+        )
+      }
+    }
+    $settings | ConvertTo-Json -Depth 10 | Set-Content -Path $sl
+    if (-not (Select-String -LiteralPath $mf -Pattern '^localsettings:managed$' -Quiet)) { Add-Content -Path $mf -Value 'localsettings:managed' }
+    if ($excludes.Count -gt 0) { Write-Host "  + auto-isolated Claude Code from $($excludes.Count) ancestor instruction path(s) -> .claude/settings.local.json (-NoIsolate to keep inheritance)" }
+    if ($WithHooks)            { Write-Host "  + Claude gate hook -> .claude/settings.local.json (opt-in, hard-blocks ship on incomplete gates)" }
   }
+} elseif ($priorLocalManaged -and (Test-Path -LiteralPath $sl -PathType Leaf)) {
+  Remove-Item -LiteralPath $sl -Force
+  Write-Host "  - removed forge-ai-managed .claude/settings.local.json (nothing to configure now)"
 }
 
 # --- .gitignore (merge, don't clobber): ONLY local state (generated files are committed) ---

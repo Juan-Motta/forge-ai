@@ -23,9 +23,57 @@ jobs:
         run: node --test
 
   installer:
-    name: Installer smoke (bash)
+    name: Installer smoke (bash + npx)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4   # so the smoke's npx entry-point case runs, not skips
+        with:
+          node-version: 20
       - name: Install into throwaway targets and assert
         run: bash tests/smoke.sh
+
+  windows:
+    name: Installer + npx (Windows / PowerShell)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: install.ps1 produces the runtime payload
+        shell: pwsh
+        run: |
+          $t = Join-Path $env:RUNNER_TEMP 'ps'
+          New-Item -ItemType Directory -Force -Path $t | Out-Null
+          pwsh -NoProfile -File ./install.ps1 $t
+          foreach ($f in 'CLAUDE.md','AGENTS.md','opencode.json','.forge-version','.claude/skills/new-feature/SKILL.md','.agents/skills/new-feature/SKILL.md') {
+            if (-not (Test-Path (Join-Path $t $f))) { throw "missing runtime file: $f" }
+          }
+      - name: npx wrapper translates flags and runs the PowerShell installer
+        shell: pwsh
+        run: |
+          $t = Join-Path $env:RUNNER_TEMP 'npx'
+          New-Item -ItemType Directory -Force -Path $t | Out-Null
+          # POSIX-style flag must be translated to -WithHooks by the wrapper on Windows
+          node ./bin/forge-ai.mjs $t --with-hooks
+          $sl = Join-Path $t '.claude/settings.local.json'
+          if (-not (Test-Path $sl)) { throw "npx --with-hooks did not write settings.local.json (flag translation failed)" }
+          if (-not (Select-String -LiteralPath $sl -Pattern 'claude-gate-hook' -Quiet)) { throw "gate hook missing from settings.local.json" }
+          $v = (node ./bin/forge-ai.mjs --version).Trim()
+          if ($v -ne (Get-Content ./VERSION -TotalCount 1).Trim()) { throw "npx --version mismatch: $v" }
+      - name: PowerShell gate hook blocks a red ship and fails open on missing state
+        shell: pwsh
+        run: |
+          $t = Join-Path $env:RUNNER_TEMP 'npx'
+          New-Item -ItemType Directory -Force -Path (Join-Path $t '.workflow') | Out-Null
+          $hook = Join-Path $t 'shared/scripts/claude-gate-hook.ps1'
+          $red = "## Active workflow`n- **Profile:** standard`n## Ship-gate checklist`n- [x] a`n- [x] b`n- [x] c`n- [x] d`n- [x] e`n- [ ] f`n"
+          Set-Content -Path (Join-Path $t '.workflow/state.md') -Value $red
+          Push-Location $t
+          '{"tool_input":{"command":"git push"}}' | pwsh -NoProfile -File $hook *> $null
+          if ($LASTEXITCODE -ne 2) { Pop-Location; throw "pwsh hook should BLOCK (exit 2) a red ship, got $LASTEXITCODE" }
+          Remove-Item -Force (Join-Path $t '.workflow/state.md')
+          '{"tool_input":{"command":"git push"}}' | pwsh -NoProfile -File $hook *> $null
+          if ($LASTEXITCODE -ne 0) { Pop-Location; throw "pwsh hook should fail OPEN (exit 0) on missing state, got $LASTEXITCODE" }
+          Pop-Location
