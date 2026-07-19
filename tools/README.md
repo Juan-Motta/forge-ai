@@ -52,7 +52,7 @@ realistic prompt can't rank, the description is missing its vocabulary.
 ## Tests
 
 ```bash
-node --test 'tools/test/*.test.mjs'
+node --test           # auto-discovers tools/test/*.test.mjs (works on Node 18+)
 npm run test:tools     # skill-lint + routing unit tests
 npm run check          # lint + evals + tests (what CI runs)
 ```

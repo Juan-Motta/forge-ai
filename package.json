@@ -6,7 +6,7 @@
   "scripts": {
     "lint:skills": "node tools/lint-skills.mjs",
     "eval:routing": "node tools/run-evals.mjs",
-    "test:tools": "node --test 'tools/test/*.test.mjs'",
+    "test:tools": "node --test",
     "check": "npm run lint:skills && npm run eval:routing && npm run test:tools"
   },
   "engines": {

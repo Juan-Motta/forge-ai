@@ -20,7 +20,7 @@ jobs:
       - name: Routing / collision evals
         run: node tools/run-evals.mjs
       - name: Tool unit tests
-        run: node --test 'tools/test/*.test.mjs'
+        run: node --test
 
   installer:
     name: Installer smoke (bash)
