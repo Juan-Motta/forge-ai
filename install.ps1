@@ -3,7 +3,7 @@
 # forge-ai installer (Windows / PowerShell) — copy the workflow discipline into a target
 # project. Mirror of install.sh.
 #
-#   pwsh ./install.ps1 [target-dir] [-Upgrade] [-WithHooks]
+#   pwsh ./install.ps1 [target-dir] [-Upgrade] [-WithHooks] [-GitInit]
 #
 # With no target-dir, installs into the current working directory.
 #
@@ -27,7 +27,8 @@
 param(
   [Parameter(Mandatory = $false)][string]$Target,
   [switch]$Upgrade,
-  [switch]$WithHooks
+  [switch]$WithHooks,
+  [switch]$GitInit
 )
 $ErrorActionPreference = 'Stop'
 
@@ -255,6 +256,24 @@ if (-not $ok) {
   Write-Host "  x install INCOMPLETE — issues above; NOT marking as installed"; exit 1
 }
 Write-Host "  + validation: skills (.claude + .agents), AGENTS.md, and engine configs generated"
+
+# --- git: the workflow (branches/commits) and ship gates operate on git ---
+& git -C $Target rev-parse --is-inside-work-tree *> $null
+if ($LASTEXITCODE -eq 0) {
+  # already a git repo — the workflow uses it
+} elseif ($GitInit) {
+  & git -C $Target init -q
+  & git -C $Target add -A
+  & git -C $Target commit -q -m "chore: adopt forge-ai" 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Host "  + initialized a git repo + baseline commit (chore: adopt forge-ai)"
+  } else {
+    Write-Host "  + initialized a git repo (baseline commit skipped — set git user.name/email, then commit)"
+  }
+} else {
+  Write-Host "  ! not a git repo — forge-ai's workflow (branches, commits) and the ship gates assume git."
+  Write-Host "    Run 'git init' here, or re-run the installer with -GitInit."
+}
 
 Write-Host "forge-ai installed."
 Write-Host "  next: (1) fill PROJECT.md   (2) in Codex, trust the project when prompted"

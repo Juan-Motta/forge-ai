@@ -33,11 +33,12 @@ if (args.includes('--version') || args.includes('-v')) {
 if (args.includes('--help') || args.includes('-h')) {
   console.log(`forge-ai ${version()} — install the cross-engine workflow discipline into a project.
 
-  npx forge-ai [target-dir] [--upgrade] [--with-hooks]
+  npx forge-ai [target-dir] [--upgrade] [--with-hooks] [--git-init]
 
   target-dir    where to install (default: current directory)
   --upgrade     refresh framework files in an existing install
   --with-hooks  also install the opt-in Claude Code hard-block gate hook (Claude only)
+  --git-init    if the target is not a git repo, initialize one + baseline commit
   --version     print the forge-ai version`);
   process.exit(0);
 }

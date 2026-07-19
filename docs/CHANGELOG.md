@@ -4,6 +4,15 @@ Notable changes to the forge-ai framework itself, newest first. This is the fram
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
+## Unreleased
+
+- **Installer git awareness.** The workflow (branches/commits) and the ship gates operate on
+  git, so the installer now checks whether the target is a repo. If it isn't, it prints an
+  **advisory** (never touches VCS on its own — forge-ai's no-surprises ethos); pass `--git-init`
+  (`-GitInit` / `npx forge-ai --git-init`) to have it run `git init` + a baseline
+  `chore: adopt forge-ai` commit (skipped cleanly if git identity isn't configured). An existing
+  repo is used as-is with no message. bash↔pwsh parity; smoke.sh gains a git case (13 total).
+
 ## 0.2.0 — 2026-07-18
 
 Bundles all of Phase 2 (skill quality machinery, honest enforcement, anti-rationalization
