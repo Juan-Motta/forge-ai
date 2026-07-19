@@ -102,8 +102,14 @@ reads no gate state and matches by command pattern, so it's bypassable:
 | OpenCode | `git push*` / `gh pr create*` set to `ask` (force-push `deny`) | `opencode.json` |
 
 The prompt is a commit-confirmation, **not** proof the gates are green: the approver must run
-`check-gates.sh` or read `.workflow/state.md` first. (Unbypassable per-engine blocking would
-need hooks — Tier C, out of scope; see [`src/docs/extending.md`](src/docs/extending.md).)
+`check-gates.sh` or read `.workflow/state.md` first.
+
+**Optional hard block (Claude Code only):** `npx forge-ai --with-hooks` (or
+`install.sh --with-hooks`) installs a Claude Code `PreToolUse` hook — the same `check-gates`
+behind a hook — that **actually blocks** a ship action when the gates are incomplete. It's
+per-developer (written to gitignored `.claude/settings.local.json`), Claude-specific by design
+(so it stays opt-in, off the cross-engine default), and fails open. Codex/OpenCode can do the
+same (Tier C in [`src/docs/extending.md`](src/docs/extending.md)); no adapter ships yet.
 
 ### Repo layout
 

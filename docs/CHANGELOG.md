@@ -9,6 +9,16 @@ development log; it is **not** the seed shipped to installed projects (that live
 Bundles all of Phase 2 (skill quality machinery, honest enforcement, anti-rationalization
 anatomy) plus the first Phase-3 distribution work.
 
+- **Phase 3 — opt-in hard-block gate (`--with-hooks`, Claude Code only).** `install.sh
+  --with-hooks` (`-WithHooks` / `npx forge-ai --with-hooks`) installs a Claude Code `PreToolUse`
+  hook into gitignored `.claude/settings.local.json` that runs `shared/scripts/claude-gate-hook.{sh,ps1}`
+  — the same `check-gates` behind a hook — and **exits 2 to actually block** `git commit` /
+  `git push` / `gh pr create` when the ship-gate boxes are incomplete. This is the one place
+  forge-ai can hard-block; it's deliberately non-default (per-developer, Claude-specific so the
+  cross-engine default stays portable, fails open if it can't verify, still *attested* not
+  *verified*). Never clobbers existing local overrides. `ship-gates.md` / README / `extending.md`
+  updated; smoke.sh gains a `--with-hooks` case (12 total) asserting it blocks a red ship and
+  allows a green one.
 - **Phase 3 — two new skills: `adr` and `simplify`** (13 skills total). `adr` records an
   architecture decision as an ADR (`docs/adr/<NNN>-<slug>.md`: context, decision, alternatives
   with why they lost, consequences) — closing the repo-first memory loop (`docs/adr/` was

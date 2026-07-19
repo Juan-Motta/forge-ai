@@ -98,8 +98,12 @@ Per-engine mechanism (all can block):
 | OpenCode | plugin with `tool.execute.before` | throw to abort |
 
 **Trade:** three separate implementations to keep in sync, plus per-engine trust/merge
-concerns. This is deliberately out of the current build. Reach for it only when a real
-guarantee is worth that cost — and consider starting with a single engine.
+concerns. Reach for it only when a real guarantee is worth that cost — and start with a single
+engine. **A reference adapter ships opt-in:** `install.sh --with-hooks` (Claude Code only)
+installs a `PreToolUse` hook (`shared/scripts/claude-gate-hook.sh`) that runs the same
+`check-gates.sh` and exits 2 to block a ship on incomplete gates. It stays off the default
+install (per-developer, gitignored `.claude/settings.local.json`) so the portable core is
+unchanged; Codex/OpenCode adapters are not built yet.
 
 ---
 

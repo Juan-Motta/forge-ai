@@ -2,7 +2,7 @@
 #
 # forge-ai installer — copy the workflow discipline into a target project.
 #
-#   ./install.sh [target-dir] [--upgrade]
+#   ./install.sh [target-dir] [--upgrade] [--with-hooks]
 #
 # With no target-dir, installs into the current working directory. So the common flow is:
 #   cd my-project && /path/to/forge-ai/install.sh
@@ -42,12 +42,14 @@ FORGE_VERSION="unknown"
 [ -f "$SRC/VERSION" ] && FORGE_VERSION="$(head -n1 "$SRC/VERSION" | tr -d '[:space:]')"
 [ -n "$FORGE_VERSION" ] || FORGE_VERSION="unknown"
 MODE="install"
+WITH_HOOKS=0
 TARGET=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --upgrade) MODE="upgrade" ;;
-    -*)        echo "usage: $0 [target-dir] [--upgrade]  (unknown arg: $1)" >&2; exit 2 ;;
-    *)         if [ -z "$TARGET" ]; then TARGET="$1"; else echo "usage: $0 [target-dir] [--upgrade]  (unexpected arg: $1)" >&2; exit 2; fi ;;
+    --upgrade)    MODE="upgrade" ;;
+    --with-hooks) WITH_HOOKS=1 ;;
+    -*)           echo "usage: $0 [target-dir] [--upgrade] [--with-hooks]  (unknown arg: $1)" >&2; exit 2 ;;
+    *)            if [ -z "$TARGET" ]; then TARGET="$1"; else echo "usage: $0 [target-dir] [--upgrade] [--with-hooks]  (unexpected arg: $1)" >&2; exit 2; fi ;;
   esac
   shift
 done
@@ -179,6 +181,38 @@ fi
 # --- GENERATE engine dirs + AGENTS.md + opencode.json via sync (reads the forge-ai source,
 #     writes straight into the target — no source or sync script copied there) ---
 bash "$PAYLOAD/sync.sh" --out "$TARGET" >/dev/null
+
+# --- OPT-IN Tier-C: Claude Code hard-block gate hook (only with --with-hooks) ---
+# Not portable and not default: writes a PreToolUse hook into .claude/settings.local.json
+# (gitignored, per-developer) that runs shared/scripts/claude-gate-hook.sh and blocks a
+# ship action when the gates are incomplete. Never clobbers existing local overrides.
+if [ "$WITH_HOOKS" = "1" ]; then
+  sl="$TARGET/.claude/settings.local.json"
+  if [ -f "$sl" ]; then
+    if grep -q "claude-gate-hook" "$sl" 2>/dev/null; then
+      echo "  = Claude gate hook already present in .claude/settings.local.json"
+    else
+      echo "  ! .claude/settings.local.json exists — NOT overwriting it. To enable the gate, add a"
+      echo "    PreToolUse Bash hook running: sh \"\$CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.sh\""
+    fi
+  else
+    cat > "$sl" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.sh\"" }
+        ]
+      }
+    ]
+  }
+}
+JSON
+    echo "  + Claude gate hook -> .claude/settings.local.json (opt-in, Claude-only, hard-blocks ship on incomplete gates)"
+  fi
+fi
 
 # --- .gitignore (merge, don't clobber): ONLY local state ---
 # The generated engine artifacts (.claude/, .agents/, .codex/, AGENTS.md, opencode.json)

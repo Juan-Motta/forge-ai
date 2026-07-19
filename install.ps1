@@ -3,7 +3,7 @@
 # forge-ai installer (Windows / PowerShell) — copy the workflow discipline into a target
 # project. Mirror of install.sh.
 #
-#   pwsh ./install.ps1 [target-dir] [-Upgrade]
+#   pwsh ./install.ps1 [target-dir] [-Upgrade] [-WithHooks]
 #
 # With no target-dir, installs into the current working directory.
 #
@@ -26,7 +26,8 @@
 #
 param(
   [Parameter(Mandatory = $false)][string]$Target,
-  [switch]$Upgrade
+  [switch]$Upgrade,
+  [switch]$WithHooks
 )
 $ErrorActionPreference = 'Stop'
 
@@ -183,6 +184,36 @@ if ((Test-Path $tAgents) -and -not (Has-ForgeMarker $tAgents)) {
 # --- GENERATE engine dirs + AGENTS.md + opencode.json via sync (reads the forge-ai source,
 #     writes straight into the target) ---
 & (Join-Path $Src 'src/sync.ps1') -Out $Target | Out-Null
+
+# --- OPT-IN Tier-C: Claude Code hard-block gate hook (only with -WithHooks) ---
+if ($WithHooks) {
+  $sl = Join-Path $Target '.claude/settings.local.json'
+  if (Test-Path -LiteralPath $sl -PathType Leaf) {
+    if (Select-String -LiteralPath $sl -Pattern 'claude-gate-hook' -Quiet) {
+      Write-Host "  = Claude gate hook already present in .claude/settings.local.json"
+    } else {
+      Write-Host "  ! .claude/settings.local.json exists — NOT overwriting it. To enable the gate, add a"
+      Write-Host "    PreToolUse Bash hook running: pwsh -File `"`$env:CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.ps1`""
+    }
+  } else {
+    $hookJson = @'
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "pwsh -NoProfile -File \"$env:CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.ps1\"" }
+        ]
+      }
+    ]
+  }
+}
+'@
+    Set-Content -Path $sl -Value $hookJson
+    Write-Host "  + Claude gate hook -> .claude/settings.local.json (opt-in, Claude-only, hard-blocks ship on incomplete gates)"
+  }
+}
 
 # --- .gitignore (merge, don't clobber): ONLY local state (generated files are committed) ---
 $gi = Join-Path $Target '.gitignore'
