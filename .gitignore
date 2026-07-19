@@ -8,6 +8,9 @@
 # Transient workflow state — the per-workflow checklist is local working state.
 .workflow/
 
+# Node dev tooling (tools/) is dependency-free, but guard against stray installs.
+node_modules/
+
 # Engine artifacts — generated/dev only, never part of the repo. Created if an agent works
 # on forge-ai, or if src/sync.sh is run (dogfooding). Regenerated on demand; not shipped.
 .claude/

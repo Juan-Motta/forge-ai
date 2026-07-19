@@ -4,6 +4,38 @@ Notable changes to the forge-ai framework itself, newest first. This is the fram
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
+## Unreleased
+
+- **Phase 2 — honest tiered enforcement (priority #2): `check-gates` + Verified/Attested/Advisory.**
+  New **Tier-B** validator `shared/scripts/check-gates.{sh,ps1}` (POSIX + PowerShell parity) reads
+  `.workflow/state.md`, confirms every ship-gate box for the active profile is checked (or N/A),
+  and exits non-zero listing any that aren't — turning "eyeball the file" into "run a command that
+  fails loudly." It ships as a runtime payload (installers copy `shared/scripts/`), and
+  `finish-branch` step 1 now invokes it. `ship-gates.md` gains the **Verified / Attested / Advisory**
+  vocabulary: the check validates the *record*, not the work (a checked box is an attestation, not
+  proof); a real *verified* gate means running it in CI with branch protection. The README
+  enforcement section is rewritten to stop over-selling the native prompt. smoke.sh gains a
+  check-gates case (green passes, unchecked box fails, missing state errors) — now 10 cases.
+- **Phase 2 — anti-rationalization anatomy (priority #3): all 11 skills retrofitted.** Each
+  skill now carries a skill-specific **Common Rationalizations** table (the excuses an agent
+  uses to skip a step, each rebutted), a **Red Flags** section, and an exit-criteria
+  **Verification** checklist. In a no-hooks advisory system this anatomy *is* the enforcement —
+  it's the layer that holds the process under time/sunk-cost/authority pressure. The linter now
+  treats all three sections as hard errors (a new skill ships with the rebuttals or it doesn't
+  ship). Lint + evals + 22 tests + smoke all green.
+- **Phase 2 — skill quality machinery (priority #1): linter + routing evals + CI.** New
+  dependency-free Node tooling under `tools/` (dev-only — never shipped into a target). A
+  **structural + forge-ai-bespoke skill linter** (`lint-skills.mjs`) enforces frontmatter,
+  `name`==dir, description ≤1024 with a "Use when" trigger, CLAUDE.md index parity (both ways),
+  **model-id quarantine** (`models.md` is the single source), and `shared/` reference integrity;
+  missing `## Verification`/>500 lines are warnings. **Routing/collision evals** (`run-evals.mjs`,
+  stemmed TF-IDF over descriptions, engine-name boilerplate stripped) catch missing-vocabulary
+  and near-collision trigger bugs — real catalog scores rank-1 91%, 0 collisions. The eval
+  surfaced and fixed two defects: a stemmer double-consonant bug (`shipping`→`ship`) and a `prd`
+  description missing "spec / what to build / who it's for" vocabulary. New `.github/workflows/ci.yml`
+  runs lint → evals → 20 unit tests → installer smoke on every push/PR. Basis: the multi-engine
+  Phase-2 research brief in `docs/research/2026-07-18-phase-2-improvements.md`.
+
 ## 0.1.0 — 2026-07-18
 
 First stable release. Verified end-to-end on all three engines — **Claude Code, Codex, and

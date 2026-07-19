@@ -31,6 +31,20 @@ Write a concise map: what the project is (one line + link to `README.md`), entry
 Add an `Updated:` date. Refresh after a **significant structural change** (a new top-level
 area, moved/renamed modules) — not on every edit.
 
+## Common rationalizations
+
+| Rationalization | Reality |
+| --- | --- |
+| "I'll list every file so the map is complete." | Line-level detail goes stale fast. Keep the map high-level — structure and conventions, not an inventory. |
+| "I'll infer the conventions." | Pull conventions from `PROJECT.md` / `README.md` / the code — don't invent them. |
+| "No need to check the paths are real." | An index that lists paths that don't exist is worse than none. Spot-check they exist. |
+
+## Red flags
+
+- The map enumerates individual files or drops to line-level detail.
+- Conventions are asserted with no source in the repo.
+- Listed paths don't exist, or there's no `Updated:` date.
+
 ## Verification
 
 `docs/index.md` names **real, current** top-level paths and entry points (spot-check they

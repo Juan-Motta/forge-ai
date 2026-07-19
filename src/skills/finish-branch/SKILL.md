@@ -10,9 +10,20 @@ final step after one.
 
 ## 1. Confirm the gates
 
-Open `.workflow/state.md` and verify **every required box for the active gate profile** is
-checked (`shared/rules/ship-gates.md`): branch, plan reviewed, tests passing, code review
-clean, verified, state updated. If any box is open, go back and finish it — do not ship.
+Run the deterministic checker — don't just eyeball the file:
+
+```sh
+sh shared/scripts/check-gates.sh        # pwsh shared/scripts/check-gates.ps1 on Windows
+```
+
+It reads `.workflow/state.md`, confirms **every box for the active profile** is checked (or
+N/A), and exits non-zero listing any that aren't (`shared/rules/ship-gates.md`). If it fails,
+go back and finish those boxes — do not ship.
+
+This is **Tier B**: it verifies the *record*, not the work. A checked box is an
+*attestation* (you claimed it), not independent proof — so also spot-confirm the underlying
+work is real (tests actually ran, the change was actually exercised). See the
+Verified / Attested / Advisory distinction in `shared/rules/ship-gates.md`.
 
 ## 2. Final verify
 
@@ -44,3 +55,27 @@ in step 1. Write a PR description stating what changed, why, and how it was veri
 Only now — after shipping — record the PR link / merge outcome in `.workflow/state.md` so
 the workflow state reflects reality. (This is the one thing that legitimately comes after
 the ship commit.)
+
+## Common rationalizations
+
+| Rationalization | Reality |
+| --- | --- |
+| "The gates are basically green — ship it." | "Basically" isn't checked. Any open required box means go back and finish it; the native prompt is not the gate. |
+| "I'll add the changelog / ADR in a follow-up commit." | Docs ship *with* the change, in the same commit. A second unreviewed commit is exactly how they get lost. |
+| "The push prompt appeared, so I'm cleared to ship." | The prompt is a commit-confirmation that reads no gate state (`shared/rules/ship-gates.md`). It proves nothing — you are the gate. |
+| "I'll record the PR outcome later." | Update `.workflow/state.md` with the PR link / merge outcome now, so the workflow reflects reality. |
+
+## Red flags
+
+- An open box in `.workflow/state.md` and you're pushing anyway.
+- The CHANGELOG / ADR is uncommitted or slated for "later."
+- You approved the push prompt without re-confirming the gates in step 1.
+- Stray or unintended files in the working tree at commit time.
+
+## Verification
+
+- [ ] Every required box for the active profile is checked in `.workflow/state.md`.
+- [ ] Full suite run and the change exercised end-to-end once more.
+- [ ] CHANGELOG entry (+ ADR / solution where applicable) committed *with* the change.
+- [ ] Working tree clean — nothing stray, nothing uncommitted.
+- [ ] PR opened stating what changed, why, and how it was verified; outcome recorded in state.

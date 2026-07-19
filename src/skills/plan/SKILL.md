@@ -40,6 +40,22 @@ significant architecture decision as an ADR in `docs/adr/`.
 `new-feature` / `fix-bug` build from this plan. A gap here propagates downstream, so a
 missing required behavior or acceptance criterion is a P1, not a nit.
 
+## Common rationalizations
+
+| Rationalization | Reality |
+| --- | --- |
+| "I already know the best approach — skip the comparison." | Comparing 2–3 genuinely different options is how you catch the cheaper one you didn't consider, and it gives the reviewer something to check. |
+| "One approach is enough to write down." | A plan with a single option and no trade-offs is a decision with no audit trail. Name the alternatives and why they lost. |
+| "I'll validate the choice by just building it." | Self-certifying skips the cross-engine check where design flaws are cheapest to fix. Review the choice (or spike it) before locking in. |
+| "The acceptance criteria are obvious — leave them out." | Implementation builds from the plan; a missing criterion becomes the wrong feature. Spec-loss is a P1, not a nit. |
+
+## Red flags
+
+- The plan lists one approach, or "alternatives" that aren't genuinely different.
+- You picked the most complex option without justifying it over the simplest.
+- No test plan or acceptance criteria.
+- You locked the choice with no second-engine review and no spike evidence.
+
 ## Verification
 
 The plan states the goal, a compared-and-chosen approach (with rationale), the test plan,

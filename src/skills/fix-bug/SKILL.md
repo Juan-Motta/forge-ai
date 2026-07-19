@@ -52,3 +52,31 @@ Note what you observed. Record the fix (symptom → root cause → fix → how v
 Only when every required box in `.workflow/state.md` is checked
 (`shared/rules/ship-gates.md`). Commit, then push / open PR — approve the native prompt
 only if the gates are green.
+
+## Common rationalizations
+
+| Rationalization | Reality |
+| --- | --- |
+| "The cause is obvious — I'll just fix it." | A fix without a reproduced failing test is a guess. Reproduce first; read the code and cite `file:line`. |
+| "A failing test is overkill for this bug." | The failing test proves the repro and blocks regression — it *is* the fix's evidence. Red before green. |
+| "It's late / the lead said skip the regression test." | Time and authority pressure don't change that an unproven fix regresses. The failing test is non-negotiable. |
+| "The suite passes, so it's verified." | Re-exercise the *original* repro and check neighbors. Green tests ≠ the user's bug is gone. |
+| "This patch makes the symptom go away." | Fix the root cause, not the symptom, or it comes back. |
+
+## Red flags
+
+- You're writing the fix before you can trigger the bug on demand.
+- No test fails *because of the bug*.
+- You changed code you haven't read (no `file:line` cited).
+- You're patching the symptom, not the cause.
+- You skipped the cross-engine review to "save time."
+
+## Verification
+
+- [ ] Bug reproduced deterministically before any fix.
+- [ ] A test failed because of the bug (red) and passes after (green).
+- [ ] Root cause identified and cited (`file:line`) — not the symptom.
+- [ ] Cross-engine review clean; all P0/P1/P2 resolved.
+- [ ] Original repro re-exercised and gone; neighbors intact.
+- [ ] Fix recorded (symptom → root cause → fix → how verified) in `docs/solutions/`.
+- [ ] Every required ship-gate box checked.

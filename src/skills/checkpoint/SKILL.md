@@ -30,6 +30,20 @@ If a workflow is active, make sure `.workflow/state.md` is current too, and that
 
 State a one-line summary of what the next session will pick up.
 
+## Common rationalizations
+
+| Rationalization | Reality |
+| --- | --- |
+| "'Continue the feature' is a fine next step." | A vague handoff defeats the purpose. The Next step must be a specific action ("write the failing test for the empty-cart case"). |
+| "I'll copy state.md into CONTINUITY.md." | Point at state.md, don't duplicate it — two copies drift. Keep CONTINUITY.md tiny. |
+| "No need to note the blocker." | The next session inherits the blocker blind if you don't record it. |
+
+## Red flags
+
+- The Next step is generic ("keep going", "finish it").
+- CONTINUITY.md duplicates state.md instead of pointing at it.
+- No Updated date, or it isn't today's.
+
 ## Verification
 
 `CONTINUITY.md` exists with a **concrete Next step** (a specific action, not "continue")

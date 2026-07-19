@@ -1,6 +1,6 @@
 ---
 name: prd
-description: Write a product requirements doc before designing — capture the problem, users, goals/non-goals, requirements, and success criteria, then hand off to plan. Use at the start of a substantial feature under Claude Code, Codex, or OpenCode.
+description: Write a product requirements doc before designing — the spec for what to build and who it's for: the problem, users, goals/non-goals, requirements, and success criteria, then hand off to plan. Use at the start of a substantial feature to spec out what a system should do, under Claude Code, Codex, or OpenCode.
 ---
 
 # prd
@@ -38,6 +38,22 @@ everything downstream.
 
 The PRD feeds `plan` (design) → `new-feature` (build). Reference it from
 `.workflow/state.md`.
+
+## Common rationalizations
+
+| Rationalization | Reality |
+| --- | --- |
+| "The requirements are obvious — just start designing." | The PRD anchors design to a real user outcome; skipping it lets the build drift from what the user needs. |
+| "I'll write the endpoints and tables as the requirements." | Requirements are user-facing capabilities, not code. A PRD that reads like a design doc has skipped the what/why. |
+| "Non-goals are unnecessary." | Naming what's deliberately excluded is how scope stays bounded. Omit them and scope creeps. |
+| "Success criteria can wait." | Without observable success criteria you can't tell if it worked. Define them up front. |
+
+## Red flags
+
+- The PRD names components/endpoints/tables as the goal.
+- No users/personas, or no non-goals.
+- No observable success criteria.
+- It reads like a design doc rather than a statement of need.
 
 ## Verification
 

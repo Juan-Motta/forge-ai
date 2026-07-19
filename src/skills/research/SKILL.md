@@ -39,6 +39,21 @@ and open questions. Follow the shape in `shared/rules/research.md`.
 The brief feeds `plan` / `new-feature`. The resulting design must be consistent with it.
 If research surfaced a blocker or a changed assumption, say so before designing.
 
+## Common rationalizations
+
+| Rationalization | Reality |
+| --- | --- |
+| "I already know this library." | Model knowledge has a cutoff and APIs move. Verify the current, versioned docs before designing on memory. |
+| "The blog post is good enough." | Prefer official, versioned docs and note the date checked. A confident blog can be stale or wrong. |
+| "I'll cite the sources later." | Cite as you go, with dates, separating verified from inferred. An unsourced brief is just recalled assumptions. |
+| "No time to research — just build." | Designing on a wrong assumption costs more than the lookup. If it's genuinely known code, skip research *explicitly* — don't fake it. |
+
+## Red flags
+
+- The brief asserts version-specific behavior with no source or date.
+- Verified facts and your own inferences are mixed together.
+- You're about to design and haven't checked whether the assumption still holds.
+
 ## Verification
 
 The brief exists at `docs/research/<date>-<topic>.md`, every non-obvious claim cites a

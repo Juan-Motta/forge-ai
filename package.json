@@ -1,0 +1,15 @@
+{
+  "name": "forge-ai-dev",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dev-only tooling for the forge-ai framework (skill linter, evals). NOT shipped into target projects — the payload stays skills + config.",
+  "scripts": {
+    "lint:skills": "node tools/lint-skills.mjs",
+    "eval:routing": "node tools/run-evals.mjs",
+    "test:tools": "node --test",
+    "check": "npm run lint:skills && npm run eval:routing && npm run test:tools"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

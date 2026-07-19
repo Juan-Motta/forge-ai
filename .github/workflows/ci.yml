@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  skills:
+    name: Skill lint + tool tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # No dependencies to install — the tooling is Node built-ins only.
+      - name: Lint skills (structural + forge-ai rules)
+        run: node tools/lint-skills.mjs
+      - name: Routing / collision evals
+        run: node tools/run-evals.mjs
+      - name: Tool unit tests
+        run: node --test
+
+  installer:
+    name: Installer smoke (bash)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install into throwaway targets and assert
+        run: bash tests/smoke.sh
