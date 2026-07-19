@@ -1,8 +1,19 @@
 {
-  "name": "forge-ai-dev",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Dev-only tooling for the forge-ai framework (skill linter, evals). NOT shipped into target projects — the payload stays skills + config.",
+  "name": "forge-ai",
+  "version": "0.2.0",
+  "description": "Install one cross-engine AI-coding workflow discipline (research → plan → TDD → cross-engine review → verify → ship) into a project — runs identically on Claude Code, Codex, and OpenCode. Also hosts the framework's own dev tooling (skill linter, routing evals).",
+  "bin": {
+    "forge-ai": "bin/forge-ai.mjs"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "install.sh",
+    "install.ps1",
+    "VERSION",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "lint:skills": "node tools/lint-skills.mjs",
     "eval:routing": "node tools/run-evals.mjs",
@@ -11,5 +22,18 @@
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Juan-Motta/forge-ai.git"
+  },
+  "keywords": [
+    "claude-code",
+    "codex",
+    "opencode",
+    "ai-agents",
+    "agent-skills",
+    "workflow"
+  ]
 }

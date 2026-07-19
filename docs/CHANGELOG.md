@@ -4,8 +4,21 @@ Notable changes to the forge-ai framework itself, newest first. This is the fram
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
-## Unreleased
+## 0.2.0 — 2026-07-18
 
+Bundles all of Phase 2 (skill quality machinery, honest enforcement, anti-rationalization
+anatomy) plus the first Phase-3 distribution work.
+
+- **Phase 3 — version stamp + `npx` distribution.** A root `VERSION` file is now the single
+  source of truth; the installers stamp it into `.forge-version` in the target and print a
+  direction-aware **drift advisory** on `--upgrade` when the target's recorded version differs
+  (informational, never blocks). New `npx forge-ai [target] [--upgrade]` entry point: a
+  dependency-free Node wrapper (`bin/forge-ai.mjs`) runs the platform installer bundled in the
+  npm package, so a project can adopt forge-ai with no repo clone (`--version` / `--help`
+  supported). `package.json` is now a publishable `forge-ai` package (`files` whitelist ships
+  the `src/` payload + install scripts, and excludes the dev-only `tools/`); a version-sync test
+  binds `VERSION` to `package.json`. smoke.sh gains a `.forge-version` case (now 11). NOTE:
+  publishing to npm requires confirming the `forge-ai` package name is available (or scoping it).
 - **Phase 2 — honest tiered enforcement (priority #2): `check-gates` + Verified/Attested/Advisory.**
   New **Tier-B** validator `shared/scripts/check-gates.{sh,ps1}` (POSIX + PowerShell parity) reads
   `.workflow/state.md`, confirms every ship-gate box for the active profile is checked (or N/A),

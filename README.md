@@ -197,7 +197,24 @@ forge-ai is the framework repo — install its discipline into a target project.
 **thin install**: only the agent's runtime files land in the target (the generated engine
 artifacts + a small managed baseline), so a clone of that project works with no dependency on
 forge-ai, while all build machinery stays here. With no target argument the installer uses
-the current directory:
+the current directory.
+
+### Fastest — `npx` (no clone)
+
+```bash
+cd /path/to/your-project
+npx forge-ai              # install into the current directory
+npx forge-ai --upgrade    # refresh framework files later
+npx forge-ai --version    # print the installed forge-ai version
+```
+
+The Node wrapper just runs the platform installer bundled in the package (`sh` / `pwsh`); the
+content it installs is plain markdown + config, and nothing from npm lands in the target beyond
+the same thin payload. Each install stamps `.forge-version` into the target, and a later
+`--upgrade` from a different version prints an advisory. _(Publishing to npm is pending name
+confirmation; until then use the clone method below.)_
+
+### From a clone
 
 ```bash
 # macOS / Linux
@@ -310,8 +327,10 @@ discover automatically.
 
 ## Status
 
-**v0.1.0 — first stable release.** Verified end-to-end on all three engines — **Claude Code,
-Codex, and OpenCode** — driving a real project.
+**v0.2.0 — quality + distribution.** Verified end-to-end on all three engines — **Claude Code,
+Codex, and OpenCode** — driving a real project. Adds a CI-enforced skill linter + routing
+evals, anti-rationalization anatomy across every skill, a deterministic `check-gates` ship-gate
+validator, and `.forge-version` + an `npx forge-ai` entry point.
 
 Engines: Claude Code, Codex, OpenCode. 11 skills, 11 rules. Neutral-source + generator model
 (no symlinks), **thin install** (only runtime lands in the target; machinery stays in forge-ai)

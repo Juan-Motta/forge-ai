@@ -129,4 +129,16 @@ if ( cd "$TC" && sh "$GATES" >/dev/null 2>&1 ); then fail "check-gates: an unche
 ( cd "$TC" && sh "$GATES" nope.md >/dev/null 2>&1 ) && fail "check-gates: a missing state file should exit non-zero" || true
 echo "ok: check-gates passes a green state and blocks an unchecked box"
 
+# --- 11. .forge-version: fresh install stamps VERSION; an older prior triggers an upgrade advisory ---
+TV="$TMP/version"; mkdir -p "$TV"
+"$ROOT/install.sh" "$TV" >/dev/null || fail "version-case install exited non-zero"
+want="$(head -n1 "$ROOT/VERSION" | tr -d '[:space:]')"
+got="$(head -n1 "$TV/.forge-version" 2>/dev/null | tr -d '[:space:]')"
+[ "$got" = "$want" ] || fail ".forge-version stamp '$got' != VERSION '$want'"
+printf '0.0.1\n' > "$TV/.forge-version"
+up_out="$("$ROOT/install.sh" "$TV" --upgrade 2>&1)"
+printf '%s' "$up_out" | grep -q "upgrading this target" || fail "older prior did not produce an upgrade advisory"
+[ "$(head -n1 "$TV/.forge-version" | tr -d '[:space:]')" = "$want" ] || fail "upgrade did not re-stamp .forge-version"
+echo "ok: .forge-version stamped on install; drift advisory on version change"
+
 echo "ALL PASS"
