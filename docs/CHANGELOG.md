@@ -4,7 +4,12 @@ Notable changes to the forge-ai framework itself, newest first. This is the fram
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
-## Unreleased
+## 0.3.0 — 2026-07-18
+
+Two new skills (`adr`, `simplify` → 13 total), installer ergonomics (git awareness + `--git-init`,
+default-on cross-engine auto-isolation via `claudeMdExcludes`), and a 4-engine council review that
+fixed 5 real bugs and added a Windows CI job. Also: version stamping + `npx` from 0.2.0's tail.
+
 
 - **Council-review fixes (5 real bugs + hardening).** A 4-engine review (Claude Opus 4.8 +
   Codex gpt-5.6-sol + opencode glm-5.2 + kimi-k3), every finding verified against the code:

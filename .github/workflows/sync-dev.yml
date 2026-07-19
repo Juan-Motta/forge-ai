@@ -1,0 +1,39 @@
+name: Sync dev to main
+
+# After anything lands on main (i.e. a PR merges), fast-forward `dev` so it never drifts behind.
+# Safe by construction: it only pushes when dev is an ancestor of main (a real fast-forward),
+# and never force-pushes — if dev has un-merged work, it skips and leaves dev alone.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-dev
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fast-forward dev to main (only when it's a real fast-forward)
+        run: |
+          git fetch origin main dev
+          if ! git rev-parse --verify origin/dev >/dev/null 2>&1; then
+            echo "no dev branch yet — nothing to sync"; exit 0
+          fi
+          if [ "$(git rev-parse origin/dev)" = "$(git rev-parse origin/main)" ]; then
+            echo "dev already at main ($(git rev-parse --short origin/main)) — nothing to do"; exit 0
+          fi
+          if git merge-base --is-ancestor origin/dev origin/main; then
+            git push origin origin/main:refs/heads/dev
+            echo "dev fast-forwarded to $(git rev-parse --short origin/main)"
+          else
+            echo "dev has commits not in main — skipping auto-sync (not a fast-forward; resolve manually)"
+          fi
