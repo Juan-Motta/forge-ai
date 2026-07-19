@@ -123,19 +123,24 @@ forge-ai/
 │   ├── CLAUDE.md                 #    canonical instructions (copied to the target)
 │   ├── skills/<name>/SKILL.md    #    canonical skills → generated into .claude/ + .agents/
 │   ├── shared/rules/*.md         #    discipline: severity, tdd, ship-gates, memory, …
+│   ├── shared/scripts/*.{sh,ps1} #    agent-invoked helpers: check-gates, claude-gate-hook (copied)
 │   ├── shared/state.template.md  #    workflow-state seed (copied to the target)
 │   ├── configs/                  #    gate-config source → generated engine configs (not copied)
 │   ├── sync.sh · sync.ps1        #    the generator (never copied into the target)
 │   ├── docs/extending.md + empty prds/ plans/ research/ solutions/ adr/  # scaffold
 │   └── CONTINUITY.template.md · PROJECT.template.md   # seed-only (never copied)
 │
-├── install.sh · install.ps1      # installers (bash + PowerShell)   ┐ framework only
-└── README.md · LICENSE           # framework docs + license          ┘ (never copied)
+├── VERSION                       # single source of truth for the version (→ .forge-version)
+├── bin/forge-ai.mjs              # npx entry point (wraps the installer)   ┐
+├── tools/                        # dev-only quality machinery (linter + evals) │ framework only
+├── install.sh · install.ps1      # installers (bash + PowerShell)             │ (never copied
+└── package.json · README.md · LICENSE   # npm package + docs + license        ┘  into a target)
 ```
 
 After a **thin install**, a target project holds only runtime files: the managed
-`CLAUDE.md`, `shared/rules/`, `shared/state.template.md`; the project-owned `PROJECT.md`,
-`CONTINUITY.md`, `docs/`; and the generated engine artifacts — `AGENTS.md`, `opencode.json`,
+`CLAUDE.md`, `shared/rules/`, `shared/scripts/`, `shared/state.template.md`, `.forge-version`;
+the project-owned `PROJECT.md`, `CONTINUITY.md`, `docs/`; and the generated engine artifacts —
+`AGENTS.md`, `opencode.json`,
 `.claude/`, `.agents/`, `.codex/`. Committing the generated layer means a fresh clone of the
 project works immediately, with no post-clone step and no dependency on forge-ai. There is no
 source or generator in the target — to customize or upgrade, edit the forge-ai source and
@@ -172,7 +177,9 @@ flowchart LR
 | `fix-bug` | Systematic debugging: reproduce → root cause → failing test → fix → ship |
 | `quick-fix` | Trivial changes (<3 files); escalates if scope grows |
 | `review` | Cross-engine second opinion on a plan or diff (P0–P3 findings) |
+| `simplify` | Post-green, behavior-preserving cleanup pass (tests stay green) |
 | `council` | Multi-engine advisors → verdict + minority report (hard, expensive forks) |
+| `adr` | Record an architecture decision (context, alternatives, consequences) → `docs/adr/` |
 | `finish-branch` | Confirm gates → final verify → commit → push → PR |
 | `checkpoint` | Write a clean session handoff to `CONTINUITY.md` before closing |
 | `index` | Generate/refresh `docs/index.md` — a high-level project map for fast orientation |
@@ -336,9 +343,10 @@ discover automatically.
 **v0.2.0 — quality + distribution.** Verified end-to-end on all three engines — **Claude Code,
 Codex, and OpenCode** — driving a real project. Adds a CI-enforced skill linter + routing
 evals, anti-rationalization anatomy across every skill, a deterministic `check-gates` ship-gate
-validator, and `.forge-version` + an `npx forge-ai` entry point.
+validator (with an opt-in Claude Code hard-block via `--with-hooks`), the `adr` and `simplify`
+skills, and `.forge-version` + an `npx forge-ai` entry point.
 
-Engines: Claude Code, Codex, OpenCode. 11 skills, 11 rules. Neutral-source + generator model
+Engines: Claude Code, Codex, OpenCode. 13 skills, 11 rules. Neutral-source + generator model
 (no symlinks), **thin install** (only runtime lands in the target; machinery stays in forge-ai)
 — cross-platform (`install.sh` + `install.ps1`), validated by dry-run install on both bash and
 PowerShell (engine dirs, configs, and `AGENTS.md` generate; bare run targets the cwd; `--upgrade`

@@ -68,9 +68,11 @@ state and is bypassable. It runs identically under Claude Code, Codex, and OpenC
 
 ## Enforcement model (read this — it's a deliberate trade)
 
-This build has **no hard conditional block**. The skills instruct you to run the gates
-before shipping (advisory). On top of that, each harness applies a **coarse native
-approval** on outward actions:
+By default there is **no hard conditional block**. The skills instruct you to run the gates
+before shipping (advisory), and `finish-branch` runs `shared/scripts/check-gates.sh` — a
+deterministic check of `.workflow/state.md` that fails loudly on an unchecked box (still only
+when invoked). On top of that, each harness applies a **coarse native approval** on outward
+actions:
 
 - **Claude Code:** `git push` / `gh pr create` are `ask`-tier in `.claude/settings.json`
   (human approves).
@@ -79,5 +81,7 @@ approval** on outward actions:
 - **OpenCode:** `permission.bash` in `opencode.json` sets `git push*` / `gh pr create*`
   to `ask` (and force-push to `deny`).
 
-None of them read `.workflow/state.md` to decide — they always ask; you approve. A future
-phase may add hook-based conditional blocking; see `docs/`.
+None of them read `.workflow/state.md` to decide — they always ask; you approve, after
+checking the gates (or running `check-gates.sh`). For real blocking on Claude Code,
+`install.sh --with-hooks` adds an opt-in `PreToolUse` hook that exits 2 on incomplete gates.
+A checked box is *attested*, not *verified* — see `shared/rules/ship-gates.md`.
