@@ -6,6 +6,19 @@ development log; it is **not** the seed shipped to installed projects (that live
 
 ## Unreleased
 
+- **Auto-isolation from ancestor CLAUDE.md (default-on).** Codex (git-root scope) and OpenCode
+  (first-AGENTS.md-wins) already confine to the project, but Claude Code walks to the filesystem
+  root and concatenates *every* ancestor `CLAUDE.md`/`.claude/rules` into the project — so a
+  forge-ai target nested under a directory with its own instructions silently inherits them
+  (verified against Claude Code's memory docs; there is no `stop_traversal` setting yet).
+  The installer now detects ancestor `CLAUDE.md`/`CLAUDE.local.md`/`.claude/rules` above the
+  target and writes `claudeMdExcludes` into the gitignored `.claude/settings.local.json`, giving
+  Claude Code the same project-scoped isolation as the other two engines. `--no-isolate`
+  (`-NoIsolate`) keeps inheritance. The global `~/.claude` config is never excluded. Unified with
+  `--with-hooks` into one settings-writer that forge-ai owns only when it created the file
+  (tracked via a `localsettings:managed` manifest marker) — a `settings.local.json` you own is
+  never clobbered. bash↔pwsh parity; smoke.sh gains an isolation case (14 total). Surfaced while
+  dogfooding: an ancestor project's (outdated) security rule bled into a nested project's council.
 - **Installer git awareness.** The workflow (branches/commits) and the ship gates operate on
   git, so the installer now checks whether the target is a repo. If it isn't, it prints an
   **advisory** (never touches VCS on its own — forge-ai's no-surprises ethos); pass `--git-init`

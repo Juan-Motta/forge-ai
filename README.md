@@ -268,6 +268,14 @@ What it does:
 - **Checks for git.** The workflow (branches, commits) and the ship gates operate on git. If the
   target isn't a repo, the installer **warns** (it never touches your VCS on its own); pass
   `--git-init` to have it run `git init` + a baseline commit for you.
+- **Auto-isolates Claude Code** from ancestor instructions. Codex and OpenCode already scope to
+  the project root, but Claude Code walks to the filesystem root and **blends every ancestor
+  `CLAUDE.md`/`.claude/rules` into your project**. So if the target sits under a directory that
+  has its own `CLAUDE.md` (e.g. a `~/projects/` you keep instructions in), the installer writes
+  `claudeMdExcludes` into the gitignored `.claude/settings.local.json` to block those ancestors —
+  making the project run its **own** discipline, consistently across all three engines. Pass
+  `--no-isolate` to keep inheritance (e.g. an intentional monorepo root). It only manages a
+  `settings.local.json` it created; one you own is never touched.
 
 Then fill in `PROJECT.md` in the target, edit the neutral source in forge-ai as needed
 (`skills/`, `configs/`, `CLAUDE.md`) and re-run the installer against the project, and open

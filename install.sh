@@ -2,7 +2,7 @@
 #
 # forge-ai installer — copy the workflow discipline into a target project.
 #
-#   ./install.sh [target-dir] [--upgrade] [--with-hooks] [--git-init]
+#   ./install.sh [target-dir] [--upgrade] [--with-hooks] [--git-init] [--no-isolate]
 #
 # With no target-dir, installs into the current working directory. So the common flow is:
 #   cd my-project && /path/to/forge-ai/install.sh
@@ -44,15 +44,17 @@ FORGE_VERSION="unknown"
 MODE="install"
 WITH_HOOKS=0
 GIT_INIT=0
+ISOLATE=1   # auto-isolate Claude Code from ancestor CLAUDE.md by default (--no-isolate to keep inheritance)
 TARGET=""
-usage="usage: $0 [target-dir] [--upgrade] [--with-hooks] [--git-init]"
+usage="usage: $0 [target-dir] [--upgrade] [--with-hooks] [--git-init] [--no-isolate]"
 while [ $# -gt 0 ]; do
   case "$1" in
-    --upgrade)    MODE="upgrade" ;;
-    --with-hooks) WITH_HOOKS=1 ;;
-    --git-init)   GIT_INIT=1 ;;
-    -*)           echo "$usage  (unknown arg: $1)" >&2; exit 2 ;;
-    *)            if [ -z "$TARGET" ]; then TARGET="$1"; else echo "$usage  (unexpected arg: $1)" >&2; exit 2; fi ;;
+    --upgrade)     MODE="upgrade" ;;
+    --with-hooks)  WITH_HOOKS=1 ;;
+    --git-init)    GIT_INIT=1 ;;
+    --no-isolate)  ISOLATE=0 ;;
+    -*)            echo "$usage  (unknown arg: $1)" >&2; exit 2 ;;
+    *)             if [ -z "$TARGET" ]; then TARGET="$1"; else echo "$usage  (unexpected arg: $1)" >&2; exit 2; fi ;;
   esac
   shift
 done
@@ -60,6 +62,10 @@ TARGET="${TARGET:-$PWD}"
 
 [ -d "$TARGET" ] || { echo "error: target dir not found: $TARGET" >&2; exit 2; }
 TARGET="$(cd "$TARGET" && pwd)"
+# Did a prior forge install own .claude/settings.local.json? (read before the manifest is
+# rewritten below, so the settings writer knows whether it may safely regenerate the file.)
+PRIOR_LOCAL_MANAGED=0
+grep -q '^localsettings:managed$' "$TARGET/.forge-manifest" 2>/dev/null && PRIOR_LOCAL_MANAGED=1
 { [ -f "$PAYLOAD/CLAUDE.md" ] && [ -d "$PAYLOAD/skills" ]; } || { echo "error: payload not found — run this from the forge-ai repo" >&2; exit 2; }
 [ "$TARGET" != "$SRC" ]     || { echo "error: refusing to install into forge-ai itself" >&2; exit 2; }
 [ "$TARGET" != "$PAYLOAD" ] || { echo "error: refusing to install into the forge-ai payload dir (src/)" >&2; exit 2; }
@@ -185,36 +191,62 @@ fi
 #     writes straight into the target — no source or sync script copied there) ---
 bash "$PAYLOAD/sync.sh" --out "$TARGET" >/dev/null
 
-# --- OPT-IN Tier-C: Claude Code hard-block gate hook (only with --with-hooks) ---
-# Not portable and not default: writes a PreToolUse hook into .claude/settings.local.json
-# (gitignored, per-developer) that runs shared/scripts/claude-gate-hook.sh and blocks a
-# ship action when the gates are incomplete. Never clobbers existing local overrides.
-if [ "$WITH_HOOKS" = "1" ]; then
-  sl="$TARGET/.claude/settings.local.json"
-  if [ -f "$sl" ]; then
-    if grep -q "claude-gate-hook" "$sl" 2>/dev/null; then
-      echo "  = Claude gate hook already present in .claude/settings.local.json"
-    else
-      echo "  ! .claude/settings.local.json exists — NOT overwriting it. To enable the gate, add a"
-      echo "    PreToolUse Bash hook running: sh \"\$CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.sh\""
-    fi
+# --- Claude Code .claude/settings.local.json: auto-isolation + opt-in gate hook ---
+# Both features land in this one gitignored, per-developer, machine-specific file. Auto-isolation
+# (default; --no-isolate to keep inheritance) adds `claudeMdExcludes` so Claude Code does NOT
+# blend ancestor CLAUDE.md / .claude/rules into this project — Codex and OpenCode already scope
+# to the project root, Claude Code walks to the filesystem root. --with-hooks adds the Tier-C
+# PreToolUse gate. forge-ai only (re)writes this file when it is absent or a prior forge install
+# owned it (tracked as `localsettings:managed` in .forge-manifest); a file it doesn't own is left
+# alone. The hook's $CLAUDE_PROJECT_DIR is resolved by Claude Code at runtime, not now.
+excludes=""
+if [ "$ISOLATE" = "1" ]; then
+  d="$(dirname "$TARGET")"
+  while [ -n "$d" ] && [ "$d" != "/" ]; do
+    [ -f "$d/CLAUDE.md" ]       && excludes="$excludes$d/CLAUDE.md
+"
+    [ -f "$d/CLAUDE.local.md" ] && excludes="$excludes$d/CLAUDE.local.md
+"
+    { [ -d "$d/.claude/rules" ] && [ "$d" != "$HOME" ]; } && excludes="$excludes$d/.claude/rules/**
+"
+    nd="$(dirname "$d")"; [ "$nd" = "$d" ] && break; d="$nd"
+  done
+fi
+n_excl=$(printf '%s' "$excludes" | grep -c . || true)
+
+sl="$TARGET/.claude/settings.local.json"
+if [ "$n_excl" -gt 0 ] || [ "$WITH_HOOKS" = "1" ]; then
+  if [ -f "$sl" ] && [ "$PRIOR_LOCAL_MANAGED" != "1" ]; then
+    echo "  ! .claude/settings.local.json exists and isn't forge-ai-managed — not touching it."
+    echo "    (skipped auto-isolation / gate hook; remove that file and re-run, or edit it by hand.)"
   else
-    cat > "$sl" <<'JSON'
-{
-  "hooks": {
+    excl_json=""
+    while IFS= read -r p; do
+      [ -n "$p" ] || continue
+      if [ -z "$excl_json" ]; then excl_json="$(printf '\n    "%s"' "$p")"
+      else excl_json="$excl_json$(printf ',\n    "%s"' "$p")"; fi
+    done <<EOF
+$excludes
+EOF
+    hook_block='  "hooks": {
     "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.sh\"" }
-        ]
-      }
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.sh\"" } ] }
     ]
-  }
-}
-JSON
-    echo "  + Claude gate hook -> .claude/settings.local.json (opt-in, Claude-only, hard-blocks ship on incomplete gates)"
+  }'
+    {
+      printf '{'
+      [ "$n_excl" -gt 0 ] && printf '\n  "claudeMdExcludes": [%s\n  ]' "$excl_json"
+      { [ "$n_excl" -gt 0 ] && [ "$WITH_HOOKS" = "1" ]; } && printf ','
+      [ "$WITH_HOOKS" = "1" ] && printf '\n%s' "$hook_block"
+      printf '\n}\n'
+    } > "$sl"
+    grep -q '^localsettings:managed$' "$manifest" 2>/dev/null || printf 'localsettings:managed\n' >> "$manifest"
+    [ "$n_excl" -gt 0 ]      && echo "  + auto-isolated Claude Code from $n_excl ancestor instruction path(s) -> .claude/settings.local.json (--no-isolate to keep inheritance)"
+    [ "$WITH_HOOKS" = "1" ]  && echo "  + Claude gate hook -> .claude/settings.local.json (opt-in, hard-blocks ship on incomplete gates)"
   fi
+elif [ "$PRIOR_LOCAL_MANAGED" = "1" ] && [ -f "$sl" ]; then
+  rm -f "$sl"
+  echo "  - removed forge-ai-managed .claude/settings.local.json (nothing to configure now)"
 fi
 
 # --- .gitignore (merge, don't clobber): ONLY local state ---

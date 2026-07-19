@@ -170,4 +170,19 @@ TG2="$TMP/gitinit"; mkdir -p "$TG2"
 git -C "$TG2" rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "--git-init did not initialize a git repo"
 echo "ok: non-git target warns; --git-init initializes a repo"
 
+# --- 14. auto-isolation: a target under an ancestor CLAUDE.md gets claudeMdExcludes; --no-isolate opts out ---
+ANC="$TMP/anc"; mkdir -p "$ANC/.claude/rules"
+printf '# ancestor\n' > "$ANC/CLAUDE.md"; printf 'x\n' > "$ANC/.claude/rules/sec.md"
+TI="$ANC/proj"; mkdir -p "$TI"
+"$ROOT/install.sh" "$TI" >/dev/null || fail "auto-isolation install exited non-zero"
+SLI="$TI/.claude/settings.local.json"
+[ -f "$SLI" ] || fail "auto-isolation did not write the local settings file under an ancestor"
+grep -q "claudeMdExcludes" "$SLI" || fail "auto-isolation did not add claudeMdExcludes"
+grep -q "$ANC/CLAUDE.md" "$SLI" || fail "claudeMdExcludes is missing the ancestor CLAUDE.md path"
+grep -q "$ANC/.claude/rules" "$SLI" || fail "claudeMdExcludes is missing the ancestor .claude/rules path"
+TN="$ANC/proj-noiso"; mkdir -p "$TN"
+"$ROOT/install.sh" "$TN" --no-isolate >/dev/null || fail "--no-isolate install exited non-zero"
+if [ -f "$TN/.claude/settings.local.json" ]; then fail "--no-isolate must not write a local settings file when no other feature is enabled"; fi
+echo "ok: auto-isolation adds claudeMdExcludes under an ancestor; --no-isolate opts out"
+
 echo "ALL PASS"
