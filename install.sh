@@ -23,7 +23,7 @@
 #
 # LANDS IN THE TARGET (runtime only):
 #   CLAUDE.md, AGENTS.md, opencode.json, .claude/, .agents/, .codex/ (generated),
-#   shared/rules/*.md + shared/state.template.md (managed), docs/ scaffolding + CHANGELOG,
+#   shared/rules/*.md + shared/state.template.md + shared/scripts/* (managed), docs/ scaffolding + CHANGELOG,
 #   PROJECT.md + CONTINUITY.md (project-owned, seeded if missing).
 # STAYS IN forge-ai (never copied): src/skills (neutral), configs/, sync.sh, sync.ps1,
 #   *.template.md, docs/extending.md.
@@ -116,6 +116,16 @@ done
 # --- MANAGED: workflow state template (lives in shared/, copied to .workflow/state.md at
 #     workflow start by the skills) ---
 cp "$PAYLOAD/shared/state.template.md" "$TARGET/shared/state.template.md"
+
+# --- MANAGED: framework shared/scripts/ (agent-invoked Tier-B helpers, e.g. check-gates) ---
+if [ -d "$PAYLOAD/shared/scripts" ]; then
+  mkdir -p "$TARGET/shared/scripts"
+  for f in "$PAYLOAD"/shared/scripts/*; do
+    [ -e "$f" ] || continue
+    cp "$f" "$TARGET/shared/scripts/$(basename "$f")"
+  done
+  chmod +x "$TARGET"/shared/scripts/*.sh 2>/dev/null || true
+fi
 
 # --- MANAGED: docs/ scaffolding ---
 mkdir -p "$TARGET/docs"

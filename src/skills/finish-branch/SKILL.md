@@ -10,9 +10,20 @@ final step after one.
 
 ## 1. Confirm the gates
 
-Open `.workflow/state.md` and verify **every required box for the active gate profile** is
-checked (`shared/rules/ship-gates.md`): branch, plan reviewed, tests passing, code review
-clean, verified, state updated. If any box is open, go back and finish it — do not ship.
+Run the deterministic checker — don't just eyeball the file:
+
+```sh
+sh shared/scripts/check-gates.sh        # pwsh shared/scripts/check-gates.ps1 on Windows
+```
+
+It reads `.workflow/state.md`, confirms **every box for the active profile** is checked (or
+N/A), and exits non-zero listing any that aren't (`shared/rules/ship-gates.md`). If it fails,
+go back and finish those boxes — do not ship.
+
+This is **Tier B**: it verifies the *record*, not the work. A checked box is an
+*attestation* (you claimed it), not independent proof — so also spot-confirm the underlying
+work is real (tests actually ran, the change was actually exercised). See the
+Verified / Attested / Advisory distinction in `shared/rules/ship-gates.md`.
 
 ## 2. Final verify
 

@@ -21,9 +21,11 @@ TB="$TMP/bash"; mkdir -p "$TB"
 for f in CLAUDE.md AGENTS.md opencode.json PROJECT.md CONTINUITY.md \
          .claude/skills/new-feature/SKILL.md .agents/skills/new-feature/SKILL.md \
          .claude/settings.json .codex/config.toml docs/CHANGELOG.md \
-         shared/state.template.md; do
+         shared/state.template.md \
+         shared/scripts/check-gates.sh shared/scripts/check-gates.ps1; do
   [ -e "$TB/$f" ] || fail "bash: expected runtime file $f was not produced"
 done
+[ -x "$TB/shared/scripts/check-gates.sh" ] || fail "bash: check-gates.sh is not executable"
 ls "$TB"/shared/rules/*.md >/dev/null 2>&1 || fail "bash: shared/rules/*.md missing"
 # framework machinery + repo files must NOT land in the target (thin install)
 for f in install.sh install.ps1 README.md LICENSE src \
@@ -114,5 +116,17 @@ printf 'mine\n' > "$TF/configs/mine.txt"; printf 'mine\n' > "$TF/skills/mine/SKI
 [ -f "$TF/skills/mine/SKILL.md" ] || fail "first install clobbered an unrelated project's skills/"
 [ -e "$TF/configs.pre-forge.bak" ] && fail "first install wrongly backed up an unrelated configs/ (self-heal not gated)"
 echo "ok: first install leaves an unrelated project's own configs/ and skills/ untouched"
+
+# --- 10. check-gates (Tier B): green state passes, an unchecked box fails non-zero ---
+TC="$TMP/gates"; mkdir -p "$TC/.workflow"
+"$ROOT/install.sh" "$TC" >/dev/null || fail "check-gates case install exited non-zero"
+GATES="$TC/shared/scripts/check-gates.sh"
+printf '## Active workflow\n- **Profile:** standard\n## Ship-gate checklist\n- [x] a\n- [x] b\n' > "$TC/.workflow/state.md"
+( cd "$TC" && sh "$GATES" >/dev/null 2>&1 ) || fail "check-gates: a fully-checked state should exit 0"
+printf '## Active workflow\n- **Profile:** standard\n## Ship-gate checklist\n- [x] a\n- [ ] b\n' > "$TC/.workflow/state.md"
+if ( cd "$TC" && sh "$GATES" >/dev/null 2>&1 ); then fail "check-gates: an unchecked box should exit non-zero"; fi
+[ -f "$TC/nope.md" ] && fail "test setup error"
+( cd "$TC" && sh "$GATES" nope.md >/dev/null 2>&1 ) && fail "check-gates: a missing state file should exit non-zero" || true
+echo "ok: check-gates passes a green state and blocks an unchecked box"
 
 echo "ALL PASS"

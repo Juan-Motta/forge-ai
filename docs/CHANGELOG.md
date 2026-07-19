@@ -6,6 +6,16 @@ development log; it is **not** the seed shipped to installed projects (that live
 
 ## Unreleased
 
+- **Phase 2 — honest tiered enforcement (priority #2): `check-gates` + Verified/Attested/Advisory.**
+  New **Tier-B** validator `shared/scripts/check-gates.{sh,ps1}` (POSIX + PowerShell parity) reads
+  `.workflow/state.md`, confirms every ship-gate box for the active profile is checked (or N/A),
+  and exits non-zero listing any that aren't — turning "eyeball the file" into "run a command that
+  fails loudly." It ships as a runtime payload (installers copy `shared/scripts/`), and
+  `finish-branch` step 1 now invokes it. `ship-gates.md` gains the **Verified / Attested / Advisory**
+  vocabulary: the check validates the *record*, not the work (a checked box is an attestation, not
+  proof); a real *verified* gate means running it in CI with branch protection. The README
+  enforcement section is rewritten to stop over-selling the native prompt. smoke.sh gains a
+  check-gates case (green passes, unchecked box fails, missing state errors) — now 10 cases.
 - **Phase 2 — anti-rationalization anatomy (priority #3): all 11 skills retrofitted.** Each
   skill now carries a skill-specific **Common Rationalizations** table (the excuses an agent
   uses to skip a step, each rebutted), a **Red Flags** section, and an exit-criteria

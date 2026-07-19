@@ -77,12 +77,23 @@ flowchart TD
 > and across zip/clone mirrors. One neutral source + a generator gives a single place to
 > edit without ever fighting symlink support.
 
-### Enforcement model — advisory + native approval
+### Enforcement model — honest about what each signal is worth
 
-This is **discipline, not a hard gate.** No hook conditionally blocks an action. The
-skills *instruct* the agent to pass the gates before shipping (advisory), and each engine
-shows a **best-effort native prompt** on outward actions — it reads no gate state and
-matches by command pattern (so it's bypassable):
+This is **discipline, not a hard gate.** No hook conditionally blocks an action. Be precise
+about the strength of each signal (see [`ship-gates.md`](src/shared/rules/ship-gates.md)):
+
+- **Advisory** — the skills *instruct* the agent to pass the gates before shipping.
+- **Attested** — `finish-branch` runs `shared/scripts/check-gates.sh` (`.ps1` on Windows),
+  a deterministic Tier-B check that reads `.workflow/state.md` and exits non-zero listing any
+  unchecked box. It turns "eyeball the file" into "run a command that fails loudly" — but it
+  validates the *record*, not the work (a checked box is a claim), and it only runs when
+  invoked.
+- **Verified** — the only signal independent of the agent's say-so: run `check-gates.sh` plus
+  your tests **in CI with branch protection**, so the check binds to the exact PR commit
+  outside the agent's turn. This is the honest place to put a real gate.
+
+On top of that, each engine shows a **best-effort native prompt** on outward actions — it
+reads no gate state and matches by command pattern, so it's bypassable:
 
 | Engine | Native prompt | Config |
 | --- | --- | --- |
@@ -90,9 +101,9 @@ matches by command pattern (so it's bypassable):
 | Codex | `approval_policy` asks when a command crosses the sandbox boundary | `.codex/config.toml` |
 | OpenCode | `git push*` / `gh pr create*` set to `ask` (force-push `deny`) | `opencode.json` |
 
-The prompt is a commit-confirmation, not proof the gates are green: **the approver must
-check `.workflow/state.md` first.** (Real hard blocking would need per-engine hooks —
-Tier C, out of scope; see [`src/docs/extending.md`](src/docs/extending.md).)
+The prompt is a commit-confirmation, **not** proof the gates are green: the approver must run
+`check-gates.sh` or read `.workflow/state.md` first. (Unbypassable per-engine blocking would
+need hooks — Tier C, out of scope; see [`src/docs/extending.md`](src/docs/extending.md).)
 
 ### Repo layout
 

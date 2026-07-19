@@ -49,14 +49,41 @@ Then log a waiver in `.workflow/state.md`, e.g.:
 Cross-engine review is the default and preferred (real model diversity). The waiver just
 makes the degradation **explicit and auditable**, never silent.
 
-## How enforcement works here (advisory + a best-effort native prompt)
+## What a gate can honestly claim — Verified / Attested / Advisory
+
+Be precise about the strength of each gate signal. A claim is only as strong as what
+produced it:
+
+- **Verified** — an out-of-turn check *recomputed* the fact, independent of the agent's
+  say-so. Example: CI ran the test suite at the exact PR commit and it passed. This is the
+  strongest signal, and the only one that survives a bad-faith or mistaken agent.
+- **Attested** — an agent or human *claimed* it and something validated the claim's *shape*,
+  not its truth. A `- [x]` box in `.workflow/state.md`, or `check-gates.sh` reporting the
+  checklist is complete, is attested: it confirms the record says "done", not that the work
+  was done. A file that says `reviewer_engine: codex` is not proof Codex reviewed anything.
+- **Advisory** — present only as an instruction the agent is asked to follow. The workflow
+  skills and this rules file are advisory.
+
+**Never present an attested checkbox as if it were verified.** The honest upgrade path is to
+move a claim up the ladder — e.g. bind "tests passing" to CI (verified) rather than a box
+someone ticked (attested).
+
+## How enforcement works here (advisory + Tier-B check + native prompt)
 
 **Be honest about what this is: discipline, not a hard gate.** Nothing conditionally
-blocks a commit when a box is unchecked. Two things stand in — both advisory:
+blocks a commit when a box is unchecked. Three things stand in — none of them a hard block:
 
 1. **Advisory (all engines):** you are instructed — here and in the workflow skill — not
    to ship until the profile's boxes pass. Honor it.
-2. **Best-effort native prompt (per engine):** each engine can prompt for human approval
+2. **Deterministic Tier-B check (all engines):** `finish-branch` runs
+   `shared/scripts/check-gates.sh` (`.ps1` on Windows), which reads `.workflow/state.md` and
+   exits non-zero listing any unchecked box. This turns "eyeball the file" into "run a
+   command that fails loudly" — a much harder thing to rationalize past, and the *same*
+   command a human or CI can run. It is still **attested** (it validates the record, not the
+   work) and still **skippable** (Tier B runs only when invoked — it is not a hook). For a
+   real *verified* gate, run it in CI with branch protection so the check binds to the PR
+   commit outside the agent's turn.
+3. **Best-effort native prompt (per engine):** each engine can prompt for human approval
    on outward commands — but it reads **no** gate state and matches commands by pattern,
    so it is bypassable (e.g. `git -C . push`, a PR via API, another tool):
    - **Claude Code** — `git push` / `gh pr create` are `ask`-tier in `.claude/settings.json`.
@@ -67,4 +94,4 @@ blocks a commit when a box is unchecked. Two things stand in — both advisory:
 
 The prompt shows the human a generic "allow this command?", **not** the checklist — so it
 is a commit-confirmation, not proof the gates are green. The approver must
-**independently check `.workflow/state.md` before approving.**
+**independently check `.workflow/state.md` before approving** (or run `check-gates.sh`).

@@ -19,7 +19,7 @@
 # forge-ai dependency at runtime.
 #
 # LANDS IN THE TARGET (runtime only): CLAUDE.md, AGENTS.md, opencode.json, .claude/,
-#   .agents/, .codex/ (generated), shared/rules/*.md + shared/state.template.md (managed),
+#   .agents/, .codex/ (generated), shared/rules/*.md + shared/state.template.md + shared/scripts/* (managed),
 #   docs/ scaffolding + CHANGELOG, PROJECT.md + CONTINUITY.md (project-owned, seeded).
 # STAYS IN forge-ai (never copied): src/skills (neutral), configs/, sync.sh, sync.ps1,
 #   *.template.md, docs/extending.md.
@@ -108,6 +108,15 @@ Set-Content -Path $manifest -Value (@($newRules | ForEach-Object { "rule:$_" }))
 
 # --- MANAGED: workflow state template (in shared/) ---
 Copy-Item (Join-Path $Payload 'shared/state.template.md') (Join-Path $Target 'shared/state.template.md') -Force
+
+# --- MANAGED: framework shared/scripts/ (agent-invoked Tier-B helpers, e.g. check-gates) ---
+$scriptsSrc = Join-Path $Payload 'shared/scripts'
+if (Test-Path -LiteralPath $scriptsSrc -PathType Container) {
+  New-Item -ItemType Directory -Force -Path (Join-Path $Target 'shared/scripts') | Out-Null
+  foreach ($f in Get-ChildItem -File $scriptsSrc) {
+    Copy-Item $f.FullName (Join-Path $Target "shared/scripts/$($f.Name)") -Force
+  }
+}
 
 # --- MANAGED: docs/ scaffolding ---
 New-Item -ItemType Directory -Force -Path (Join-Path $Target 'docs') | Out-Null
