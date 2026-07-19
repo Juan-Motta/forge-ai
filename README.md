@@ -265,6 +265,9 @@ What it does:
 - Runs a **post-install validation** (skill-discovery paths `.claude`/`.agents`, `AGENTS.md`,
   and engine configs generated) that **exits non-zero** if anything is missing, and warns if
   a config lacks the push/PR gate.
+- **Checks for git.** The workflow (branches, commits) and the ship gates operate on git. If the
+  target isn't a repo, the installer **warns** (it never touches your VCS on its own); pass
+  `--git-init` to have it run `git init` + a baseline commit for you.
 
 Then fill in `PROJECT.md` in the target, edit the neutral source in forge-ai as needed
 (`skills/`, `configs/`, `CLAUDE.md`) and re-run the installer against the project, and open

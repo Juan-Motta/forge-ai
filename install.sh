@@ -2,7 +2,7 @@
 #
 # forge-ai installer — copy the workflow discipline into a target project.
 #
-#   ./install.sh [target-dir] [--upgrade] [--with-hooks]
+#   ./install.sh [target-dir] [--upgrade] [--with-hooks] [--git-init]
 #
 # With no target-dir, installs into the current working directory. So the common flow is:
 #   cd my-project && /path/to/forge-ai/install.sh
@@ -43,13 +43,16 @@ FORGE_VERSION="unknown"
 [ -n "$FORGE_VERSION" ] || FORGE_VERSION="unknown"
 MODE="install"
 WITH_HOOKS=0
+GIT_INIT=0
 TARGET=""
+usage="usage: $0 [target-dir] [--upgrade] [--with-hooks] [--git-init]"
 while [ $# -gt 0 ]; do
   case "$1" in
     --upgrade)    MODE="upgrade" ;;
     --with-hooks) WITH_HOOKS=1 ;;
-    -*)           echo "usage: $0 [target-dir] [--upgrade] [--with-hooks]  (unknown arg: $1)" >&2; exit 2 ;;
-    *)            if [ -z "$TARGET" ]; then TARGET="$1"; else echo "usage: $0 [target-dir] [--upgrade] [--with-hooks]  (unexpected arg: $1)" >&2; exit 2; fi ;;
+    --git-init)   GIT_INIT=1 ;;
+    -*)           echo "$usage  (unknown arg: $1)" >&2; exit 2 ;;
+    *)            if [ -z "$TARGET" ]; then TARGET="$1"; else echo "$usage  (unexpected arg: $1)" >&2; exit 2; fi ;;
   esac
   shift
 done
@@ -250,6 +253,22 @@ if [ "$ok" != 1 ]; then
   exit 1
 fi
 echo "  ✓ validation: skills (.claude + .agents), AGENTS.md, and engine configs generated"
+
+# --- git: the workflow (branches/commits) and ship gates operate on git ---
+if git -C "$TARGET" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  :  # already a git repo — the workflow uses it
+elif [ "$GIT_INIT" = "1" ]; then
+  git -C "$TARGET" init -q
+  git -C "$TARGET" add -A
+  if git -C "$TARGET" commit -q -m "chore: adopt forge-ai" 2>/dev/null; then
+    echo "  + initialized a git repo + baseline commit (chore: adopt forge-ai)"
+  else
+    echo "  + initialized a git repo (baseline commit skipped — set git user.name/email, then commit)"
+  fi
+else
+  echo "  ! not a git repo — forge-ai's workflow (branches, commits) and the ship gates assume git."
+  echo "    Run 'git init' here, or re-run the installer with --git-init."
+fi
 
 echo "forge-ai installed."
 echo "  next: (1) fill PROJECT.md   (2) in Codex, trust the project when prompted"

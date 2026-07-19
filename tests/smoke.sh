@@ -160,4 +160,14 @@ TH2="$TMP/nohooks"; mkdir -p "$TH2"; "$ROOT/install.sh" "$TH2" >/dev/null
 [ -f "$TH2/.claude/settings.local.json" ] && fail "bare install wrongly created the opt-in local settings file"
 echo "ok: --with-hooks installs the Claude gate; it blocks a red ship and allows a green one"
 
+# --- 13. git: a non-git target warns (and stays non-git); --git-init initializes a repo ---
+TG1="$TMP/nogit"; mkdir -p "$TG1"
+g_out="$("$ROOT/install.sh" "$TG1" 2>&1)"
+printf '%s' "$g_out" | grep -q "not a git repo" || fail "non-git target should print the git advisory"
+if git -C "$TG1" rev-parse --is-inside-work-tree >/dev/null 2>&1; then fail "advisory-only install must NOT create a git repo"; fi
+TG2="$TMP/gitinit"; mkdir -p "$TG2"
+"$ROOT/install.sh" "$TG2" --git-init >/dev/null 2>&1 || fail "--git-init install exited non-zero"
+git -C "$TG2" rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "--git-init did not initialize a git repo"
+echo "ok: non-git target warns; --git-init initializes a repo"
+
 echo "ALL PASS"
