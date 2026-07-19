@@ -29,14 +29,32 @@ jobs:
           if git rev-parse "$tag" >/dev/null 2>&1; then
             echo "$tag already exists — nothing to do"; exit 0
           fi
-          # Extract this version's changelog section: from "## <version>" to the next "## ".
-          notes_file="$(mktemp)"
+          # Build USER-ORIENTED release notes (not the raw dev changelog): lead with this
+          # version's changelog summary paragraph, add install/upgrade steps, and fold the
+          # technical bullets into a <details>. Extract the section first (## <ver> .. next ##).
+          section="$(mktemp)"
           awk -v v="$version" '
             $0 ~ ("^## " v "( |$)") { f = 1; next }
             /^## / { f = 0 }
             f { print }
-          ' docs/CHANGELOG.md > "$notes_file"
-          [ -s "$notes_file" ] || printf 'Release %s\n' "$tag" > "$notes_file"
+          ' docs/CHANGELOG.md > "$section"
+          summary="$(awk '/^- /{exit} {print}' "$section")"        # human summary, before the bullets
+          detail="$(awk 'p||/^- /{p=1;print}' "$section")"          # the technical bullets
+          notes_file="$(mktemp)"
+          {
+            if [ -n "$summary" ]; then printf '%s\n\n' "$summary"; else printf '## %s\n\n' "$tag"; fi
+            printf '## Install or upgrade\n\n'
+            printf '```bash\n'
+            printf 'git clone https://github.com/%s ~/forge-ai\n' "$GITHUB_REPOSITORY"
+            printf 'cd /path/to/your-project\n'
+            printf '~/forge-ai/install.sh              # first install (--git-init to set up git too)\n'
+            printf '~/forge-ai/install.sh --upgrade    # update an existing install\n'
+            printf '```\n\n'
+            printf 'Runs identically on Claude Code, Codex, and OpenCode.\n\n'
+            if [ -n "$detail" ]; then
+              printf '<details><summary>Full changelog</summary>\n\n%s\n\n</details>\n' "$detail"
+            fi
+          } > "$notes_file"
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "$tag" -F "$notes_file"
