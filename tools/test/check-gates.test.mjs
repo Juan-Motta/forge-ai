@@ -1,7 +1,7 @@
 import { test as _test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -360,6 +360,128 @@ test('r: no-base fail-safe — single branch, named report ABSENT → exit 1 (ne
 - [x] c
 - [x] d
 - [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+// --- Adversarial re-review fixes: symlink / traversal / subdir / multi-report -------
+
+test('s: SYMLINK at the box-named path (pointing to an external fabricated PASS) → exit 1', () => {
+  // Bypass found by adversarial re-review: an untracked symlink dropped at the box-named
+  // path pointed at an attacker-controlled file OUTSIDE the repo carrying a fabricated
+  // "VERDICT: PASS" — the old code only checked `[ -f ]`, which follows symlinks and
+  // happily reads through them. Base resolves (main) so freshness would even see the
+  // symlink as "untracked" — the ONLY thing that must stop this is rejecting the symlink
+  // itself, before existence is even considered.
+  const parent = mkdtempSync(join(tmpdir(), 'cg-sym-'));
+  const dir = join(parent, 'repo');
+  mkdirSync(dir);
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  writeFileSync(join(parent, 'fabricated.md'), 'VERDICT: PASS\n');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  symlinkSync(join(parent, 'fabricated.md'), join(dir, 'docs', 'e2e', 'reports', 'feat.md'));
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
+  rmSync(parent, { recursive: true, force: true });
+});
+
+test('t: path TRAVERSAL out of the repo (no base resolves) → exit 1', () => {
+  // Bypass found by adversarial re-review: single-branch repo (no dev/main/master/origin
+  // resolves), box names `report: ../evil.md` pointing OUTSIDE the repo to a fabricated
+  // PASS. The old code resolved `$toplevel/../evil.md`, found it existed with VERDICT:
+  // PASS, and — since no base resolves — freshness was skipped entirely → silent exit 0.
+  // The whitelist must reject the traversal before existence is even checked.
+  const parent = mkdtempSync(join(tmpdir(), 'cg-trav-'));
+  const dir = join(parent, 'repo');
+  mkdirSync(dir);
+  git(dir, 'init', '-q', '-b', 'feat/solo');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: ../evil.md)
+- [x] f
+`);
+  writeFileSync(join(parent, 'evil.md'), 'VERDICT: PASS\n');
+  assert.equal(run(dir), 1);
+  rmSync(parent, { recursive: true, force: true });
+});
+
+test('u: SUBDIR path under docs/e2e/reports/ → exit 1 (whitelist rejects the extra slash)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cg-subdir-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports', 'sub', 'dir'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'sub', 'dir', 'x.md'), 'VERDICT: PASS\n');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/sub/dir/x.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('v: MULTI-REPORT line (two "(report:" groups) → exit 1 (ambiguous, one report per box)', () => {
+  // Bypass found by adversarial re-review: sh's greedy `.*(report:` extraction picks the
+  // RIGHTMOST group while ps1's regex Match picks the leftmost — a line with a placeholder
+  // group first and a real fresh PASS group second made sh pass (extracts the real path)
+  // while ps1 failed (extracts the placeholder). Reject the ambiguous line outright on
+  // both engines instead of trying to agree on which group "wins".
+  const dir = mkdtempSync(join(tmpdir(), 'cg-multi-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'real.md'), 'VERDICT: PASS\n');
+  git(dir, 'add', 'docs/e2e/reports/real.md'); git(dir, 'commit', '-qm', 'e2e report');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/<...>.md) see also (report: docs/e2e/reports/real.md)
 - [x] f
 `);
   assert.equal(run(dir), 1);

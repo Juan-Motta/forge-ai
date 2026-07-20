@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -227,4 +227,112 @@ test('ps1 parity: no-base fail-safe — single branch, PRESENT+PASS → exit 0; 
   };
   let d = mkSolo(true);  assert.equal(run(d), 0); rmSync(d, { recursive: true, force: true });
   d = mkSolo(false);     assert.equal(run(d), 1); rmSync(d, { recursive: true, force: true });
+});
+
+// --- Adversarial re-review fixes: symlink / traversal / subdir / multi-report -------
+// Mirrors check-gates.test.mjs tests 's'/'t'/'u'/'v' — sh and ps1 must accept/reject
+// identical inputs for every one of these adversarial fixtures.
+
+test('ps1 parity: SYMLINK at the box-named path (external fabricated PASS) → exit 1', { skip: !hasPwsh }, () => {
+  const parent = mkdtempSync(join(tmpdir(), 'cgps-sym-'));
+  const dir = join(parent, 'repo');
+  mkdirSync(dir);
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  writeFileSync(join(parent, 'fabricated.md'), 'VERDICT: PASS\n');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  symlinkSync(join(parent, 'fabricated.md'), join(dir, 'docs', 'e2e', 'reports', 'feat.md'));
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
+  rmSync(parent, { recursive: true, force: true });
+});
+
+test('ps1 parity: path TRAVERSAL out of the repo (no base resolves) → exit 1', { skip: !hasPwsh }, () => {
+  const parent = mkdtempSync(join(tmpdir(), 'cgps-trav-'));
+  const dir = join(parent, 'repo');
+  mkdirSync(dir);
+  git(dir, 'init', '-q', '-b', 'feat/solo');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: ../evil.md)
+- [x] f
+`);
+  writeFileSync(join(parent, 'evil.md'), 'VERDICT: PASS\n');
+  assert.equal(run(dir), 1);
+  rmSync(parent, { recursive: true, force: true });
+});
+
+test('ps1 parity: SUBDIR path under docs/e2e/reports/ → exit 1 (whitelist rejects the extra slash)', { skip: !hasPwsh }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cgps-subdir-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports', 'sub', 'dir'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'sub', 'dir', 'x.md'), 'VERDICT: PASS\n');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/sub/dir/x.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('ps1 parity: MULTI-REPORT line (two "(report:" groups) → exit 1 (ambiguous)', { skip: !hasPwsh }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cgps-multi-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'real.md'), 'VERDICT: PASS\n');
+  git(dir, 'add', 'docs/e2e/reports/real.md'); git(dir, 'commit', '-qm', 'e2e report');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/<...>.md) see also (report: docs/e2e/reports/real.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
 });
