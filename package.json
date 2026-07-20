@@ -1,5 +1,5 @@
 {
-  "name": "codeforge",
+  "name": "@jualopezmo/codeforge",
   "version": "0.4.0",
   "description": "Install one cross-engine AI-coding workflow discipline (research → plan → TDD → cross-engine review → verify → ship) into a project — runs identically on Claude Code, Codex, and OpenCode. Also hosts the framework's own dev tooling (skill linter, routing evals).",
   "bin": {
@@ -7,6 +7,7 @@
   },
   "files": [
     "bin/",
+    "cli/",
     "src/",
     "install.sh",
     "install.ps1",
@@ -22,6 +23,12 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "ink": "^5.0.1",
+    "react": "^18.3.1",
+    "ink-text-input": "^6.0.0",
+    "ink-select-input": "^6.0.0"
   },
   "license": "MIT",
   "repository": {
