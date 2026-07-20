@@ -78,6 +78,60 @@ if [ "$unmet" -gt 0 ]; then
   exit 1
 fi
 
+# --- E2E evidence check (Attested) --------------------------------------------
+# If the "E2E verified" box is checked as a real run (not "— N/A: <reason>"),
+# require a report under docs/e2e/reports/ that is BOTH fresh on this branch
+# (git, not mtime — clone/checkout resets mtimes) AND VERDICT: PASS.
+e2e_line=$(awk '
+  /^##[[:space:]]+Ship-gate checklist/ { inlist = 1; next }
+  /^##[[:space:]]/                     { inlist = 0 }
+  inlist && /^- \[[xX]\][[:space:]]+E2E verified/ { print; exit }
+' "$STATE")
+
+if [ -n "$e2e_line" ]; then
+  case "$e2e_line" in
+    *"N/A:"*)
+      # N/A escape must carry a non-empty reason.
+      reason=$(printf '%s' "$e2e_line" | sed -n 's/.*N\/A:[[:space:]]*\(.*\)$/\1/p')
+      if [ -z "$reason" ]; then
+        echo "check-gates: 'E2E verified' uses 'N/A:' with no reason — treated as unmet." >&2
+        exit 1
+      fi
+      ;;
+    *)
+      # Real E2E claim — need a fresh PASS report. Degrade gracefully when git
+      # can't resolve a branch point (not a repo, on default branch, no merge-base).
+      if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        default_branch=""
+        for b in main master; do
+          if git show-ref --verify --quiet "refs/heads/$b"; then default_branch="$b"; break; fi
+        done
+        current=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        base=""
+        if [ -n "$default_branch" ] && [ "$current" != "$default_branch" ]; then
+          base=$(git merge-base HEAD "$default_branch" 2>/dev/null || echo "")
+        fi
+        if [ -n "$base" ]; then
+          changed=$(git diff --name-only "$base"..HEAD -- docs/e2e/reports/ 2>/dev/null || echo "")
+          untracked=$(git ls-files --others --exclude-standard -- docs/e2e/reports/ 2>/dev/null || echo "")
+          found=""
+          for f in $changed $untracked; do
+            [ -f "$f" ] || continue
+            if grep -Eq '^VERDICT:[[:space:]]*PASS([[:space:]]|$)' "$f"; then found="$f"; break; fi
+          done
+          if [ -z "$found" ]; then
+            echo "check-gates: 'E2E verified' is checked, but no report in docs/e2e/reports/ is" >&2
+            echo "  both changed on this branch (since $default_branch) and 'VERDICT: PASS'." >&2
+            echo "  Run the verify-e2e skill, or use '— N/A: <reason>' for internal/UI-only changes." >&2
+            exit 1
+          fi
+        fi
+      fi
+      ;;
+  esac
+fi
+# --- end E2E evidence check ---------------------------------------------------
+
 echo "check-gates: profile '$profile' — all $total recorded boxes checked."
 echo "Attested-complete: a checked box is an attestation, not independent proof."
 exit 0
