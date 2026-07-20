@@ -1,0 +1,27 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { hasInstallIntent, installerFlags, nonInteractiveCommand } from '../../cli/lib/flags.mjs';
+import { makeDefaultAnswers } from '../../cli/state.mjs';
+
+test('hasInstallIntent is true for flags and targets, false for bare/--version', () => {
+  assert.equal(hasInstallIntent(['--with-hooks']), true);
+  assert.equal(hasInstallIntent(['./proj']), true);
+  assert.equal(hasInstallIntent(['--yes']), true);
+  assert.equal(hasInstallIntent([]), false);
+  assert.equal(hasInstallIntent(['--version']), false);
+  assert.equal(hasInstallIntent(['--help']), false);
+});
+
+test('installerFlags maps answers to install.sh args', () => {
+  const a = { ...makeDefaultAnswers('/tmp/x'), withHooks: true, gitInit: true, noIsolate: false };
+  assert.deepEqual(installerFlags(a), ['/tmp/x', '--with-hooks', '--git-init']);
+});
+
+test('nonInteractiveCommand is reproducible and includes reviewer + profile', () => {
+  const a = { ...makeDefaultAnswers('/tmp/x'), profile: 'light' };
+  const cmd = nonInteractiveCommand(a);
+  assert.match(cmd, /npx @jualopezmo\/codeforge \/tmp\/x/);
+  assert.match(cmd, /--yes/);
+  assert.match(cmd, /--profile=light/);
+  assert.match(cmd, /--reviewer=codex:gpt-5\.6-sol:xhigh/);
+});
