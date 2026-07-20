@@ -16,8 +16,14 @@ shipping.
       fixes always require it.
 - [ ] Tests written (TDD) and passing
 - [ ] Code review clean — no open P0/P1/P2 (`severity.md`), cross-engine
-- [ ] Change verified by actually exercising it
+- [ ] E2E verified via verify-e2e (report: docs/e2e/reports/<...>.md) — `N/A: <reason>` allowed for purely internal changes (migration, refactor, tooling) and UI-only changes (no v1 adapter)
 - [ ] `.workflow/state.md` updated
+
+> The `E2E verified` box is an **Attested** signal: it asserts that a verify-e2e run
+> produced a `VERDICT: PASS` report committed under `docs/e2e/reports/`. `check-gates`
+> binds the box to that artifact, but the report is still the agent's own output — it is
+> not the Verified tier (which requires an out-of-turn recompute in CI). See the
+> Verified / Attested / Advisory ladder above.
 
 The active workflow records its profile in `.workflow/state.md` (the **Profile** field —
 see `shared/state.template.md`); `finish-branch` validates that profile's boxes before shipping.
