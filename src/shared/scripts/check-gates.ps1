@@ -15,11 +15,9 @@
 param([string]$StatePath = ".workflow/state.md")
 
 $ErrorActionPreference = "Stop"
-# Parity with sh's masked git failures (`|| echo ""` / `2>$null`): on a pwsh where
-# $PSNativeCommandUseErrorActionPreference defaults to $true, an expected non-zero exit
-# from a native command (git show-ref / merge-base / diff / ls-files below) would THROW
-# under $ErrorActionPreference = "Stop" and abort as a false BLOCK. Disable it so native
-# git non-zero exits are handled via $LASTEXITCODE, exactly like the sh side.
+# Parity with sh's masked git failures (`|| echo ""` / `2>$null`): explicitly set
+# $PSNativeCommandUseErrorActionPreference = $false (defensive: guards against upstream
+# configs that enable it) so native git non-zero exits are handled via $LASTEXITCODE, not thrown.
 $PSNativeCommandUseErrorActionPreference = $false
 
 if (-not (Test-Path -LiteralPath $StatePath -PathType Leaf)) {
