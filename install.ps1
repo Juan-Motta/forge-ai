@@ -169,7 +169,7 @@ if (Test-Path -LiteralPath $scriptsSrc -PathType Container) {
 
 # --- MANAGED: docs/ scaffolding ---
 New-Item -ItemType Directory -Force -Path (Join-Path $Target 'docs') | Out-Null
-foreach ($d in 'prds', 'plans', 'research', 'solutions', 'adr') {
+foreach ($d in 'prds', 'plans', 'research', 'solutions', 'adr', 'e2e/reports', 'e2e/use-cases') {
   $dd = Join-Path $Target "docs/$d"
   New-Item -ItemType Directory -Force -Path $dd | Out-Null
   $gk = Join-Path $dd '.gitkeep'
