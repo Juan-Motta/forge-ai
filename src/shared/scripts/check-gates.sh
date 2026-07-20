@@ -79,9 +79,13 @@ if [ "$unmet" -gt 0 ]; then
 fi
 
 # --- E2E evidence check (Attested) --------------------------------------------
-# If the "E2E verified" box is checked as a real run (not "— N/A: <reason>"),
-# require a report under docs/e2e/reports/ that is BOTH fresh on this branch
-# (git, not mtime — clone/checkout resets mtimes) AND VERDICT: PASS.
+# When the "E2E verified" box is checked as a real run (not "— N/A: <reason>"),
+# bind it to the report PATH NAMED in the box. That named file must EXIST, carry a
+# top-level VERDICT: PASS, and (best-effort) be fresh on this branch. A checked box
+# NEVER passes the gate without its named PASS report — no silent fail-open. Base is
+# auto-detected by closest merge-base among dev/main/master/origin (this repo
+# integrates on dev, not main). Freshness uses git, not mtime (clone/checkout resets
+# mtimes); it degrades to a stderr note only when no base ref resolves.
 e2e_line=$(awk '
   /^##[[:space:]]+Ship-gate checklist/ { inlist = 1; next }
   /^##[[:space:]]/                     { inlist = 0 }
@@ -99,36 +103,70 @@ if [ -n "$e2e_line" ]; then
       fi
       ;;
     *)
-      # Real E2E claim — need a fresh PASS report. Degrade gracefully when git
-      # can't resolve a branch point (not a repo, on default branch, no merge-base).
+      # 1. Parse the report path named in the box: (report: <PATH>).
+      report_path=$(printf '%s' "$e2e_line" | sed -n 's/.*(report:[[:space:]]*\([^)]*\)).*/\1/p' | head -n1)
+      report_path=$(printf '%s' "$report_path" | sed 's/[[:space:]]*$//')
+      if [ -z "$report_path" ]; then
+        echo "check-gates: 'E2E verified' is checked but names no report path." >&2
+        echo "  Put the real report path in the box: (report: docs/e2e/reports/<file>.md)." >&2
+        exit 1
+      fi
+      case "$report_path" in
+        *"<"*|*">"*)
+          echo "check-gates: 'E2E verified' still names the placeholder report path '$report_path'." >&2
+          echo "  Replace it with the real report path: (report: docs/e2e/reports/<file>.md)." >&2
+          exit 1
+          ;;
+      esac
+      # 2. Require the named file to exist, resolved against the git toplevel (not cwd).
+      toplevel=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+      if [ -n "$toplevel" ]; then abs_report="$toplevel/$report_path"; else abs_report="$report_path"; fi
+      if [ ! -f "$abs_report" ]; then
+        echo "check-gates: 'E2E verified' names report '$report_path' but that file does not exist." >&2
+        echo "  Run the verify-e2e skill to produce it, or use '— N/A: <reason>'." >&2
+        exit 1
+      fi
+      # 3. Top-level verdict must be exactly PASS (the FIRST "VERDICT:" line only, so a
+      #    per-UC "VERDICT: PASS" below a top-level FAIL can never satisfy the gate).
+      first_verdict=$(awk '/^VERDICT:/{print; exit}' "$abs_report")
+      if ! printf '%s' "$first_verdict" | grep -Eq '^VERDICT:[[:space:]]+PASS[[:space:]]*$'; then
+        echo "check-gates: report '$report_path' top-level verdict is not 'VERDICT: PASS'." >&2
+        echo "  The first VERDICT: line must be exactly 'VERDICT: PASS'." >&2
+        exit 1
+      fi
+      # 4. Freshness (best-effort, never silently passes): the named path must be new
+      #    work on this branch. Base = closest merge-base among dev/main/master/origin.
       if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        default_branch=""
-        for b in main master; do
-          if git show-ref --verify --quiet "refs/heads/$b"; then default_branch="$b"; break; fi
-        done
         current=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        origin_head=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null || echo "")
         base=""
-        if [ -n "$default_branch" ] && [ "$current" != "$default_branch" ]; then
-          base=$(git merge-base HEAD "$default_branch" 2>/dev/null || echo "")
-        fi
+        best_count=""
+        for ref in dev main master origin/dev origin/main origin/master "$origin_head"; do
+          [ -n "$ref" ] || continue
+          [ "$ref" != "$current" ] || continue
+          git rev-parse --verify --quiet "$ref" >/dev/null 2>&1 || continue
+          mb=$(git merge-base HEAD "$ref" 2>/dev/null || echo "")
+          [ -n "$mb" ] || continue
+          count=$(git rev-list --count "$mb"..HEAD 2>/dev/null || echo "")
+          [ -n "$count" ] || continue
+          if [ -z "$best_count" ] || [ "$count" -lt "$best_count" ]; then
+            best_count="$count"; base="$mb"
+          fi
+        done
         if [ -n "$base" ]; then
-          changed=$(git diff --name-only "$base"..HEAD -- docs/e2e/reports/ 2>/dev/null || echo "")
-          staged=$(git diff --cached --name-only -- docs/e2e/reports/ 2>/dev/null || echo "")
-          untracked=$(git ls-files --others --exclude-standard -- docs/e2e/reports/ 2>/dev/null || echo "")
-          found=""
-          for f in $changed $staged $untracked; do
-            [ -f "$f" ] || continue
-            # Anchor to the TOP-LEVEL verdict: only the FIRST "VERDICT:" line counts, so a
-            # per-UC "VERDICT: PASS" below a top-level FAIL can never satisfy the gate.
-            first=$(awk '/^VERDICT:/{print; exit}' "$f")
-            if printf '%s' "$first" | grep -Eq '^VERDICT:[[:space:]]*PASS([[:space:]]|$)'; then found="$f"; break; fi
-          done
-          if [ -z "$found" ]; then
-            echo "check-gates: 'E2E verified' is checked, but no report in docs/e2e/reports/ is" >&2
-            echo "  both changed on this branch (since $default_branch) and 'VERDICT: PASS'." >&2
-            echo "  Run the verify-e2e skill, or use '— N/A: <reason>' for internal/UI-only changes." >&2
+          committed=$(git diff --name-only "$base"..HEAD -- "$report_path" 2>/dev/null || echo "")
+          staged=$(git diff --cached --name-only -- "$report_path" 2>/dev/null || echo "")
+          unstaged=$(git diff --name-only -- "$report_path" 2>/dev/null || echo "")
+          untracked=$(git ls-files --others --exclude-standard -- "$report_path" 2>/dev/null || echo "")
+          if [ -z "$committed" ] && [ -z "$staged" ] && [ -z "$unstaged" ] && [ -z "$untracked" ]; then
+            echo "check-gates: report '$report_path' is not fresh on this branch (base $base)." >&2
+            echo "  It is unchanged from the base — a stale or inherited report cannot satisfy the gate." >&2
+            echo "  Run the verify-e2e skill to produce a report for THIS change." >&2
             exit 1
           fi
+        else
+          echo "check-gates: note — no base branch (dev/main/master/origin) resolved; report" >&2
+          echo "  freshness could not be checked. Existence + VERDICT: PASS were enforced for '$report_path'." >&2
         fi
       fi
       ;;

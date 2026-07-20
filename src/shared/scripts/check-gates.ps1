@@ -94,35 +94,73 @@ if ($e2eLine) {
             exit 1
         }
     } else {
+        # 1. Parse the report path named in the box: (report: <PATH>).
+        $reportPath = ''
+        $mrp = [regex]::Match($e2eLine, '\(report:\s*([^)]*)\)')
+        if ($mrp.Success) { $reportPath = $mrp.Groups[1].Value.TrimEnd() }
+        if ([string]::IsNullOrEmpty($reportPath)) {
+            [Console]::Error.WriteLine("check-gates: 'E2E verified' is checked but names no report path.")
+            [Console]::Error.WriteLine("  Put the real report path in the box: (report: docs/e2e/reports/<file>.md).")
+            exit 1
+        }
+        if ($reportPath -match '[<>]') {
+            [Console]::Error.WriteLine("check-gates: 'E2E verified' still names the placeholder report path '$reportPath'.")
+            [Console]::Error.WriteLine("  Replace it with the real report path: (report: docs/e2e/reports/<file>.md).")
+            exit 1
+        }
+        # 2. Require the named file to exist, resolved against the git toplevel (not cwd).
+        $toplevel = (git rev-parse --show-toplevel 2>$null)
+        if ($toplevel) { $absReport = Join-Path $toplevel $reportPath } else { $absReport = $reportPath }
+        if (-not (Test-Path -LiteralPath $absReport -PathType Leaf)) {
+            [Console]::Error.WriteLine("check-gates: 'E2E verified' names report '$reportPath' but that file does not exist.")
+            [Console]::Error.WriteLine("  Run the verify-e2e skill to produce it, or use '— N/A: <reason>'.")
+            exit 1
+        }
+        # 3. Top-level verdict must be exactly PASS (the FIRST "VERDICT:" line only, so a
+        #    per-UC "VERDICT: PASS" below a top-level FAIL can never satisfy the gate).
+        $firstVerdict = (Get-Content -LiteralPath $absReport | Where-Object { $_ -cmatch '^VERDICT:' } | Select-Object -First 1)
+        if (-not ($firstVerdict -cmatch '^VERDICT:\s+PASS\s*$')) {
+            [Console]::Error.WriteLine("check-gates: report '$reportPath' top-level verdict is not 'VERDICT: PASS'.")
+            [Console]::Error.WriteLine("  The first VERDICT: line must be exactly 'VERDICT: PASS'.")
+            exit 1
+        }
+        # 4. Freshness (best-effort, never silently passes): the named path must be new
+        #    work on this branch. Base = closest merge-base among dev/main/master/origin.
         $inRepo = $false
         try { git rev-parse --is-inside-work-tree *> $null; if ($LASTEXITCODE -eq 0) { $inRepo = $true } } catch {}
         if ($inRepo) {
-            $default = ''
-            foreach ($b in 'main','master') {
-                git show-ref --verify --quiet "refs/heads/$b" *> $null
-                if ($LASTEXITCODE -eq 0) { $default = $b; break }
-            }
             $current = (git rev-parse --abbrev-ref HEAD 2>$null)
+            $originHead = (git rev-parse --abbrev-ref origin/HEAD 2>$null)
             $base = ''
-            if ($default -and $current -ne $default) { $base = (git merge-base HEAD $default 2>$null) }
+            $bestCount = -1
+            $cands = @('dev','main','master','origin/dev','origin/main','origin/master')
+            if ($originHead) { $cands += $originHead }
+            foreach ($ref in $cands) {
+                if (-not $ref) { continue }
+                if ($ref -eq $current) { continue }
+                git rev-parse --verify --quiet $ref *> $null
+                if ($LASTEXITCODE -ne 0) { continue }
+                $mb = (git merge-base HEAD $ref 2>$null)
+                if (-not $mb) { continue }
+                $count = (git rev-list --count "$mb..HEAD" 2>$null)
+                if (-not $count) { continue }
+                $c = [int]$count
+                if ($bestCount -lt 0 -or $c -lt $bestCount) { $bestCount = $c; $base = $mb }
+            }
             if ($base) {
-                $changed   = (git diff --name-only "$base..HEAD" -- docs/e2e/reports/ 2>$null)
-                $staged    = (git diff --cached --name-only -- docs/e2e/reports/ 2>$null)
-                $untracked = (git ls-files --others --exclude-standard -- docs/e2e/reports/ 2>$null)
-                $cands = @($changed) + @($staged) + @($untracked) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
-                $found = $false
-                foreach ($f in $cands) {
-                    # Anchor to the TOP-LEVEL verdict: only the FIRST "VERDICT:" line counts, so a
-                    # per-UC "VERDICT: PASS" below a top-level FAIL can never satisfy the gate.
-                    $fv = (Get-Content -LiteralPath $f | Where-Object { $_ -cmatch '^VERDICT:' } | Select-Object -First 1)
-                    if ($fv -cmatch '^VERDICT:\s*PASS(\s|$)') { $found = $true; break }
-                }
-                if (-not $found) {
-                    [Console]::Error.WriteLine("check-gates: 'E2E verified' is checked, but no report in docs/e2e/reports/ is")
-                    [Console]::Error.WriteLine("  both changed on this branch (since $default) and 'VERDICT: PASS'.")
-                    [Console]::Error.WriteLine("  Run the verify-e2e skill, or use '— N/A: <reason>' for internal/UI-only changes.")
+                $committed = (git diff --name-only "$base..HEAD" -- $reportPath 2>$null)
+                $staged    = (git diff --cached --name-only -- $reportPath 2>$null)
+                $unstaged  = (git diff --name-only -- $reportPath 2>$null)
+                $untracked = (git ls-files --others --exclude-standard -- $reportPath 2>$null)
+                if (-not $committed -and -not $staged -and -not $unstaged -and -not $untracked) {
+                    [Console]::Error.WriteLine("check-gates: report '$reportPath' is not fresh on this branch (base $base).")
+                    [Console]::Error.WriteLine("  It is unchanged from the base — a stale or inherited report cannot satisfy the gate.")
+                    [Console]::Error.WriteLine("  Run the verify-e2e skill to produce a report for THIS change.")
                     exit 1
                 }
+            } else {
+                [Console]::Error.WriteLine("check-gates: note — no base branch (dev/main/master/origin) resolved; report")
+                [Console]::Error.WriteLine("  freshness could not be checked. Existence + VERDICT: PASS were enforced for '$reportPath'.")
             }
         }
     }
