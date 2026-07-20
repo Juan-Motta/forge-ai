@@ -74,6 +74,54 @@ if ($unmet -gt 0) {
     exit 1
 }
 
+# --- E2E evidence check (Attested) --------------------------------------------
+$e2eLine = $null
+$inE = $false
+foreach ($line in $lines) {
+    if ($line -match '^##\s+Ship-gate checklist') { $inE = $true; continue }
+    elseif ($line -match '^##\s')                 { $inE = $false }
+    if ($inE -and $line -match '^- \[[xX]\]\s+E2E verified') { $e2eLine = $line; break }
+}
+if ($e2eLine) {
+    if ($e2eLine -match 'N/A:') {
+        $reason = ([regex]::Match($e2eLine, 'N/A:\s*(.*)$')).Groups[1].Value.Trim()
+        if ([string]::IsNullOrEmpty($reason)) {
+            [Console]::Error.WriteLine("check-gates: 'E2E verified' uses 'N/A:' with no reason — treated as unmet.")
+            exit 1
+        }
+    } else {
+        $inRepo = $false
+        try { git rev-parse --is-inside-work-tree *> $null; if ($LASTEXITCODE -eq 0) { $inRepo = $true } } catch {}
+        if ($inRepo) {
+            $default = ''
+            foreach ($b in 'main','master') {
+                git show-ref --verify --quiet "refs/heads/$b" *> $null
+                if ($LASTEXITCODE -eq 0) { $default = $b; break }
+            }
+            $current = (git rev-parse --abbrev-ref HEAD 2>$null)
+            $base = ''
+            if ($default -and $current -ne $default) { $base = (git merge-base HEAD $default 2>$null) }
+            if ($base) {
+                $changed   = (git diff --name-only "$base..HEAD" -- docs/e2e/reports/ 2>$null)
+                $staged    = (git diff --cached --name-only -- docs/e2e/reports/ 2>$null)
+                $untracked = (git ls-files --others --exclude-standard -- docs/e2e/reports/ 2>$null)
+                $cands = @($changed) + @($staged) + @($untracked) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
+                $found = $false
+                foreach ($f in $cands) {
+                    if ((Get-Content -LiteralPath $f) -match '^VERDICT:\s*PASS(\s|$)') { $found = $true; break }
+                }
+                if (-not $found) {
+                    [Console]::Error.WriteLine("check-gates: 'E2E verified' is checked, but no report in docs/e2e/reports/ is")
+                    [Console]::Error.WriteLine("  both changed on this branch (since $default) and 'VERDICT: PASS'.")
+                    [Console]::Error.WriteLine("  Run the verify-e2e skill, or use '-- N/A: <reason>' for internal/UI-only changes.")
+                    exit 1
+                }
+            }
+        }
+    }
+}
+# --- end E2E evidence check ---------------------------------------------------
+
 Write-Output "check-gates: profile '$profile' — all $total recorded boxes checked."
 Write-Output "Attested-complete: a checked box is an attestation, not independent proof."
 exit 0
