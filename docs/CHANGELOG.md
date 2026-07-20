@@ -6,6 +6,14 @@ development log; it is **not** the seed shipped to installed projects (that live
 
 ## Unreleased
 
+**Fix — `codex exec` hangs when an agent drives the council.** `shared/rules/models.md`'s
+Codex invocation lacked `< /dev/null`, so a driver (e.g. Claude Code) running an advisor
+through its shell tool left `codex exec` blocked on `Reading additional input from stdin...`
+forever. Added `< /dev/null` to the table invocation and a new "Running these from an agent
+(non-interactive)" section documenting both the stdin-block fix and the no-TTY stdout-drop
+mitigation (`--output-last-message <file>`, one file per parallel advisor). Skills + config
+only — no shim. Propagates to targets on the next install/upgrade.
+
 New `verify-e2e` skill (→ 14 total) — journey-based E2E verification whose result is bound to
 the ship-gate by a deterministic check, closing the top capability gap from the 3-engine
 comparison vs claude-codex-forge (E2E verification was previously an unbound "exercise the

@@ -12,7 +12,7 @@ with — not pinned by this project.
 
 | Engine | Model | Effort | Invocation |
 | --- | --- | --- | --- |
-| **Codex** | `gpt-5.6-sol` | `xhigh` | `codex exec -m gpt-5.6-sol -c model_reasoning_effort="xhigh" --sandbox read-only "<prompt>"` |
+| **Codex** | `gpt-5.6-sol` | `xhigh` | `codex exec -m gpt-5.6-sol -c model_reasoning_effort="xhigh" --sandbox read-only "<prompt>" < /dev/null` |
 | **Claude** | `opus` | `high` | `claude -p --model opus --effort high "<prompt>"` |
 | **OpenCode** | `opencode-go/glm-5.2` | default | `opencode run -m opencode-go/glm-5.2 "<prompt>"` |
 
@@ -25,6 +25,24 @@ engine(s)** to use:
 | **Reviewer** (design + code review) | the non-driver engine |
 | **Research** (when delegated) | a non-driver, web/synthesis-capable engine |
 | **Council advisors** | all three (max diversity) |
+
+## Running these from an agent (non-interactive)
+
+When an **agent** (not a human at a terminal) runs these invocations through a shell tool,
+stdio is not attached to a TTY. Two consequences, both fixed with flags — no wrapper or shim
+needed (this stays skills + config):
+
+- **`codex exec` blocks on stdin.** Even with the prompt passed as an argument, it prints
+  `Reading additional input from stdin...` and waits forever. Always redirect **`< /dev/null`**
+  (shown in the table) so it reads no input and proceeds.
+- **A detached `codex exec` can drop its streamed stdout** ([openai/codex#19945](https://github.com/openai/codex/issues/19945)),
+  so the agent sees an empty result even though the run succeeded. Capture the final message to
+  a file with **`--output-last-message <file>`** and read that file instead of relying on
+  stdout. Give each parallel advisor its **own** file (e.g. `/tmp/council-<advisor>.txt`) so
+  concurrent `council` runs don't clobber each other.
+
+Claude (`claude -p`) and OpenCode (`opencode run`) return their output normally in
+non-interactive mode and need neither workaround.
 
 ## Read-only for reviewers / advisors
 
