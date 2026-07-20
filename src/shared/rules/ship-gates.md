@@ -58,16 +58,17 @@ stderr** — but the whitelist, symlink-rejection, existence, and top-level `PAS
 
 **Scope of the guarantee — be precise, not sweeping.** This closes a specific, named set of
 bypasses on the *record*: a checked box can't point at a placeholder, a path outside
-`docs/e2e/reports/` (traversal or absolute), a subdirectory, an untracked symlink to a
-fabricated file, or an ambiguous multi-report line — and it can't point at a stale/inherited
-report once a base resolves. That is the full extent of what `check-gates` proves. It does
-**not** prove the report's *content* is true: the file at that path still says whatever an
-agent or human wrote into it. A committed report with a hand-typed `VERDICT: PASS` and no
-verify-e2e run behind it satisfies every check above. This is the **Attested** tier (see the
-Verified / Attested / Advisory ladder below) — the record's *shape* is validated, not the
-underlying claim. Only the **Verified** tier — an out-of-turn CI job that re-runs
-`verify-e2e` itself against the PR commit, independent of the agent's say-so — is bypass-proof
-against a bad-faith or mistaken attestation.
+`docs/e2e/reports/` (traversal or absolute), a subdirectory, a **leaf symlink** at the named
+path, or an ambiguous multi-report line — and it can't point at a stale/inherited report once
+a base resolves. That is the full extent of what `check-gates` proves. It does **not** prove
+the report's *content* is true: the file at that path still says whatever an agent or human
+wrote into it. It also does not defend against filesystem indirection such as a symlinked
+ancestor directory. A committed report with a hand-typed `VERDICT: PASS` and no verify-e2e run
+behind it satisfies every check above. This is the **Attested** tier (see the Verified /
+Attested / Advisory ladder below) — the record's *shape* is validated, not the underlying
+claim. Only the **Verified** tier — an out-of-turn CI job that re-runs `verify-e2e` itself
+against the PR commit, independent of the agent's say-so — is bypass-proof against a
+bad-faith or mistaken attestation.
 
 The `— N/A:` escape is an **exact em-dash form** (em-dash, space, `N/A:`, non-empty reason).
 A bare `N/A:`, a `- N/A:`, or a backticked `` `N/A:` `` inside explanatory text does **not**

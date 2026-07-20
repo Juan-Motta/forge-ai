@@ -43,10 +43,10 @@ across Claude Code, Codex, and OpenCode.
   detection to the `— N/A:` escape form (a mis-copied doc line can no longer silently skip the
   gate) and hardened ps1 native-git error handling for cross-version parity.
 - **A second cross-engine adversarial review found and closed 3 more gate-bypass holes** in
-  the named-path binding above: (1) an **untracked symlink** at the box-named path — pointing
+  the named-path binding above: (1) a **leaf symlink** at the box-named path — pointing
   outside the repo at a fabricated `VERDICT: PASS` file — satisfied the old `[ -f ]`/`Test-Path
   -PathType Leaf` existence check, which follows symlinks; now rejected as a symlink *before*
-  existence is even considered. (2) **Path traversal** (`report: ../evil.md`, or a
+  existence is even considered (though a symlinked ancestor directory remains a potential bypass). (2) **Path traversal** (`report: ../evil.md`, or a
   `docs/e2e/reports/../../evil.md` subdir trick) escaped the repo entirely when no base branch
   resolved (freshness skipped) — the box path is now validated against a strict whitelist,
   `^docs/e2e/reports/[A-Za-z0-9._-]+\.md$`, which also rejects any subdirectory and subsumes
