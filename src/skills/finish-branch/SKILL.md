@@ -25,6 +25,10 @@ This is **Tier B**: it verifies the *record*, not the work. A checked box is an
 work is real (tests actually ran, the change was actually exercised). See the
 Verified / Attested / Advisory distinction in `shared/rules/ship-gates.md`.
 
+`check-gates` now also enforces the `E2E verified` marker — if it's checked (not `N/A:`),
+a fresh `VERDICT: PASS` report must exist under `docs/e2e/reports/`. finish-branch relies on
+the report produced during the workflow; it does not re-run the journeys.
+
 ## 2. Final verify
 
 Run the test suite and exercise the change once more end-to-end. Confirm the working tree
