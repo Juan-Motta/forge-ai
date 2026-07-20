@@ -33,22 +33,41 @@ carry the concrete report path it produced:
 `- [x] E2E verified via verify-e2e (report: docs/e2e/reports/<file>.md)`
 
 `check-gates` validates the report **named in the box** — not just "any report in the
-directory". For the checked box it requires that named path to:
+directory". For the checked box, the line itself must name **exactly one** report (more
+than one `(report: …)` group on the line is rejected as ambiguous — see below), and that
+named path must:
 
-1. **be concrete** — the `(report: …)` path is present and is not the `<...>` placeholder
-   (a checked box that still names the placeholder fails);
-2. **exist** — resolved against the git toplevel, not the current directory;
-3. **carry a top-level `VERDICT: PASS`** — the *first* `VERDICT:` line must be exactly
+1. **match a strict whitelist** — `^docs/e2e/reports/[A-Za-z0-9._-]+\.md$` (a bare filename
+   directly under `docs/e2e/reports/`, no `..`, no subdirectories, no absolute path). This
+   also rejects the `<...>` placeholder, since `<`/`>` fall outside the allowed charset;
+2. **be a regular file, not a symlink** — resolved against the git toplevel, not the
+   current directory; a symlink at the named path (e.g. pointing outside the repo at a
+   fabricated report) is rejected before existence is even checked;
+3. **exist** as that regular file;
+4. **carry a top-level `VERDICT: PASS`** — the *first* `VERDICT:` line must be exactly
    `VERDICT: PASS` (a per-UC `PASS` under a top-level `FAIL`, or `VERDICT: PASS extra`, fails);
-4. **be fresh on this branch** — the path must be new work (committed since the branch
+5. **be fresh on this branch** — the path must be new work (committed since the branch
    point, staged, an unstaged tracked edit, or untracked).
 
 The branch **base is auto-detected** by the *closest* merge-base among
 `dev`, `main`, `master`, and their `origin/…` counterparts (plus `origin/HEAD`), so it
 works whether the repo integrates on `dev` or `main`. Freshness is **best-effort**: if no
 base ref resolves (single-branch or detached HEAD), freshness is skipped **with a note to
-stderr** — but existence + top-level `PASS` are *always* required. A checked box can never
-pass the gate without its named `PASS` report; there is no silent fail-open.
+stderr** — but the whitelist, symlink-rejection, existence, and top-level `PASS` checks are
+*always* enforced regardless of freshness.
+
+**Scope of the guarantee — be precise, not sweeping.** This closes a specific, named set of
+bypasses on the *record*: a checked box can't point at a placeholder, a path outside
+`docs/e2e/reports/` (traversal or absolute), a subdirectory, an untracked symlink to a
+fabricated file, or an ambiguous multi-report line — and it can't point at a stale/inherited
+report once a base resolves. That is the full extent of what `check-gates` proves. It does
+**not** prove the report's *content* is true: the file at that path still says whatever an
+agent or human wrote into it. A committed report with a hand-typed `VERDICT: PASS` and no
+verify-e2e run behind it satisfies every check above. This is the **Attested** tier (see the
+Verified / Attested / Advisory ladder below) — the record's *shape* is validated, not the
+underlying claim. Only the **Verified** tier — an out-of-turn CI job that re-runs
+`verify-e2e` itself against the PR commit, independent of the agent's say-so — is bypass-proof
+against a bad-faith or mistaken attestation.
 
 The `— N/A:` escape is an **exact em-dash form** (em-dash, space, `N/A:`, non-empty reason).
 A bare `N/A:`, a `- N/A:`, or a backticked `` `N/A:` `` inside explanatory text does **not**

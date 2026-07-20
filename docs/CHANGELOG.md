@@ -42,6 +42,24 @@ across Claude Code, Codex, and OpenCode.
   gate. Now anchored to the top-level verdict, with regression test `j`. Also tightened `N/A`
   detection to the `— N/A:` escape form (a mis-copied doc line can no longer silently skip the
   gate) and hardened ps1 native-git error handling for cross-version parity.
+- **A second cross-engine adversarial review found and closed 3 more gate-bypass holes** in
+  the named-path binding above: (1) an **untracked symlink** at the box-named path — pointing
+  outside the repo at a fabricated `VERDICT: PASS` file — satisfied the old `[ -f ]`/`Test-Path
+  -PathType Leaf` existence check, which follows symlinks; now rejected as a symlink *before*
+  existence is even considered. (2) **Path traversal** (`report: ../evil.md`, or a
+  `docs/e2e/reports/../../evil.md` subdir trick) escaped the repo entirely when no base branch
+  resolved (freshness skipped) — the box path is now validated against a strict whitelist,
+  `^docs/e2e/reports/[A-Za-z0-9._-]+\.md$`, which also rejects any subdirectory and subsumes
+  the old placeholder-only check. (3) A **multi-`(report: …)` line** made sh and ps1 disagree —
+  sh's greedy `.*(report:` extraction picked the *rightmost* group, ps1's regex `Match` picked
+  the *leftmost* — so a line pairing a placeholder group with a real fresh-PASS group could pass
+  on one engine and fail on the other; a checked box naming more than one report is now rejected
+  outright as ambiguous on both engines. All three closed at exact sh/ps1 parity with new
+  regression tests (symlink, traversal, subdir, multi-report). **Honesty correction:** the
+  "no silent fail-open" language in `ship-gates.md` was scoped to state precisely what
+  `check-gates` proves — the box-named path is a whitelisted, non-symlink, existing, fresh
+  `PASS` report — and explicitly that the report's *content* remains self-attested (**Attested**
+  tier); only a CI job that re-runs `verify-e2e` itself (**Verified** tier) is bypass-proof.
 - **Installers** scaffold `docs/e2e/{reports,use-cases}` into targets (both `install.sh` and
   `install.ps1`), with a smoke assertion. Tests: `npm run check` green — lint 14/0, routing eval
   93% (42 prompts), 38 tool tests.
