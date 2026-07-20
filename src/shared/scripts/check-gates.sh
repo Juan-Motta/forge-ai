@@ -113,9 +113,10 @@ if [ -n "$e2e_line" ]; then
         fi
         if [ -n "$base" ]; then
           changed=$(git diff --name-only "$base"..HEAD -- docs/e2e/reports/ 2>/dev/null || echo "")
+          staged=$(git diff --cached --name-only -- docs/e2e/reports/ 2>/dev/null || echo "")
           untracked=$(git ls-files --others --exclude-standard -- docs/e2e/reports/ 2>/dev/null || echo "")
           found=""
-          for f in $changed $untracked; do
+          for f in $changed $staged $untracked; do
             [ -f "$f" ] || continue
             if grep -Eq '^VERDICT:[[:space:]]*PASS([[:space:]]|$)' "$f"; then found="$f"; break; fi
           done

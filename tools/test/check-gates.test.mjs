@@ -41,7 +41,6 @@ ${boxLine}
   if (report !== undefined) {
     mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
     writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'r.md'), report);
-    if (report.__committed) git(dir, 'add', 'docs'), git(dir, 'commit', '-qm', 'report');
   }
   return dir;
 }
@@ -116,6 +115,34 @@ test('g: on default branch (no merge-base) → skip → exit 0', () => {
 
 test('h: old 6-box state without E2E box name still passes count, unaffected → exit 0', () => {
   const dir = setup({ box: '- [x] Change verified by exercising it', report: undefined });
+  assert.equal(run(dir), 0);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('i: box checked + report git-add STAGED (not committed) on branch + PASS → exit 0', () => {
+  // Report is `git add`-staged but not committed — the natural post-verify-e2e workflow
+  // before the human runs `git commit`. Must be treated as fresh, same as untracked/committed.
+  const dir = mkdtempSync(join(tmpdir(), 'cg-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'r.md'), 'VERDICT: PASS\n');
+  git(dir, 'add', 'docs/e2e/reports/r.md');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/r.md)
+- [x] f
+`);
   assert.equal(run(dir), 0);
   rmSync(dir, { recursive: true, force: true });
 });
