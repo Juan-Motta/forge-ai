@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: 20
       # No dependencies to install — the tooling is Node built-ins only.
-      - name: Lint skills (structural + forge-ai rules)
+      - name: Lint skills (structural + codeforge rules)
         run: node tools/lint-skills.mjs
       - name: Routing / collision evals
         run: node tools/run-evals.mjs
@@ -56,11 +56,11 @@ jobs:
           $t = Join-Path $env:RUNNER_TEMP 'npx'
           New-Item -ItemType Directory -Force -Path $t | Out-Null
           # POSIX-style flag must be translated to -WithHooks by the wrapper on Windows
-          node ./bin/forge-ai.mjs $t --with-hooks
+          node ./bin/codeforge.mjs $t --with-hooks
           $sl = Join-Path $t '.claude/settings.local.json'
           if (-not (Test-Path $sl)) { throw "npx --with-hooks did not write settings.local.json (flag translation failed)" }
           if (-not (Select-String -LiteralPath $sl -Pattern 'claude-gate-hook' -Quiet)) { throw "gate hook missing from settings.local.json" }
-          $v = (node ./bin/forge-ai.mjs --version).Trim()
+          $v = (node ./bin/codeforge.mjs --version).Trim()
           if ($v -ne (Get-Content ./VERSION -TotalCount 1).Trim()) { throw "npx --version mismatch: $v" }
       - name: Tool tests (exercises the .ps1 gate parity tests under native Windows path/shell semantics)
         shell: pwsh

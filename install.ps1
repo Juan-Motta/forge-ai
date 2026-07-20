@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 #
-# forge-ai installer (Windows / PowerShell) — copy the workflow discipline into a target
+# codeforge installer (Windows / PowerShell) — copy the workflow discipline into a target
 # project. Mirror of install.sh.
 #
 #   pwsh ./install.ps1 [target-dir] [-Upgrade] [-WithHooks] [-GitInit] [-NoIsolate]
@@ -9,19 +9,19 @@
 #
 # THIN INSTALL: the target receives only what the agent needs at RUNTIME. All framework
 # machinery (the neutral source in ./src/, the generators sync.sh/ps1, the generation
-# inputs in configs/, and the seed templates) stays in the forge-ai repo — never copied
-# into the target. To customize or upgrade, edit the forge-ai source and re-run this
+# inputs in configs/, and the seed templates) stays in the codeforge repo — never copied
+# into the target. To customize or upgrade, edit the codeforge source and re-run this
 # installer against the target (-Upgrade, or a bare re-run from inside the project).
 #
 # This installer copies the runtime subset into the target, then runs `sync.ps1 -Out <target>`
 # to GENERATE each engine's config + skills straight into the target. No symlinks. The
 # generated engine artifacts are COMMITTED with the target so a fresh clone works with no
-# forge-ai dependency at runtime.
+# codeforge dependency at runtime.
 #
 # LANDS IN THE TARGET (runtime only): CLAUDE.md, AGENTS.md, opencode.json, .claude/,
 #   .agents/, .codex/ (generated), shared/rules/*.md + shared/state.template.md + shared/scripts/* (managed),
 #   docs/ scaffolding + CHANGELOG, PROJECT.md + CONTINUITY.md (project-owned, seeded).
-# STAYS IN forge-ai (never copied): src/skills (neutral), configs/, sync.sh, sync.ps1,
+# STAYS IN codeforge (never copied): src/skills (neutral), configs/, sync.sh, sync.ps1,
 #   *.template.md, docs/extending.md.
 #
 param(
@@ -53,12 +53,12 @@ if ((Test-Path -LiteralPath $mf -PathType Leaf) -and (Select-String -LiteralPath
   $priorLocalManaged = $true
 }
 if (-not ((Test-Path (Join-Path $Payload 'CLAUDE.md')) -and (Test-Path (Join-Path $Payload 'skills')))) {
-  Write-Error "payload not found — run this from the forge-ai repo"; exit 2
+  Write-Error "payload not found — run this from the codeforge repo"; exit 2
 }
-if ($Target -eq $Src) { Write-Error "refusing to install into forge-ai itself"; exit 2 }
-if ($Target -eq $Payload) { Write-Error "refusing to install into the forge-ai payload dir (src/)"; exit 2 }
+if ($Target -eq $Src) { Write-Error "refusing to install into codeforge itself"; exit 2 }
+if ($Target -eq $Payload) { Write-Error "refusing to install into the codeforge payload dir (src/)"; exit 2 }
 
-Write-Host "forge-ai $forgeVersion -> installing into: $Target  (mode: $Mode)"
+Write-Host "codeforge $forgeVersion -> installing into: $Target  (mode: $Mode)"
 
 # --- version drift advisory (informational only, never blocks) ---
 $priorVersion = ""
@@ -71,9 +71,9 @@ if ($priorVersion -and $priorVersion -ne $forgeVersion -and $forgeVersion -ne 'u
   try { $isUpgrade = ([version]$priorVersion -lt [version]$forgeVersion) }
   catch { $isUpgrade = ($priorVersion -lt $forgeVersion) }
   if ($isUpgrade) {
-    Write-Host "  ~ upgrading this target: forge-ai $priorVersion -> $forgeVersion"
+    Write-Host "  ~ upgrading this target: codeforge $priorVersion -> $forgeVersion"
   } else {
-    Write-Host "  ! this target was installed by a NEWER forge-ai ($priorVersion) than you're running ($forgeVersion)."
+    Write-Host "  ! this target was installed by a NEWER codeforge ($priorVersion) than you're running ($forgeVersion)."
     Write-Host "    You may be downgrading it; teammates pinned to $priorVersion could see drift. (advisory only)"
   }
 }
@@ -110,7 +110,7 @@ if (Test-Path (Join-Path $Target '.forge-manifest')) {
     $bak = Join-Path $Target 'skills.pre-forge.bak'
     if (Test-Path $bak) { Remove-Item -Recurse -Force $bak }
     Move-Item $tSkills $bak
-    Write-Host "  ! neutral skills/ is obsolete (skills are generated now) -> skills.pre-forge.bak; add custom skills to the forge-ai repo"
+    Write-Host "  ! neutral skills/ is obsolete (skills are generated now) -> skills.pre-forge.bak; add custom skills to the codeforge repo"
   }
 }
 
@@ -192,7 +192,7 @@ foreach ($eng in '.claude', '.agents') {
   $sd = Join-Path $Target "$eng/skills"
   if ((Test-Path $sd) -and -not (Test-Path (Join-Path $sd '.forge-generated'))) {
     Move-Item $sd "$sd.pre-forge.bak"
-    Write-Host "  ! backed up existing $eng/skills -> $eng/skills.pre-forge.bak (add custom skills to the forge-ai repo)"
+    Write-Host "  ! backed up existing $eng/skills -> $eng/skills.pre-forge.bak (add custom skills to the codeforge repo)"
   }
 }
 # back up a real, non-forge AGENTS.md before sync overwrites it
@@ -202,7 +202,7 @@ if ((Test-Path $tAgents) -and -not (Has-ForgeMarker $tAgents)) {
   Write-Host "  ! backed up existing AGENTS.md -> AGENTS.md.pre-forge.bak"
 }
 
-# --- GENERATE engine dirs + AGENTS.md + opencode.json via sync (reads the forge-ai source,
+# --- GENERATE engine dirs + AGENTS.md + opencode.json via sync (reads the codeforge source,
 #     writes straight into the target) ---
 & (Join-Path $Src 'src/sync.ps1') -Out $Target | Out-Null
 
@@ -210,7 +210,7 @@ if ((Test-Path $tAgents) -and -not (Has-ForgeMarker $tAgents)) {
 # Auto-isolation (default; -NoIsolate to keep inheritance) adds claudeMdExcludes so Claude Code
 # doesn't blend ancestor CLAUDE.md/.claude/rules into this project (Codex/OpenCode already scope
 # to the project root). -WithHooks adds the Tier-C PreToolUse gate. Both land in the one
-# gitignored file; forge-ai only (re)writes it when absent or a prior install owned it.
+# gitignored file; codeforge only (re)writes it when absent or a prior install owned it.
 $excludes = @()
 if (-not $NoIsolate) {
   $d = Split-Path -Parent $Target
@@ -226,7 +226,7 @@ if (-not $NoIsolate) {
 $sl = Join-Path $Target '.claude/settings.local.json'
 if ($excludes.Count -gt 0 -or $WithHooks) {
   if ((Test-Path -LiteralPath $sl -PathType Leaf) -and (-not $priorLocalManaged)) {
-    Write-Host "  ! .claude/settings.local.json exists and isn't forge-ai-managed — not touching it."
+    Write-Host "  ! .claude/settings.local.json exists and isn't codeforge-managed — not touching it."
     Write-Host "    (skipped auto-isolation / gate hook; remove that file and re-run, or edit it by hand.)"
   } else {
     $settings = [ordered]@{}
@@ -248,17 +248,17 @@ if ($excludes.Count -gt 0 -or $WithHooks) {
   }
 } elseif ($priorLocalManaged -and (Test-Path -LiteralPath $sl -PathType Leaf)) {
   Remove-Item -LiteralPath $sl -Force
-  Write-Host "  - removed forge-ai-managed .claude/settings.local.json (nothing to configure now)"
+  Write-Host "  - removed codeforge-managed .claude/settings.local.json (nothing to configure now)"
 }
 
 # --- .gitignore (merge, don't clobber): ONLY local state (generated files are committed) ---
 $gi = Join-Path $Target '.gitignore'
 if (-not (Test-Path $gi)) { New-Item -ItemType File -Path $gi | Out-Null }
-$marker = '# forge-ai (local state — do not commit)'
+$marker = '# codeforge (local state — do not commit)'
 if (-not (Select-String -Quiet -SimpleMatch $marker $gi)) {
   $block = @"
 
-# forge-ai (local state — do not commit)
+# codeforge (local state — do not commit)
 .DS_Store
 .workflow/
 .claude/settings.local.json
@@ -270,7 +270,7 @@ if (-not (Select-String -Quiet -SimpleMatch $marker $gi)) {
 function Warn-Gate([string]$rel, [string]$needle, [string]$hint) {
   $f = Join-Path $Target $rel
   if ((Test-Path $f) -and -not (Select-String -Quiet -SimpleMatch $needle $f)) {
-    Write-Host "  ! $rel has no forge push/PR gate ($hint) — add it to the forge-ai source, then re-run."
+    Write-Host "  ! $rel has no forge push/PR gate ($hint) — add it to the codeforge source, then re-run."
   }
 }
 Warn-Gate '.claude/settings.json' 'git push'       'ask-tier on git push / gh pr create'
@@ -299,19 +299,19 @@ if ($LASTEXITCODE -eq 0) {
 } elseif ($GitInit) {
   & git -C $Target init -q
   & git -C $Target add -A
-  & git -C $Target commit -q -m "chore: adopt forge-ai" 2>$null
+  & git -C $Target commit -q -m "chore: adopt codeforge" 2>$null
   if ($LASTEXITCODE -eq 0) {
-    Write-Host "  + initialized a git repo + baseline commit (chore: adopt forge-ai)"
+    Write-Host "  + initialized a git repo + baseline commit (chore: adopt codeforge)"
   } else {
     Write-Host "  + initialized a git repo (baseline commit skipped — set git user.name/email, then commit)"
   }
 } else {
-  Write-Host "  ! not a git repo — forge-ai's workflow (branches, commits) and the ship gates assume git."
+  Write-Host "  ! not a git repo — codeforge's workflow (branches, commits) and the ship gates assume git."
   Write-Host "    Run 'git init' here, or re-run the installer with -GitInit."
 }
 
-Write-Host "forge-ai installed."
+Write-Host "codeforge installed."
 Write-Host "  next: (1) fill PROJECT.md   (2) in Codex, trust the project when prompted"
 Write-Host "        (3) open the project in any of Claude Code / Codex / OpenCode"
-Write-Host "  to customize or upgrade: edit the forge-ai source, then re-run this installer"
+Write-Host "  to customize or upgrade: edit the codeforge source, then re-run this installer"
 Write-Host "  against the project (-Upgrade, or a bare re-run from inside it)."

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// forge-ai — npx entry point. Thin wrapper that runs the platform installer
+// codeforge — npx entry point. Thin wrapper that runs the platform installer
 // bundled in this package (install.sh on POSIX, install.ps1 on Windows),
 // passing through all arguments. The payload (src/, VERSION) travels in the
-// package, so `npx forge-ai [target] [--upgrade]` works with no repo clone.
+// package, so `npx codeforge [target] [--upgrade]` works with no repo clone.
 //
-//   npx forge-ai                 # install into the current directory
-//   npx forge-ai ./my-project    # install into a target
-//   npx forge-ai --upgrade       # refresh an existing install
-//   npx forge-ai --version       # print the forge-ai version
+//   npx codeforge                 # install into the current directory
+//   npx codeforge ./my-project    # install into a target
+//   npx codeforge --upgrade       # refresh an existing install
+//   npx codeforge --version       # print the codeforge version
 
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -31,16 +31,16 @@ if (args.includes('--version') || args.includes('-v')) {
   process.exit(0);
 }
 if (args.includes('--help') || args.includes('-h')) {
-  console.log(`forge-ai ${version()} — install the cross-engine workflow discipline into a project.
+  console.log(`codeforge ${version()} — install the cross-engine workflow discipline into a project.
 
-  npx forge-ai [target-dir] [--upgrade] [--with-hooks] [--git-init] [--no-isolate]
+  npx codeforge [target-dir] [--upgrade] [--with-hooks] [--git-init] [--no-isolate]
 
   target-dir    where to install (default: current directory)
   --upgrade     refresh framework files in an existing install
   --with-hooks  also install the opt-in Claude Code hard-block gate hook (Claude only)
   --git-init    if the target is not a git repo, initialize one + baseline commit
   --no-isolate  keep inheriting ancestor CLAUDE.md (default: auto-isolate via claudeMdExcludes)
-  --version     print the forge-ai version`);
+  --version     print the codeforge version`);
   process.exit(0);
 }
 
@@ -58,7 +58,7 @@ const cmdArgs = isWin
 const r = spawnSync(cmd, cmdArgs, { stdio: 'inherit' });
 if (r.error) {
   const hint = isWin ? 'PowerShell 7 (pwsh) is required on Windows.' : '';
-  console.error(`forge-ai: could not launch ${cmd}: ${r.error.message}. ${hint}`.trim());
+  console.error(`codeforge: could not launch ${cmd}: ${r.error.message}. ${hint}`.trim());
   process.exit(1);
 }
 process.exit(r.status ?? 1);

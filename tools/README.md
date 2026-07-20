@@ -1,11 +1,11 @@
 # tools/ — framework dev tooling
 
-Dev-only quality machinery for forge-ai itself. **Never shipped into a target project** —
+Dev-only quality machinery for codeforge itself. **Never shipped into a target project** —
 the payload stays skills + config. Node built-ins only, no dependencies.
 
 ## Skill linter (`lint-skills.mjs`)
 
-Structural + forge-ai-bespoke lint over `src/skills/*/SKILL.md`. Exit 1 on any error.
+Structural + codeforge-bespoke lint over `src/skills/*/SKILL.md`. Exit 1 on any error.
 
 ```bash
 node tools/lint-skills.mjs          # full report
