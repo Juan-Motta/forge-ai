@@ -37,3 +37,5 @@ export function nonInteractiveCommand(answers) {
   if (answers.defaultReviewer) parts.push(`--default-reviewer=${answers.defaultReviewer}`);
   return parts.join(' ');
 }
+
+export default catalog;
