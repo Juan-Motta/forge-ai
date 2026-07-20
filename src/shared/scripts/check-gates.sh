@@ -78,6 +78,124 @@ if [ "$unmet" -gt 0 ]; then
   exit 1
 fi
 
+# --- E2E evidence check (Attested) --------------------------------------------
+# When the "E2E verified" box is checked as a real run (not "— N/A: <reason>"),
+# bind it to the report PATH NAMED in the box. That named file must EXIST, carry a
+# top-level VERDICT: PASS, and (best-effort) be fresh on this branch. A checked box
+# NEVER passes the gate without its named PASS report — no silent fail-open. Base is
+# auto-detected by closest merge-base among dev/main/master/origin (this repo
+# integrates on dev, not main). Freshness uses git, not mtime (clone/checkout resets
+# mtimes); it degrades to a stderr note only when no base ref resolves.
+e2e_line=$(awk '
+  /^##[[:space:]]+Ship-gate checklist/ { inlist = 1; next }
+  /^##[[:space:]]/                     { inlist = 0 }
+  inlist && /^- \[[xX]\][[:space:]]+E2E verified/ { print; exit }
+' "$STATE")
+
+if [ -n "$e2e_line" ]; then
+  case "$e2e_line" in
+    *"— N/A:"*)
+      # N/A escape must carry a non-empty reason.
+      reason=$(printf '%s' "$e2e_line" | sed -n 's/.*N\/A:[[:space:]]*\(.*\)$/\1/p')
+      if [ -z "$reason" ]; then
+        echo "check-gates: 'E2E verified' uses 'N/A:' with no reason — treated as unmet." >&2
+        exit 1
+      fi
+      ;;
+    *)
+      # 0. Reject an ambiguous line carrying more than one "(report:" group — one report
+      #    per box. Without this, sh's greedy extraction (rightmost group) and ps1's
+      #    leftmost-first regex Match could disagree on WHICH path is checked; refusing
+      #    the ambiguous line outright removes the divergence entirely.
+      report_groups=$(printf '%s' "$e2e_line" | grep -o '(report:' | wc -l | tr -d '[:space:]')
+      if [ "$report_groups" -gt 1 ]; then
+        echo "check-gates: 'E2E verified' line names more than one (report: ...) group — ambiguous." >&2
+        echo "  A checked box must name exactly one report." >&2
+        exit 1
+      fi
+      # 1. Parse the report path named in the box: (report: <PATH>).
+      report_path=$(printf '%s' "$e2e_line" | sed -n 's/.*(report:[[:space:]]*\([^)]*\)).*/\1/p' | head -n1)
+      report_path=$(printf '%s' "$report_path" | sed 's/[[:space:]]*$//')
+      if [ -z "$report_path" ]; then
+        echo "check-gates: 'E2E verified' is checked but names no report path." >&2
+        echo "  Put the real report path in the box: (report: docs/e2e/reports/<file>.md)." >&2
+        exit 1
+      fi
+      # 1b. Whitelist the path shape: it must be a bare filename directly under
+      #     docs/e2e/reports/ — no '..', no subdirectories, no absolute paths. Since '<'
+      #     and '>' fall outside the allowed charset, this also subsumes the previous
+      #     placeholder-only rejection with one strict allowlist.
+      if ! printf '%s' "$report_path" | grep -Eq '^docs/e2e/reports/[A-Za-z0-9._-]+\.md$'; then
+        echo "check-gates: 'E2E verified' names report path '$report_path', which is not a" >&2
+        echo "  real report under docs/e2e/reports/. The box must name a real file directly" >&2
+        echo "  under docs/e2e/reports/ (e.g. docs/e2e/reports/<feature>.md) — no '..', no" >&2
+        echo "  subdirectories, no absolute paths, no placeholders." >&2
+        exit 1
+      fi
+      # 2. Resolve against the git toplevel (not cwd), and require a REGULAR FILE — a
+      #    symlink at the named path (e.g. pointing outside the repo at a fabricated
+      #    report) must never satisfy the gate. Checked BEFORE the existence check so a
+      #    symlink can never count as "exists".
+      toplevel=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+      if [ -n "$toplevel" ]; then abs_report="$toplevel/$report_path"; else abs_report="$report_path"; fi
+      if [ -L "$abs_report" ]; then
+        echo "check-gates: 'E2E verified' names report '$report_path' but that path is a" >&2
+        echo "  symlink, not a regular file. Reports must be real files under docs/e2e/reports/." >&2
+        exit 1
+      fi
+      if [ ! -f "$abs_report" ]; then
+        echo "check-gates: 'E2E verified' names report '$report_path' but that file does not exist." >&2
+        echo "  Run the verify-e2e skill to produce it, or use '— N/A: <reason>'." >&2
+        exit 1
+      fi
+      # 3. Top-level verdict must be exactly PASS (the FIRST "VERDICT:" line only, so a
+      #    per-UC "VERDICT: PASS" below a top-level FAIL can never satisfy the gate).
+      first_verdict=$(awk '/^VERDICT:/{print; exit}' "$abs_report")
+      if ! printf '%s' "$first_verdict" | grep -Eq '^VERDICT:[[:space:]]+PASS[[:space:]]*$'; then
+        echo "check-gates: report '$report_path' top-level verdict is not 'VERDICT: PASS'." >&2
+        echo "  The first VERDICT: line must be exactly 'VERDICT: PASS'." >&2
+        exit 1
+      fi
+      # 4. Freshness (best-effort, never silently passes): the named path must be new
+      #    work on this branch. Base = closest merge-base among dev/main/master/origin.
+      if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        current=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        origin_head=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null || echo "")
+        base=""
+        best_count=""
+        for ref in dev main master origin/dev origin/main origin/master "$origin_head"; do
+          [ -n "$ref" ] || continue
+          [ "$ref" != "$current" ] || continue
+          git rev-parse --verify --quiet "$ref" >/dev/null 2>&1 || continue
+          mb=$(git merge-base HEAD "$ref" 2>/dev/null || echo "")
+          [ -n "$mb" ] || continue
+          count=$(git rev-list --count "$mb"..HEAD 2>/dev/null || echo "")
+          [ -n "$count" ] || continue
+          if [ -z "$best_count" ] || [ "$count" -lt "$best_count" ]; then
+            best_count="$count"; base="$mb"
+          fi
+        done
+        if [ -n "$base" ]; then
+          committed=$(git diff --name-only "$base"..HEAD -- "$report_path" 2>/dev/null || echo "")
+          staged=$(git diff --cached --name-only -- "$report_path" 2>/dev/null || echo "")
+          unstaged=$(git diff --name-only -- "$report_path" 2>/dev/null || echo "")
+          untracked=$(git ls-files --others --exclude-standard -- "$report_path" 2>/dev/null || echo "")
+          if [ -z "$committed" ] && [ -z "$staged" ] && [ -z "$unstaged" ] && [ -z "$untracked" ]; then
+            echo "check-gates: report '$report_path' is not fresh on this branch (base $base)." >&2
+            echo "  It is unchanged from the base — a stale or inherited report cannot satisfy the gate." >&2
+            echo "  Run the verify-e2e skill to produce a report for THIS change." >&2
+            exit 1
+          fi
+        else
+          echo "check-gates: note — no base branch (dev/main/master/origin) resolved; report" >&2
+          echo "  freshness could not be checked. Existence + VERDICT: PASS were enforced for '$report_path'." >&2
+        fi
+      fi
+      ;;
+  esac
+fi
+# --- end E2E evidence check ---------------------------------------------------
+
 echo "check-gates: profile '$profile' — all $total recorded boxes checked."
 echo "Attested-complete: a checked box is an attestation, not independent proof."
 exit 0

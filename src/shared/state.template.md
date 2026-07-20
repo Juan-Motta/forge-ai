@@ -20,7 +20,7 @@
 - [ ] Plan written and design-reviewed by the other engine — `N/A: <reason>` allowed for a simple fix-bug (see ship-gates.md)
 - [ ] Tests written (TDD) and passing
 - [ ] Code review clean — no open P0/P1/P2
-- [ ] Change verified by exercising it
+- [ ] E2E verified via verify-e2e (report: docs/e2e/reports/<...>.md)
 - [ ] State updated
 
 ## Review log

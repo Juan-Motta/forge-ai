@@ -63,7 +63,11 @@
           "prompt": "the invoice totals are coming out wrong, fix it",
           "owner": "fix-bug"
         },
-        { "prompt": "fix a typo in the footer text", "owner": "quick-fix" }
+        { "prompt": "fix a typo in the footer text", "owner": "quick-fix" },
+        {
+          "prompt": "run the end-to-end user journeys and write the evidence report",
+          "owner": "verify-e2e"
+        }
       ]
     },
     "fix-bug": {
@@ -148,6 +152,10 @@
         {
           "prompt": "start building a new feature from scratch",
           "owner": "new-feature"
+        },
+        {
+          "prompt": "run the end-to-end user journeys and write the evidence report",
+          "owner": "verify-e2e"
         }
       ]
     },
@@ -216,6 +224,27 @@
         {
           "prompt": "compare a few designs on fixed axes and pick one",
           "owner": "plan"
+        }
+      ]
+    },
+    "verify-e2e": {
+      "positive": [
+        "run the user journeys against the API and confirm the evidence report passes",
+        "exercise the checkout use cases through the real interface and re-check they persist",
+        "drive the order-creation flow via the CLI as a user would and confirm the outcome"
+      ],
+      "negative": [
+        {
+          "prompt": "wrap up the branch and open the pull request",
+          "owner": "finish-branch"
+        },
+        {
+          "prompt": "build the CSV export feature end to end with tests and review",
+          "owner": "new-feature"
+        },
+        {
+          "prompt": "give me a second opinion on this diff and flag any bugs",
+          "owner": "review"
         }
       ]
     }

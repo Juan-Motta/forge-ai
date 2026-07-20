@@ -13,6 +13,7 @@ Use a workflow skill for any non-trivial change. Follow its steps in order.
 | Bug fix | `fix-bug` |
 | Trivial change (<3 files) | `quick-fix` |
 | Cross-engine second opinion (plan or diff) | `review` |
+| Verify a user-facing change end to end | `verify-e2e` |
 | Hard, expensive decision fork | `council` |
 | Wrap up + open PR | `finish-branch` |
 | Session handoff before closing | `checkpoint` |

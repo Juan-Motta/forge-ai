@@ -4,6 +4,66 @@ Notable changes to the forge-ai framework itself, newest first. This is the fram
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
+## Unreleased
+
+New `verify-e2e` skill (→ 14 total) — journey-based E2E verification whose result is bound to
+the ship-gate by a deterministic check, closing the top capability gap from the 3-engine
+comparison vs claude-codex-forge (E2E verification was previously an unbound "exercise the
+change" instruction). Pure skill + config, no runtime hooks; neutral `src/` source, identical
+across Claude Code, Codex, and OpenCode.
+
+- **`verify-e2e` skill.** Executes API/CLI user-journey use cases (Actor → Scenario → Intent →
+  Setup → Steps → Verification → Persistence), validates journey shape before running, enforces
+  the no-cheat ARRANGE/VERIFY boundary (no raw DB writes / internal endpoints / file-injection),
+  applies execution safety (non-prod default, env-var credentials, secret/PII redaction), and
+  writes a committed evidence report with a per-UC classification truth table. Passing use cases
+  graduate to `docs/e2e/use-cases/` as a portable regression suite. UI is deferred to a v2
+  Playwright bridge (recorded in `extending.md`).
+- **Evidence-bound ship-gate (Attested).** The `standard` profile's bare "Change verified" box is
+  **replaced** by `E2E verified` (count stays 6, so deleting it is still caught). `check-gates.sh`
+  + `check-gates.ps1` bind the checked box to the report **PATH named in the box**
+  (`(report: docs/e2e/reports/<file>.md)`) — not "any report in the directory". The named path
+  must **exist** (resolved against the git toplevel), carry a **top-level `VERDICT: PASS`** (the
+  first `VERDICT:` line, exactly `PASS`), and be **fresh on the branch** (git-detected —
+  committed/staged/unstaged-edit/untracked since the merge-base, never mtime, which
+  clone/checkout resets). A checked box that still names the `<...>` placeholder is rejected.
+  **Base is auto-detected** by the closest merge-base among `dev`/`main`/`master`/`origin/…`
+  (this framework integrates on `dev`, not `main`). **No silent fail-open:** when no base ref
+  resolves, freshness is skipped with a stderr note but existence + top-level `PASS` are always
+  enforced. Honest `— N/A:` escape (exact em-dash form) for internal/UI-only changes.
+  bash↔pwsh parity verified byte-for-byte (including the em-dash marker), with real subprocess +
+  temp-git-repo tests on both. **Cross-engine PR review (Codex gpt-5.6-sol + OpenCode kimi-k3)
+  found the P0/P1 hole this closes:** the old check scanned for *any* fresh `PASS` report and
+  hardcoded the base to `main`/`master`, so an unrelated or `dev`-inherited `PASS` could satisfy
+  the gate with zero E2E run for the actual feature — and a missing `main`/`master` ref skipped
+  the whole check (checked box + no report → exit 0).
+- **Whole-branch review caught a gate-soundness bug** the per-task passes missed: `VERDICT: PASS`
+  was matched on *any* report line, so a `FAIL` report carrying a per-UC `PASS` line satisfied the
+  gate. Now anchored to the top-level verdict, with regression test `j`. Also tightened `N/A`
+  detection to the `— N/A:` escape form (a mis-copied doc line can no longer silently skip the
+  gate) and hardened ps1 native-git error handling for cross-version parity.
+- **A second cross-engine adversarial review found and closed 3 more gate-bypass holes** in
+  the named-path binding above: (1) a **leaf symlink** at the box-named path — pointing
+  outside the repo at a fabricated `VERDICT: PASS` file — satisfied the old `[ -f ]`/`Test-Path
+  -PathType Leaf` existence check, which follows symlinks; now rejected as a symlink *before*
+  existence is even considered (though a symlinked ancestor directory remains a potential bypass). (2) **Path traversal** (`report: ../evil.md`, or a
+  `docs/e2e/reports/../../evil.md` subdir trick) escaped the repo entirely when no base branch
+  resolved (freshness skipped) — the box path is now validated against a strict whitelist,
+  `^docs/e2e/reports/[A-Za-z0-9._-]+\.md$`, which also rejects any subdirectory and subsumes
+  the old placeholder-only check. (3) A **multi-`(report: …)` line** made sh and ps1 disagree —
+  sh's greedy `.*(report:` extraction picked the *rightmost* group, ps1's regex `Match` picked
+  the *leftmost* — so a line pairing a placeholder group with a real fresh-PASS group could pass
+  on one engine and fail on the other; a checked box naming more than one report is now rejected
+  outright as ambiguous on both engines. All three closed at exact sh/ps1 parity with new
+  regression tests (symlink, traversal, subdir, multi-report). **Honesty correction:** the
+  "no silent fail-open" language in `ship-gates.md` was scoped to state precisely what
+  `check-gates` proves — the box-named path is a whitelisted, non-symlink, existing, fresh
+  `PASS` report — and explicitly that the report's *content* remains self-attested (**Attested**
+  tier); only a CI job that re-runs `verify-e2e` itself (**Verified** tier) is bypass-proof.
+- **Installers** scaffold `docs/e2e/{reports,use-cases}` into targets (both `install.sh` and
+  `install.ps1`), with a smoke assertion. Tests: `npm run check` green — lint 14/0, routing eval
+  93% (42 prompts), 38 tool tests.
+
 ## 0.3.0 — 2026-07-18
 
 Two new skills (`adr`, `simplify` → 13 total), installer ergonomics (git awareness + `--git-init`,

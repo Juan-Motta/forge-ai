@@ -10,6 +10,8 @@ findable and portable across all three engines.
 | `docs/research/<YYYY-MM-DD>-<topic>.md` | Sourced research brief | `research` |
 | `docs/solutions/<slug>.md` | Solved-bug knowledge base (symptom→cause→fix) | `fix-bug` |
 | `docs/adr/<NNN>-<slug>.md` | Architecture decision records | `adr` (from `plan` / `council`) |
+| `docs/e2e/reports/` | verify-e2e evidence reports (committed; the ship-gate binds to these) | `verify-e2e` |
+| `docs/e2e/use-cases/` | Graduated user-journey use cases (committed regression suite) | `verify-e2e` / `new-feature` / `fix-bug` |
 | `docs/CHANGELOG.md` | Human-readable history of notable changes | `finish-branch` / ship |
 | `docs/index.md` | High-level project map (structure, entry points, conventions) | `index` |
 
