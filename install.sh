@@ -178,7 +178,7 @@ fi
 
 # --- MANAGED: docs/ scaffolding ---
 mkdir -p "$TARGET/docs"
-for d in prds plans research solutions adr; do
+for d in prds plans research solutions adr e2e/reports e2e/use-cases; do
   mkdir -p "$TARGET/docs/$d"
   [ -e "$TARGET/docs/$d/.gitkeep" ] || touch "$TARGET/docs/$d/.gitkeep"
 done

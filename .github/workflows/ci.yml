@@ -62,6 +62,9 @@ jobs:
           if (-not (Select-String -LiteralPath $sl -Pattern 'claude-gate-hook' -Quiet)) { throw "gate hook missing from settings.local.json" }
           $v = (node ./bin/forge-ai.mjs --version).Trim()
           if ($v -ne (Get-Content ./VERSION -TotalCount 1).Trim()) { throw "npx --version mismatch: $v" }
+      - name: Tool tests (exercises the .ps1 gate parity tests under native Windows path/shell semantics)
+        shell: pwsh
+        run: node --test tools/test/
       - name: PowerShell gate hook blocks a red ship and fails open on missing state
         shell: pwsh
         run: |

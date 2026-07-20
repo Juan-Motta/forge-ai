@@ -47,10 +47,17 @@ done
 diff -q "$TB/AGENTS.md" "$TB/CLAUDE.md" >/dev/null || fail "AGENTS.md does not match CLAUDE.md"
 echo "ok: bash install (thin payload, no machinery leak, AGENTS.md mirror)"
 
+# --- 1b. bash install scaffolds the e2e report/use-case dirs (ship-gate binds to these) ---
+[ -d "$TB/docs/e2e/reports" ]   || fail "bash: docs/e2e/reports was not scaffolded"
+[ -d "$TB/docs/e2e/use-cases" ] || fail "bash: docs/e2e/use-cases was not scaffolded"
+echo "ok: bash install scaffolds docs/e2e/{reports,use-cases}"
+
 # --- 2. pwsh install (if available) must be byte-identical to bash ---
 if command -v pwsh >/dev/null 2>&1; then
   TP="$TMP/ps"; mkdir -p "$TP"
   pwsh -NoProfile -File "$ROOT/install.ps1" "$TP" >/dev/null || fail "install.ps1 exited non-zero"
+  [ -d "$TP/docs/e2e/reports" ]   || fail "pwsh: docs/e2e/reports was not scaffolded"
+  [ -d "$TP/docs/e2e/use-cases" ] || fail "pwsh: docs/e2e/use-cases was not scaffolded"
   diff -rq "$TB" "$TP" >/dev/null || fail "bash and pwsh targets differ (install/sync parity broken)"
   echo "ok: pwsh install + parity with bash"
 else

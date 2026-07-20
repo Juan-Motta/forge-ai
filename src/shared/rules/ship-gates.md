@@ -16,8 +16,63 @@ shipping.
       fixes always require it.
 - [ ] Tests written (TDD) and passing
 - [ ] Code review clean — no open P0/P1/P2 (`severity.md`), cross-engine
-- [ ] Change verified by actually exercising it
+- [ ] E2E verified via verify-e2e (report: docs/e2e/reports/<...>.md) — `N/A: <reason>` allowed for purely internal changes (migration, refactor, tooling) and UI-only changes (no v1 adapter)
 - [ ] `.workflow/state.md` updated
+
+> The `E2E verified` box is an **Attested** signal: it asserts that a verify-e2e run
+> produced a `VERDICT: PASS` report committed under `docs/e2e/reports/`. `check-gates`
+> binds the box to that artifact, but the report is still the agent's own output — it is
+> not the Verified tier (which requires an out-of-turn recompute in CI). See the
+> Verified / Attested / Advisory ladder below.
+
+#### E2E evidence binding
+
+When the `E2E verified` box is checked as a **real run** (not an `— N/A:` escape), it must
+carry the concrete report path it produced:
+
+`- [x] E2E verified via verify-e2e (report: docs/e2e/reports/<file>.md)`
+
+`check-gates` validates the report **named in the box** — not just "any report in the
+directory". For the checked box, the line itself must name **exactly one** report (more
+than one `(report: …)` group on the line is rejected as ambiguous — see below), and that
+named path must:
+
+1. **match a strict whitelist** — `^docs/e2e/reports/[A-Za-z0-9._-]+\.md$` (a bare filename
+   directly under `docs/e2e/reports/`, no `..`, no subdirectories, no absolute path). This
+   also rejects the `<...>` placeholder, since `<`/`>` fall outside the allowed charset;
+2. **be a regular file, not a symlink** — resolved against the git toplevel, not the
+   current directory; a symlink at the named path (e.g. pointing outside the repo at a
+   fabricated report) is rejected before existence is even checked;
+3. **exist** as that regular file;
+4. **carry a top-level `VERDICT: PASS`** — the *first* `VERDICT:` line must be exactly
+   `VERDICT: PASS` (a per-UC `PASS` under a top-level `FAIL`, or `VERDICT: PASS extra`, fails);
+5. **be fresh on this branch** — the path must be new work (committed since the branch
+   point, staged, an unstaged tracked edit, or untracked).
+
+The branch **base is auto-detected** by the *closest* merge-base among
+`dev`, `main`, `master`, and their `origin/…` counterparts (plus `origin/HEAD`), so it
+works whether the repo integrates on `dev` or `main`. Freshness is **best-effort**: if no
+base ref resolves (single-branch or detached HEAD), freshness is skipped **with a note to
+stderr** — but the whitelist, symlink-rejection, existence, and top-level `PASS` checks are
+*always* enforced regardless of freshness.
+
+**Scope of the guarantee — be precise, not sweeping.** This closes a specific, named set of
+bypasses on the *record*: a checked box can't point at a placeholder, a path outside
+`docs/e2e/reports/` (traversal or absolute), a subdirectory, a **leaf symlink** at the named
+path, or an ambiguous multi-report line — and it can't point at a stale/inherited report once
+a base resolves. That is the full extent of what `check-gates` proves. It does **not** prove
+the report's *content* is true: the file at that path still says whatever an agent or human
+wrote into it. It also does not defend against filesystem indirection such as a symlinked
+ancestor directory. A committed report with a hand-typed `VERDICT: PASS` and no verify-e2e run
+behind it satisfies every check above. This is the **Attested** tier (see the Verified /
+Attested / Advisory ladder below) — the record's *shape* is validated, not the underlying
+claim. Only the **Verified** tier — an out-of-turn CI job that re-runs `verify-e2e` itself
+against the PR commit, independent of the agent's say-so — is bypass-proof against a
+bad-faith or mistaken attestation.
+
+The `— N/A:` escape is an **exact em-dash form** (em-dash, space, `N/A:`, non-empty reason).
+A bare `N/A:`, a `- N/A:`, or a backticked `` `N/A:` `` inside explanatory text does **not**
+count as the escape — those fall through to the report-path checks above.
 
 The active workflow records its profile in `.workflow/state.md` (the **Profile** field —
 see `shared/state.template.md`); `finish-branch` validates that profile's boxes before shipping.
