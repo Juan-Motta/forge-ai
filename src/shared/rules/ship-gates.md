@@ -25,6 +25,35 @@ shipping.
 > not the Verified tier (which requires an out-of-turn recompute in CI). See the
 > Verified / Attested / Advisory ladder below.
 
+#### E2E evidence binding
+
+When the `E2E verified` box is checked as a **real run** (not an `— N/A:` escape), it must
+carry the concrete report path it produced:
+
+`- [x] E2E verified via verify-e2e (report: docs/e2e/reports/<file>.md)`
+
+`check-gates` validates the report **named in the box** — not just "any report in the
+directory". For the checked box it requires that named path to:
+
+1. **be concrete** — the `(report: …)` path is present and is not the `<...>` placeholder
+   (a checked box that still names the placeholder fails);
+2. **exist** — resolved against the git toplevel, not the current directory;
+3. **carry a top-level `VERDICT: PASS`** — the *first* `VERDICT:` line must be exactly
+   `VERDICT: PASS` (a per-UC `PASS` under a top-level `FAIL`, or `VERDICT: PASS extra`, fails);
+4. **be fresh on this branch** — the path must be new work (committed since the branch
+   point, staged, an unstaged tracked edit, or untracked).
+
+The branch **base is auto-detected** by the *closest* merge-base among
+`dev`, `main`, `master`, and their `origin/…` counterparts (plus `origin/HEAD`), so it
+works whether the repo integrates on `dev` or `main`. Freshness is **best-effort**: if no
+base ref resolves (single-branch or detached HEAD), freshness is skipped **with a note to
+stderr** — but existence + top-level `PASS` are *always* required. A checked box can never
+pass the gate without its named `PASS` report; there is no silent fail-open.
+
+The `— N/A:` escape is an **exact em-dash form** (em-dash, space, `N/A:`, non-empty reason).
+A bare `N/A:`, a `- N/A:`, or a backticked `` `N/A:` `` inside explanatory text does **not**
+count as the escape — those fall through to the report-path checks above.
+
 The active workflow records its profile in `.workflow/state.md` (the **Profile** field —
 see `shared/state.template.md`); `finish-branch` validates that profile's boxes before shipping.
 

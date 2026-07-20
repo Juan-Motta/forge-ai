@@ -21,12 +21,22 @@ across Claude Code, Codex, and OpenCode.
   Playwright bridge (recorded in `extending.md`).
 - **Evidence-bound ship-gate (Attested).** The `standard` profile's bare "Change verified" box is
   **replaced** by `E2E verified` (count stays 6, so deleting it is still caught). `check-gates.sh`
-  + `check-gates.ps1` bind the checked box to a report under `docs/e2e/reports/` that is both
-  **fresh on the branch** (git-detected — committed/staged/untracked since the merge-base, never
-  mtime, which clone/checkout resets) and whose **top-level `VERDICT:` line is `PASS`**. Honest
-  `— N/A:` escape for internal/UI-only changes; graceful skip when git can't resolve a branch
-  point. bash↔pwsh parity verified byte-for-byte (including the em-dash marker), with real
-  subprocess + temp-git-repo tests on both.
+  + `check-gates.ps1` bind the checked box to the report **PATH named in the box**
+  (`(report: docs/e2e/reports/<file>.md)`) — not "any report in the directory". The named path
+  must **exist** (resolved against the git toplevel), carry a **top-level `VERDICT: PASS`** (the
+  first `VERDICT:` line, exactly `PASS`), and be **fresh on the branch** (git-detected —
+  committed/staged/unstaged-edit/untracked since the merge-base, never mtime, which
+  clone/checkout resets). A checked box that still names the `<...>` placeholder is rejected.
+  **Base is auto-detected** by the closest merge-base among `dev`/`main`/`master`/`origin/…`
+  (this framework integrates on `dev`, not `main`). **No silent fail-open:** when no base ref
+  resolves, freshness is skipped with a stderr note but existence + top-level `PASS` are always
+  enforced. Honest `— N/A:` escape (exact em-dash form) for internal/UI-only changes.
+  bash↔pwsh parity verified byte-for-byte (including the em-dash marker), with real subprocess +
+  temp-git-repo tests on both. **Cross-engine PR review (Codex gpt-5.6-sol + OpenCode kimi-k3)
+  found the P0/P1 hole this closes:** the old check scanned for *any* fresh `PASS` report and
+  hardcoded the base to `main`/`master`, so an unrelated or `dev`-inherited `PASS` could satisfy
+  the gate with zero E2E run for the actual feature — and a missing `main`/`master` ref skipped
+  the whole check (checked box + no report → exit 0).
 - **Whole-branch review caught a gate-soundness bug** the per-task passes missed: `VERDICT: PASS`
   was matched on *any* report line, so a `FAIL` report carrying a per-UC `PASS` line satisfied the
   gate. Now anchored to the top-level verdict, with regression test `j`. Also tightened `N/A`

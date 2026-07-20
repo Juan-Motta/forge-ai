@@ -30,8 +30,11 @@ rewrite it, don't execute it:
 
 Public API, signup/login, app CLI, or documented seed commands. **Forbidden:** raw DB writes
 (`psql -c "INSERT"`, `mysql -e`, `mongosh --eval`), internal/undocumented endpoints,
-file-injection on disk. If the sanctioned path is broken, **fix it** — never route around it.
-Credentials come from **env vars**, never hard-coded (graduated use cases are committed).
+file-injection on disk. A broken sanctioned path is a **finding, not a fix-it-here**: report
+it (verify runs read-only) and loop the repair back through `fix-bug` / `new-feature` so the
+app change gets its own tests and review — **never route around it** and never patch app code
+inline during the verify phase. Credentials come from **env vars**, never hard-coded
+(graduated use cases are committed).
 
 ## 3. Safety
 
@@ -79,7 +82,7 @@ re-run it. Then check the `E2E verified` ship-gate box (or record `— N/A: <rea
 | --- | --- |
 | "Tests pass, that's enough." | Unit tests miss wiring/integration/UX. A journey exercises the real interface. |
 | "I'll assert the status code and move on." | A bare 200/exit-0 is `THIN_VERIFICATION`. Observe a real outcome + a next observable step. |
-| "I'll seed the row straight into the DB." | Raw DB writes are forbidden ARRANGE. Use the sanctioned interface, or fix it. |
+| "I'll seed the row straight into the DB." | Raw DB writes are forbidden ARRANGE. Use the sanctioned interface; if it's broken, report it as a finding and loop through `fix-bug`. |
 | "Just check the box — the report can wait." | `check-gates` binds the box to a fresh `VERDICT: PASS` report; an empty claim fails the gate. |
 | "It's a read endpoint, skip Persistence." | Only genuinely stateless reads may use `Persistence: N/A`. |
 

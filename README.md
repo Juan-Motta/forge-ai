@@ -180,6 +180,7 @@ flowchart LR
 | `quick-fix` | Trivial changes (<3 files); escalates if scope grows |
 | `review` | Cross-engine second opinion on a plan or diff (P0–P3 findings) |
 | `simplify` | Post-green, behavior-preserving cleanup pass (tests stay green) |
+| `verify-e2e` | Execute API/CLI user-journey use cases, write an evidence report, and bind the E2E ship-gate box to it |
 | `council` | Multi-engine advisors → verdict + minority report (hard, expensive forks) |
 | `adr` | Record an architecture decision (context, alternatives, consequences) → `docs/adr/` |
 | `finish-branch` | Confirm gates → final verify → commit → push → PR |
