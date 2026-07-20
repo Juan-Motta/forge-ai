@@ -103,6 +103,16 @@ if [ -n "$e2e_line" ]; then
       fi
       ;;
     *)
+      # 0. Reject an ambiguous line carrying more than one "(report:" group — one report
+      #    per box. Without this, sh's greedy extraction (rightmost group) and ps1's
+      #    leftmost-first regex Match could disagree on WHICH path is checked; refusing
+      #    the ambiguous line outright removes the divergence entirely.
+      report_groups=$(printf '%s' "$e2e_line" | grep -o '(report:' | wc -l | tr -d '[:space:]')
+      if [ "$report_groups" -gt 1 ]; then
+        echo "check-gates: 'E2E verified' line names more than one (report: ...) group — ambiguous." >&2
+        echo "  A checked box must name exactly one report." >&2
+        exit 1
+      fi
       # 1. Parse the report path named in the box: (report: <PATH>).
       report_path=$(printf '%s' "$e2e_line" | sed -n 's/.*(report:[[:space:]]*\([^)]*\)).*/\1/p' | head -n1)
       report_path=$(printf '%s' "$report_path" | sed 's/[[:space:]]*$//')
@@ -111,16 +121,28 @@ if [ -n "$e2e_line" ]; then
         echo "  Put the real report path in the box: (report: docs/e2e/reports/<file>.md)." >&2
         exit 1
       fi
-      case "$report_path" in
-        *"<"*|*">"*)
-          echo "check-gates: 'E2E verified' still names the placeholder report path '$report_path'." >&2
-          echo "  Replace it with the real report path: (report: docs/e2e/reports/<file>.md)." >&2
-          exit 1
-          ;;
-      esac
-      # 2. Require the named file to exist, resolved against the git toplevel (not cwd).
+      # 1b. Whitelist the path shape: it must be a bare filename directly under
+      #     docs/e2e/reports/ — no '..', no subdirectories, no absolute paths. Since '<'
+      #     and '>' fall outside the allowed charset, this also subsumes the previous
+      #     placeholder-only rejection with one strict allowlist.
+      if ! printf '%s' "$report_path" | grep -Eq '^docs/e2e/reports/[A-Za-z0-9._-]+\.md$'; then
+        echo "check-gates: 'E2E verified' names report path '$report_path', which is not a" >&2
+        echo "  real report under docs/e2e/reports/. The box must name a real file directly" >&2
+        echo "  under docs/e2e/reports/ (e.g. docs/e2e/reports/<feature>.md) — no '..', no" >&2
+        echo "  subdirectories, no absolute paths, no placeholders." >&2
+        exit 1
+      fi
+      # 2. Resolve against the git toplevel (not cwd), and require a REGULAR FILE — a
+      #    symlink at the named path (e.g. pointing outside the repo at a fabricated
+      #    report) must never satisfy the gate. Checked BEFORE the existence check so a
+      #    symlink can never count as "exists".
       toplevel=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
       if [ -n "$toplevel" ]; then abs_report="$toplevel/$report_path"; else abs_report="$report_path"; fi
+      if [ -L "$abs_report" ]; then
+        echo "check-gates: 'E2E verified' names report '$report_path' but that path is a" >&2
+        echo "  symlink, not a regular file. Reports must be real files under docs/e2e/reports/." >&2
+        exit 1
+      fi
       if [ ! -f "$abs_report" ]; then
         echo "check-gates: 'E2E verified' names report '$report_path' but that file does not exist." >&2
         echo "  Run the verify-e2e skill to produce it, or use '— N/A: <reason>'." >&2

@@ -94,6 +94,16 @@ if ($e2eLine) {
             exit 1
         }
     } else {
+        # 0. Reject an ambiguous line carrying more than one "(report:" group — one report
+        #    per box. Without this, sh's greedy extraction (rightmost group) and ps1's
+        #    leftmost-first regex Match could disagree on WHICH path is checked; refusing
+        #    the ambiguous line outright removes the divergence entirely.
+        $reportGroups = ([regex]::Matches($e2eLine, '\(report:')).Count
+        if ($reportGroups -gt 1) {
+            [Console]::Error.WriteLine("check-gates: 'E2E verified' line names more than one (report: ...) group — ambiguous.")
+            [Console]::Error.WriteLine("  A checked box must name exactly one report.")
+            exit 1
+        }
         # 1. Parse the report path named in the box: (report: <PATH>).
         $reportPath = ''
         $mrp = [regex]::Match($e2eLine, '\(report:\s*([^)]*)\)')
@@ -103,14 +113,29 @@ if ($e2eLine) {
             [Console]::Error.WriteLine("  Put the real report path in the box: (report: docs/e2e/reports/<file>.md).")
             exit 1
         }
-        if ($reportPath -match '[<>]') {
-            [Console]::Error.WriteLine("check-gates: 'E2E verified' still names the placeholder report path '$reportPath'.")
-            [Console]::Error.WriteLine("  Replace it with the real report path: (report: docs/e2e/reports/<file>.md).")
+        # 1b. Whitelist the path shape: it must be a bare filename directly under
+        #     docs/e2e/reports/ — no '..', no subdirectories, no absolute paths. Since '<'
+        #     and '>' fall outside the allowed charset, this also subsumes the previous
+        #     placeholder-only rejection with one strict allowlist.
+        if ($reportPath -cnotmatch '^docs/e2e/reports/[A-Za-z0-9._-]+\.md$') {
+            [Console]::Error.WriteLine("check-gates: 'E2E verified' names report path '$reportPath', which is not a")
+            [Console]::Error.WriteLine("  real report under docs/e2e/reports/. The box must name a real file directly")
+            [Console]::Error.WriteLine("  under docs/e2e/reports/ (e.g. docs/e2e/reports/<feature>.md) — no '..', no")
+            [Console]::Error.WriteLine("  subdirectories, no absolute paths, no placeholders.")
             exit 1
         }
-        # 2. Require the named file to exist, resolved against the git toplevel (not cwd).
+        # 2. Resolve against the git toplevel (not cwd), and require a REGULAR FILE — a
+        #    symlink at the named path (e.g. pointing outside the repo at a fabricated
+        #    report) must never satisfy the gate. Checked BEFORE the existence check so a
+        #    symlink can never count as "exists".
         $toplevel = (git rev-parse --show-toplevel 2>$null)
         if ($toplevel) { $absReport = Join-Path $toplevel $reportPath } else { $absReport = $reportPath }
+        $absItem = Get-Item -LiteralPath $absReport -Force -ErrorAction SilentlyContinue
+        if ($absItem -and $absItem.LinkType) {
+            [Console]::Error.WriteLine("check-gates: 'E2E verified' names report '$reportPath' but that path is a")
+            [Console]::Error.WriteLine("  symlink, not a regular file. Reports must be real files under docs/e2e/reports/.")
+            exit 1
+        }
         if (-not (Test-Path -LiteralPath $absReport -PathType Leaf)) {
             [Console]::Error.WriteLine("check-gates: 'E2E verified' names report '$reportPath' but that file does not exist.")
             [Console]::Error.WriteLine("  Run the verify-e2e skill to produce it, or use '— N/A: <reason>'.")
