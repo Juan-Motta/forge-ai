@@ -90,7 +90,7 @@ e2e_line=$(awk '
 
 if [ -n "$e2e_line" ]; then
   case "$e2e_line" in
-    *"N/A:"*)
+    *"— N/A:"*)
       # N/A escape must carry a non-empty reason.
       reason=$(printf '%s' "$e2e_line" | sed -n 's/.*N\/A:[[:space:]]*\(.*\)$/\1/p')
       if [ -z "$reason" ]; then
@@ -118,7 +118,10 @@ if [ -n "$e2e_line" ]; then
           found=""
           for f in $changed $staged $untracked; do
             [ -f "$f" ] || continue
-            if grep -Eq '^VERDICT:[[:space:]]*PASS([[:space:]]|$)' "$f"; then found="$f"; break; fi
+            # Anchor to the TOP-LEVEL verdict: only the FIRST "VERDICT:" line counts, so a
+            # per-UC "VERDICT: PASS" below a top-level FAIL can never satisfy the gate.
+            first=$(awk '/^VERDICT:/{print; exit}' "$f")
+            if printf '%s' "$first" | grep -Eq '^VERDICT:[[:space:]]*PASS([[:space:]]|$)'; then found="$f"; break; fi
           done
           if [ -z "$found" ]; then
             echo "check-gates: 'E2E verified' is checked, but no report in docs/e2e/reports/ is" >&2

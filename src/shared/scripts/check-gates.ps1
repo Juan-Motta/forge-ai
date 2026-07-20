@@ -15,6 +15,12 @@
 param([string]$StatePath = ".workflow/state.md")
 
 $ErrorActionPreference = "Stop"
+# Parity with sh's masked git failures (`|| echo ""` / `2>$null`): on a pwsh where
+# $PSNativeCommandUseErrorActionPreference defaults to $true, an expected non-zero exit
+# from a native command (git show-ref / merge-base / diff / ls-files below) would THROW
+# under $ErrorActionPreference = "Stop" and abort as a false BLOCK. Disable it so native
+# git non-zero exits are handled via $LASTEXITCODE, exactly like the sh side.
+$PSNativeCommandUseErrorActionPreference = $false
 
 if (-not (Test-Path -LiteralPath $StatePath -PathType Leaf)) {
     [Console]::Error.WriteLine("check-gates: no state file at '$StatePath' — cannot verify gates.")
@@ -80,10 +86,10 @@ $inE = $false
 foreach ($line in $lines) {
     if ($line -match '^##\s+Ship-gate checklist') { $inE = $true; continue }
     elseif ($line -match '^##\s')                 { $inE = $false }
-    if ($inE -and $line -match '^- \[[xX]\]\s+E2E verified') { $e2eLine = $line; break }
+    if ($inE -and $line -cmatch '^- \[[xX]\]\s+E2E verified') { $e2eLine = $line; break }
 }
 if ($e2eLine) {
-    if ($e2eLine -match 'N/A:') {
+    if ($e2eLine -cmatch '— N/A:') {
         $reason = ([regex]::Match($e2eLine, 'N/A:\s*(.*)$')).Groups[1].Value.Trim()
         if ([string]::IsNullOrEmpty($reason)) {
             [Console]::Error.WriteLine("check-gates: 'E2E verified' uses 'N/A:' with no reason — treated as unmet.")
@@ -108,12 +114,15 @@ if ($e2eLine) {
                 $cands = @($changed) + @($staged) + @($untracked) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
                 $found = $false
                 foreach ($f in $cands) {
-                    if ((Get-Content -LiteralPath $f) -match '^VERDICT:\s*PASS(\s|$)') { $found = $true; break }
+                    # Anchor to the TOP-LEVEL verdict: only the FIRST "VERDICT:" line counts, so a
+                    # per-UC "VERDICT: PASS" below a top-level FAIL can never satisfy the gate.
+                    $fv = (Get-Content -LiteralPath $f | Where-Object { $_ -cmatch '^VERDICT:' } | Select-Object -First 1)
+                    if ($fv -cmatch '^VERDICT:\s*PASS(\s|$)') { $found = $true; break }
                 }
                 if (-not $found) {
                     [Console]::Error.WriteLine("check-gates: 'E2E verified' is checked, but no report in docs/e2e/reports/ is")
                     [Console]::Error.WriteLine("  both changed on this branch (since $default) and 'VERDICT: PASS'.")
-                    [Console]::Error.WriteLine("  Run the verify-e2e skill, or use '-- N/A: <reason>' for internal/UI-only changes.")
+                    [Console]::Error.WriteLine("  Run the verify-e2e skill, or use '— N/A: <reason>' for internal/UI-only changes.")
                     exit 1
                 }
             }

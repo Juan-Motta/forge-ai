@@ -51,6 +51,15 @@ test('ps1 parity: fresh PASS → 0, missing → 1, FAIL → 1, empty N/A → 1',
   d = make('- [x] E2E verified — N/A:', undefined); assert.equal(run(d), 1); rmSync(d, { recursive: true, force: true });
 });
 
+test('ps1 parity: report FIRST verdict is FAIL but a LATER per-UC line is VERDICT: PASS → exit 1', { skip: !hasPwsh }, () => {
+  // Mirrors check-gates.sh test 'j' — the gate must anchor to the TOP-LEVEL (first)
+  // VERDICT line, not match any VERDICT: PASS line anywhere in the file.
+  const box = '- [x] E2E verified via verify-e2e (report: docs/e2e/reports/r.md)';
+  const d = make(box, 'VERDICT: FAIL\n\nSome narrative text.\n\n## Per-UC results\nUC1: login flow\nVERDICT: PASS\n');
+  assert.equal(run(d), 1);
+  rmSync(d, { recursive: true, force: true });
+});
+
 test('ps1 parity: box checked + report git-add STAGED (not committed) on branch + PASS → exit 0', { skip: !hasPwsh }, () => {
   // Mirrors check-gates.sh test 'i' — a report `git add`-ed but not yet committed is the
   // natural post-verify-e2e state before the human runs `git commit`. Must be treated as

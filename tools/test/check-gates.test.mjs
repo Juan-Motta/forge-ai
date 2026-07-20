@@ -119,6 +119,31 @@ test('h: old 6-box state without E2E box name still passes count, unaffected →
   rmSync(dir, { recursive: true, force: true });
 });
 
+test('j: report FIRST verdict is FAIL but a LATER per-UC line is VERDICT: PASS → exit 1', () => {
+  // Proves Fix 1: the gate must anchor to the TOP-LEVEL (first) VERDICT line, not match
+  // any VERDICT: PASS line anywhere in the file. A per-UC block below a top-level FAIL
+  // must never satisfy the gate.
+  const dir = setup({
+    report: 'VERDICT: FAIL\n\nSome narrative text.\n\n## Per-UC results\nUC1: login flow\nVERDICT: PASS\n',
+  });
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('k: E2E box line copied from the ship-gates.md doc text (no real N/A escape) + no report → exit 1', () => {
+  // Proves Fix 5: the doc line in ship-gates.md:19 contains the substring "N/A:" inside
+  // backticked explanatory text ("— `N/A: <reason>` allowed for ...") but NOT the real
+  // escape form "— N/A:" (em-dash, space, N/A:, no backtick). If a user mis-copies that
+  // doc line into state.md and checks it, the gate must NOT treat it as an N/A skip —
+  // it must fall through to requiring a real report, which is absent here.
+  const dir = setup({
+    box: '- [x] E2E verified via verify-e2e (report: docs/e2e/reports/<...>.md) — `N/A: <reason>` allowed for purely internal changes (migration, refactor, tooling) and UI-only changes (no v1 adapter)',
+    report: undefined,
+  });
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test('i: box checked + report git-add STAGED (not committed) on branch + PASS → exit 0', () => {
   // Report is `git add`-staged but not committed — the natural post-verify-e2e workflow
   // before the human runs `git commit`. Must be treated as fresh, same as untracked/committed.
