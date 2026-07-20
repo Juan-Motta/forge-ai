@@ -4,6 +4,38 @@ Notable changes to the forge-ai framework itself, newest first. This is the fram
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
+## Unreleased
+
+New `verify-e2e` skill (→ 14 total) — journey-based E2E verification whose result is bound to
+the ship-gate by a deterministic check, closing the top capability gap from the 3-engine
+comparison vs claude-codex-forge (E2E verification was previously an unbound "exercise the
+change" instruction). Pure skill + config, no runtime hooks; neutral `src/` source, identical
+across Claude Code, Codex, and OpenCode.
+
+- **`verify-e2e` skill.** Executes API/CLI user-journey use cases (Actor → Scenario → Intent →
+  Setup → Steps → Verification → Persistence), validates journey shape before running, enforces
+  the no-cheat ARRANGE/VERIFY boundary (no raw DB writes / internal endpoints / file-injection),
+  applies execution safety (non-prod default, env-var credentials, secret/PII redaction), and
+  writes a committed evidence report with a per-UC classification truth table. Passing use cases
+  graduate to `docs/e2e/use-cases/` as a portable regression suite. UI is deferred to a v2
+  Playwright bridge (recorded in `extending.md`).
+- **Evidence-bound ship-gate (Attested).** The `standard` profile's bare "Change verified" box is
+  **replaced** by `E2E verified` (count stays 6, so deleting it is still caught). `check-gates.sh`
+  + `check-gates.ps1` bind the checked box to a report under `docs/e2e/reports/` that is both
+  **fresh on the branch** (git-detected — committed/staged/untracked since the merge-base, never
+  mtime, which clone/checkout resets) and whose **top-level `VERDICT:` line is `PASS`**. Honest
+  `— N/A:` escape for internal/UI-only changes; graceful skip when git can't resolve a branch
+  point. bash↔pwsh parity verified byte-for-byte (including the em-dash marker), with real
+  subprocess + temp-git-repo tests on both.
+- **Whole-branch review caught a gate-soundness bug** the per-task passes missed: `VERDICT: PASS`
+  was matched on *any* report line, so a `FAIL` report carrying a per-UC `PASS` line satisfied the
+  gate. Now anchored to the top-level verdict, with regression test `j`. Also tightened `N/A`
+  detection to the `— N/A:` escape form (a mis-copied doc line can no longer silently skip the
+  gate) and hardened ps1 native-git error handling for cross-version parity.
+- **Installers** scaffold `docs/e2e/{reports,use-cases}` into targets (both `install.sh` and
+  `install.ps1`), with a smoke assertion. Tests: `npm run check` green — lint 14/0, routing eval
+  93% (42 prompts), 38 tool tests.
+
 ## 0.3.0 — 2026-07-18
 
 Two new skills (`adr`, `simplify` → 13 total), installer ergonomics (git awareness + `--git-init`,
