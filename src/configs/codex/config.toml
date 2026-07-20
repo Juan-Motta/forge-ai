@@ -1,4 +1,4 @@
-# Codex-native options for forge-ai (no scripts/hooks).
+# Codex-native options for codeforge (no scripts/hooks).
 # Best-effort ship prompt (NOT a hard gate): on-request asks when a command crosses the
 # sandbox boundary — it does NOT fire before every command, does NOT read
 # .workflow/state.md, and is bypassable. See shared/rules/ship-gates.md. Check the gate

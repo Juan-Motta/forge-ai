@@ -1,4 +1,4 @@
-// skill-lint — structural + forge-ai-bespoke linter for src/skills/*/SKILL.md
+// skill-lint — structural + codeforge-bespoke linter for src/skills/*/SKILL.md
 //
 // Pure, dependency-free logic (Node built-ins only) so it is unit-testable in
 // isolation and reusable by the CLI wrapper (tools/lint-skills.mjs) and CI.

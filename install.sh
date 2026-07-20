@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# forge-ai installer — copy the workflow discipline into a target project.
+# codeforge installer — copy the workflow discipline into a target project.
 #
 #   ./install.sh [target-dir] [--upgrade] [--with-hooks] [--git-init] [--no-isolate]
 #
 # With no target-dir, installs into the current working directory. So the common flow is:
-#   cd my-project && /path/to/forge-ai/install.sh
+#   cd my-project && /path/to/codeforge/install.sh
 #
 # THIN INSTALL: the target receives only what the agent needs at RUNTIME. All framework
 # machinery (the neutral source in ./src/, the generators sync.sh/ps1, the generation
-# inputs in configs/, and the seed templates) stays in the forge-ai repo — never copied
-# into the target. To customize or upgrade, edit the forge-ai source and re-run this
+# inputs in configs/, and the seed templates) stays in the codeforge repo — never copied
+# into the target. To customize or upgrade, edit the codeforge source and re-run this
 # installer against the target (`--upgrade`, or a bare re-run from inside the project).
 #
 # The shippable payload is the NEUTRAL source in ./src/ (CLAUDE.md, skills/, shared/,
@@ -18,14 +18,14 @@
 # target, then runs `sync.sh --out <target>` to GENERATE each engine's config + skills
 # (.claude/ + .agents/skills + .codex/config.toml + AGENTS.md + opencode.json) straight
 # into the target. No symlinks (Windows-safe). The generated engine artifacts are COMMITTED
-# with the target project so a fresh clone works immediately — no forge-ai dependency at
+# with the target project so a fresh clone works immediately — no codeforge dependency at
 # runtime; re-run the installer after editing the source to regenerate.
 #
 # LANDS IN THE TARGET (runtime only):
 #   CLAUDE.md, AGENTS.md, opencode.json, .claude/, .agents/, .codex/ (generated),
 #   shared/rules/*.md + shared/state.template.md + shared/scripts/* (managed), docs/ scaffolding + CHANGELOG,
 #   PROJECT.md + CONTINUITY.md (project-owned, seeded if missing).
-# STAYS IN forge-ai (never copied): src/skills (neutral), configs/, sync.sh, sync.ps1,
+# STAYS IN codeforge (never copied): src/skills (neutral), configs/, sync.sh, sync.ps1,
 #   *.template.md, docs/extending.md.
 #
 # MANAGED (framework baseline — OVERWRITTEN on install/upgrade): CLAUDE.md, the framework's
@@ -66,11 +66,11 @@ TARGET="$(cd "$TARGET" && pwd)"
 # rewritten below, so the settings writer knows whether it may safely regenerate the file.)
 PRIOR_LOCAL_MANAGED=0
 grep -q '^localsettings:managed$' "$TARGET/.forge-manifest" 2>/dev/null && PRIOR_LOCAL_MANAGED=1
-{ [ -f "$PAYLOAD/CLAUDE.md" ] && [ -d "$PAYLOAD/skills" ]; } || { echo "error: payload not found — run this from the forge-ai repo" >&2; exit 2; }
-[ "$TARGET" != "$SRC" ]     || { echo "error: refusing to install into forge-ai itself" >&2; exit 2; }
-[ "$TARGET" != "$PAYLOAD" ] || { echo "error: refusing to install into the forge-ai payload dir (src/)" >&2; exit 2; }
+{ [ -f "$PAYLOAD/CLAUDE.md" ] && [ -d "$PAYLOAD/skills" ]; } || { echo "error: payload not found — run this from the codeforge repo" >&2; exit 2; }
+[ "$TARGET" != "$SRC" ]     || { echo "error: refusing to install into codeforge itself" >&2; exit 2; }
+[ "$TARGET" != "$PAYLOAD" ] || { echo "error: refusing to install into the codeforge payload dir (src/)" >&2; exit 2; }
 
-echo "forge-ai $FORGE_VERSION → installing into: $TARGET  (mode: $MODE)"
+echo "codeforge $FORGE_VERSION → installing into: $TARGET  (mode: $MODE)"
 
 # --- version drift advisory (informational only, never blocks) ---
 # Compare the version that last stamped this target against the one we're installing.
@@ -80,15 +80,15 @@ if [ -n "$PRIOR_VERSION" ] && [ "$PRIOR_VERSION" != "$FORGE_VERSION" ] \
    && [ "$FORGE_VERSION" != "unknown" ] && [ "$PRIOR_VERSION" != "unknown" ]; then
   lower="$(printf '%s\n%s\n' "$PRIOR_VERSION" "$FORGE_VERSION" | sort -V | head -n1)"
   if [ "$lower" = "$PRIOR_VERSION" ]; then
-    echo "  ~ upgrading this target: forge-ai $PRIOR_VERSION -> $FORGE_VERSION"
+    echo "  ~ upgrading this target: codeforge $PRIOR_VERSION -> $FORGE_VERSION"
   else
-    echo "  ! this target was installed by a NEWER forge-ai ($PRIOR_VERSION) than you're running ($FORGE_VERSION)."
+    echo "  ! this target was installed by a NEWER codeforge ($PRIOR_VERSION) than you're running ($FORGE_VERSION)."
     echo "    You may be downgrading it; teammates pinned to $PRIOR_VERSION could see drift. (advisory only)"
   fi
 fi
 
 # --- self-healing: drop machinery this version no longer installs into the target ---
-# (thin model — machinery lives in the forge-ai repo; the target gets runtime only.) This
+# (thin model — machinery lives in the codeforge repo; the target gets runtime only.) This
 # migrates a target from an older, bloated install. Gated on a prior forge install
 # (.forge-manifest present) so a FIRST install never touches an unrelated project's own
 # configs/ or skills/ dirs.
@@ -113,7 +113,7 @@ if [ -f "$TARGET/.forge-manifest" ]; then
   fi
   if [ "$old_install" = 1 ] && [ -d "$TARGET/skills" ]; then
     rm -rf "$TARGET/skills.pre-forge.bak"; mv "$TARGET/skills" "$TARGET/skills.pre-forge.bak"
-    echo "  ! neutral skills/ is obsolete (skills are generated now) -> skills.pre-forge.bak; add custom skills to the forge-ai repo"
+    echo "  ! neutral skills/ is obsolete (skills are generated now) -> skills.pre-forge.bak; add custom skills to the codeforge repo"
   fi
 fi
 
@@ -195,7 +195,7 @@ for eng in .claude .agents; do
   sd="$TARGET/$eng/skills"
   if [ -e "$sd" ] && [ ! -e "$sd/.forge-generated" ]; then
     mv "$sd" "$sd.pre-forge.bak"
-    echo "  ! backed up existing $eng/skills -> $eng/skills.pre-forge.bak (add custom skills to the forge-ai repo)"
+    echo "  ! backed up existing $eng/skills -> $eng/skills.pre-forge.bak (add custom skills to the codeforge repo)"
   fi
 done
 # back up a real, non-forge AGENTS.md before sync overwrites it
@@ -204,7 +204,7 @@ if [ -f "$TARGET/AGENTS.md" ] && ! grep -q "Workflow discipline for Claude Code"
   echo "  ! backed up existing AGENTS.md -> AGENTS.md.pre-forge.bak"
 fi
 
-# --- GENERATE engine dirs + AGENTS.md + opencode.json via sync (reads the forge-ai source,
+# --- GENERATE engine dirs + AGENTS.md + opencode.json via sync (reads the codeforge source,
 #     writes straight into the target — no source or sync script copied there) ---
 bash "$PAYLOAD/sync.sh" --out "$TARGET" >/dev/null
 
@@ -213,7 +213,7 @@ bash "$PAYLOAD/sync.sh" --out "$TARGET" >/dev/null
 # (default; --no-isolate to keep inheritance) adds `claudeMdExcludes` so Claude Code does NOT
 # blend ancestor CLAUDE.md / .claude/rules into this project — Codex and OpenCode already scope
 # to the project root, Claude Code walks to the filesystem root. --with-hooks adds the Tier-C
-# PreToolUse gate. forge-ai only (re)writes this file when it is absent or a prior forge install
+# PreToolUse gate. codeforge only (re)writes this file when it is absent or a prior forge install
 # owned it (tracked as `localsettings:managed` in .forge-manifest); a file it doesn't own is left
 # alone. The hook's $CLAUDE_PROJECT_DIR is resolved by Claude Code at runtime, not now.
 excludes=""
@@ -234,7 +234,7 @@ n_excl=$(printf '%s' "$excludes" | grep -c . || true)
 sl="$TARGET/.claude/settings.local.json"
 if [ "$n_excl" -gt 0 ] || [ "$WITH_HOOKS" = "1" ]; then
   if [ -f "$sl" ] && [ "$PRIOR_LOCAL_MANAGED" != "1" ]; then
-    echo "  ! .claude/settings.local.json exists and isn't forge-ai-managed — not touching it."
+    echo "  ! .claude/settings.local.json exists and isn't codeforge-managed — not touching it."
     echo "    (skipped auto-isolation / gate hook; remove that file and re-run, or edit it by hand.)"
   else
     excl_json=""
@@ -263,26 +263,26 @@ EOF
   fi
 elif [ "$PRIOR_LOCAL_MANAGED" = "1" ] && [ -f "$sl" ]; then
   rm -f "$sl"
-  echo "  - removed forge-ai-managed .claude/settings.local.json (nothing to configure now)"
+  echo "  - removed codeforge-managed .claude/settings.local.json (nothing to configure now)"
 fi
 
 # --- .gitignore (merge, don't clobber): ONLY local state ---
 # The generated engine artifacts (.claude/, .agents/, .codex/, AGENTS.md, opencode.json)
 # are COMMITTED with the project so a fresh clone works immediately — no post-clone step,
-# no dependency on forge-ai. Only genuinely local/transient state is ignored here.
+# no dependency on codeforge. Only genuinely local/transient state is ignored here.
 touch "$TARGET/.gitignore"
-if ! grep -qx '# forge-ai (local state — do not commit)' "$TARGET/.gitignore"; then
+if ! grep -qx '# codeforge (local state — do not commit)' "$TARGET/.gitignore"; then
   {
-    printf '\n# forge-ai (local state — do not commit)\n'
+    printf '\n# codeforge (local state — do not commit)\n'
     printf '.DS_Store\n.workflow/\n.claude/settings.local.json\n'
   } >> "$TARGET/.gitignore"
 fi
 
-# --- warn if the generated config lacks the forge push/PR gate (points at the forge-ai
+# --- warn if the generated config lacks the forge push/PR gate (points at the codeforge
 #     source baseline that produced it) ---
 warn_gate() {  # $1 = generated file in target, $2 = grep needle, $3 = hint
   if [ -f "$TARGET/$1" ] && ! grep -q "$2" "$TARGET/$1" 2>/dev/null; then
-    echo "  ! $1 has no forge push/PR gate ($3) — add it to the forge-ai source, then re-run."
+    echo "  ! $1 has no forge push/PR gate ($3) — add it to the codeforge source, then re-run."
   fi
 }
 warn_gate ".claude/settings.json" "git push"       "ask-tier on git push / gh pr create"
@@ -309,18 +309,18 @@ if git -C "$TARGET" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 elif [ "$GIT_INIT" = "1" ]; then
   git -C "$TARGET" init -q
   git -C "$TARGET" add -A
-  if git -C "$TARGET" commit -q -m "chore: adopt forge-ai" 2>/dev/null; then
-    echo "  + initialized a git repo + baseline commit (chore: adopt forge-ai)"
+  if git -C "$TARGET" commit -q -m "chore: adopt codeforge" 2>/dev/null; then
+    echo "  + initialized a git repo + baseline commit (chore: adopt codeforge)"
   else
     echo "  + initialized a git repo (baseline commit skipped — set git user.name/email, then commit)"
   fi
 else
-  echo "  ! not a git repo — forge-ai's workflow (branches, commits) and the ship gates assume git."
+  echo "  ! not a git repo — codeforge's workflow (branches, commits) and the ship gates assume git."
   echo "    Run 'git init' here, or re-run the installer with --git-init."
 fi
 
-echo "forge-ai installed."
+echo "codeforge installed."
 echo "  next: (1) fill PROJECT.md   (2) in Codex, trust the project when prompted"
 echo "        (3) open the project in any of Claude Code / Codex / OpenCode"
-echo "  to customize or upgrade: edit the forge-ai source, then re-run this installer"
+echo "  to customize or upgrade: edit the codeforge source, then re-run this installer"
 echo "  against the project (--upgrade, or a bare re-run from inside it)."

@@ -1,4 +1,4 @@
-# Extending forge-ai
+# Extending codeforge
 
 How to add capability while keeping the project simple and interoperable across
 **Claude Code, Codex, and OpenCode**.
