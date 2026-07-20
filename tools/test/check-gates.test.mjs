@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test as _test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
@@ -8,6 +8,13 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const script = join(repoRoot, 'src', 'shared', 'scripts', 'check-gates.sh');
+
+// The sh script needs a POSIX shell. On Windows CI (where `node --test tools/test/`
+// runs so the .ps1 parity tests execute under pwsh) `sh` may be absent — skip
+// gracefully, mirroring the .ps1 test's `hasPwsh` guard, rather than hard-failing.
+let hasSh = true;
+try { execFileSync('sh', ['-c', 'exit 0'], { stdio: 'pipe' }); } catch { hasSh = false; }
+const test = (name, fn) => _test(name, hasSh ? {} : { skip: true }, fn);
 
 function git(cwd, ...args) {
   execFileSync('git', args, { cwd, stdio: 'pipe' });
@@ -107,8 +114,10 @@ test('f: N/A with empty reason → exit 1', () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test('g: on default branch (no merge-base) → skip → exit 0', () => {
-  const dir = setup({ report: undefined, onDefaultBranch: true });
+test('g: no base resolves (default branch), named report PRESENT + PASS → exit 0 (freshness skipped, existence+PASS enforced)', () => {
+  // On the only branch (main): main == current so it is skipped, no dev/master/origin →
+  // base unresolved. Freshness cannot be checked, but existence + top-level PASS still are.
+  const dir = setup({ report: 'VERDICT: PASS\n', onDefaultBranch: true });
   assert.equal(run(dir), 0);
   rmSync(dir, { recursive: true, force: true });
 });
@@ -130,12 +139,12 @@ test('j: report FIRST verdict is FAIL but a LATER per-UC line is VERDICT: PASS �
   rmSync(dir, { recursive: true, force: true });
 });
 
-test('k: E2E box line copied from the ship-gates.md doc text (no real N/A escape) + no report → exit 1', () => {
-  // Proves Fix 5: the doc line in ship-gates.md:19 contains the substring "N/A:" inside
-  // backticked explanatory text ("— `N/A: <reason>` allowed for ...") but NOT the real
-  // escape form "— N/A:" (em-dash, space, N/A:, no backtick). If a user mis-copies that
-  // doc line into state.md and checks it, the gate must NOT treat it as an N/A skip —
-  // it must fall through to requiring a real report, which is absent here.
+test('k: E2E box line copied from the ship-gates.md doc text (no real N/A escape) + placeholder → exit 1', () => {
+  // Proves the doc line in ship-gates.md contains the substring "N/A:" inside backticked
+  // explanatory text ("— `N/A: <reason>` allowed for ...") but NOT the real escape form
+  // "— N/A:" (em-dash, space, N/A:, no backtick). If a user mis-copies that doc line into
+  // state.md and checks it, the gate must NOT treat it as an N/A skip — it falls through
+  // and is rejected as a placeholder report path (`<...>`).
   const dir = setup({
     box: '- [x] E2E verified via verify-e2e (report: docs/e2e/reports/<...>.md) — `N/A: <reason>` allowed for purely internal changes (migration, refactor, tooling) and UI-only changes (no v1 adapter)',
     report: undefined,
@@ -169,5 +178,190 @@ test('i: box checked + report git-add STAGED (not committed) on branch + PASS �
 - [x] f
 `);
   assert.equal(run(dir), 0);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('l: named-path mismatch — box names an ABSENT report while an UNRELATED fresh PASS exists → exit 1', () => {
+  // Closes the "any report" hole: the box names feat.md (which does NOT exist) but an
+  // unrelated fresh PASS report other.md DOES exist. The old code scanned the whole
+  // reports dir and would pass on other.md; the named-path gate must fail.
+  const dir = mkdtempSync(join(tmpdir(), 'cg-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'other.md'), 'VERDICT: PASS\n');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('m: placeholder report path rejected even when an unrelated fresh PASS exists → exit 1', () => {
+  // The box still carries the `<...>` placeholder. The old code would pass on the unrelated
+  // fresh PASS report present in the dir; the named-path gate must reject the placeholder.
+  const dir = mkdtempSync(join(tmpdir(), 'cg-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'other.md'), 'VERDICT: PASS\n');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/<...>.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('n: named report committed on the feature branch (base = main) + PASS → exit 0', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cg-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'feat.md'), 'VERDICT: PASS\n');
+  git(dir, 'add', 'docs/e2e/reports/feat.md'); git(dir, 'commit', '-qm', 'e2e report');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+  assert.equal(run(dir), 0);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('o: dev-based branch — a PASS report inherited on dev cannot satisfy the box that names THIS feature report → exit 1', () => {
+  // Repo has main + dev. dev carries an inherited PASS report at a DIFFERENT path.
+  // The feature branch forks from dev; its box names feat.md, which is absent. Closest
+  // merge-base is dev, and the dev-inherited report is not the named one → exit 1.
+  const dir = mkdtempSync(join(tmpdir(), 'cg-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'dev');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'inherited.md'), 'VERDICT: PASS\n');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'dev inherited report');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('p: named report committed on base then edited unstaged on branch → fresh via unstaged edit → exit 0', () => {
+  // Report committed on main (base), then edited (unstaged) on the feature branch. It is
+  // not committed/staged on the branch, but the unstaged tracked edit makes it fresh.
+  const dir = mkdtempSync(join(tmpdir(), 'cg-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'feat.md'), 'VERDICT: FAIL\n');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed+report');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  // Unstaged edit on the branch flips it to PASS.
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'feat.md'), 'VERDICT: PASS\n');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+  assert.equal(run(dir), 0);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('q: no-base fail-safe — single branch (no main/master/dev), named report PRESENT + PASS → exit 0 with freshness note', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cg-'));
+  git(dir, 'init', '-q', '-b', 'feat/solo');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'feat.md'), 'VERDICT: PASS\n');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+  assert.equal(run(dir), 0);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('r: no-base fail-safe — single branch, named report ABSENT → exit 1 (never fail open)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cg-'));
+  git(dir, 'init', '-q', '-b', 'feat/solo');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
   rmSync(dir, { recursive: true, force: true });
 });

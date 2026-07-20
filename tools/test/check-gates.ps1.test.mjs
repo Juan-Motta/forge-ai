@@ -88,3 +88,143 @@ test('ps1 parity: box checked + report git-add STAGED (not committed) on branch 
   assert.equal(run(dir), 0);
   rmSync(dir, { recursive: true, force: true });
 });
+
+test('ps1 parity: named-path mismatch — box names ABSENT report, unrelated fresh PASS exists → exit 1', { skip: !hasPwsh }, () => {
+  // Mirrors check-gates.sh test 'l' — closes the "any report" hole. The box names feat.md
+  // (absent) while an unrelated fresh PASS other.md exists; the named-path gate must fail.
+  const dir = mkdtempSync(join(tmpdir(), 'cgps-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'other.md'), 'VERDICT: PASS\n');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('ps1 parity: placeholder report path rejected even with an unrelated fresh PASS → exit 1', { skip: !hasPwsh }, () => {
+  // Mirrors check-gates.sh test 'm'.
+  const dir = mkdtempSync(join(tmpdir(), 'cgps-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'other.md'), 'VERDICT: PASS\n');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/<...>.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('ps1 parity: named report committed on the feature branch (base = main) + PASS → exit 0', { skip: !hasPwsh }, () => {
+  // Mirrors check-gates.sh test 'n'.
+  const dir = mkdtempSync(join(tmpdir(), 'cgps-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'feat.md'), 'VERDICT: PASS\n');
+  git(dir, 'add', 'docs/e2e/reports/feat.md'); git(dir, 'commit', '-qm', 'e2e report');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+  assert.equal(run(dir), 0);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('ps1 parity: dev-based branch — inherited PASS on dev cannot satisfy the box naming THIS report → exit 1', { skip: !hasPwsh }, () => {
+  // Mirrors check-gates.sh test 'o' — closest merge-base is dev; the dev-inherited report
+  // is not the box-named one, so the absent named report must fail the gate.
+  const dir = mkdtempSync(join(tmpdir(), 'cgps-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+  git(dir, 'checkout', '-q', '-b', 'dev');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'inherited.md'), 'VERDICT: PASS\n');
+  git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'dev inherited report');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('ps1 parity: no-base fail-safe — single branch, PRESENT+PASS → exit 0; ABSENT → exit 1', { skip: !hasPwsh }, () => {
+  // Mirrors check-gates.sh tests 'q'/'r' — no main/master/dev resolves, so freshness is
+  // skipped with a note, but existence + PASS are still enforced (never fail open).
+  const mkSolo = (present) => {
+    const dir = mkdtempSync(join(tmpdir(), 'cgps-'));
+    git(dir, 'init', '-q', '-b', 'feat/solo');
+    git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+    writeFileSync(join(dir, 'seed'), 'x');
+    git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'seed');
+    if (present) {
+      mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+      writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'feat.md'), 'VERDICT: PASS\n');
+    }
+    mkdirSync(join(dir, '.workflow'), { recursive: true });
+    writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] a
+- [x] b
+- [x] c
+- [x] d
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
+- [x] f
+`);
+    return dir;
+  };
+  let d = mkSolo(true);  assert.equal(run(d), 0); rmSync(d, { recursive: true, force: true });
+  d = mkSolo(false);     assert.equal(run(d), 1); rmSync(d, { recursive: true, force: true });
+});
