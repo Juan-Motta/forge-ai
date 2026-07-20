@@ -4,7 +4,7 @@ Notable changes to the forge-ai framework itself, newest first. This is the fram
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
-## Unreleased
+## 0.4.0 — 2026-07-20
 
 **Fix — `codex exec` hangs when an agent drives the council.** `shared/rules/models.md`'s
 Codex invocation lacked `< /dev/null`, so a driver (e.g. Claude Code) running an advisor
