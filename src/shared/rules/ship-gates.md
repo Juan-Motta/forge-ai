@@ -23,7 +23,7 @@ shipping.
 > produced a `VERDICT: PASS` report committed under `docs/e2e/reports/`. `check-gates`
 > binds the box to that artifact, but the report is still the agent's own output — it is
 > not the Verified tier (which requires an out-of-turn recompute in CI). See the
-> Verified / Attested / Advisory ladder above.
+> Verified / Attested / Advisory ladder below.
 
 The active workflow records its profile in `.workflow/state.md` (the **Profile** field —
 see `shared/state.template.md`); `finish-branch` validates that profile's boxes before shipping.
