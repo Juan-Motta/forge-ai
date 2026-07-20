@@ -106,7 +106,7 @@ reads no gate state and matches by command pattern, so it's bypassable:
 The prompt is a commit-confirmation, **not** proof the gates are green: the approver must run
 `check-gates.sh` or read `.workflow/state.md` first.
 
-**Optional hard block (Claude Code only):** `npx codeforge --with-hooks` (or
+**Optional hard block (Claude Code only):** `npx @jualopezmo/codeforge --with-hooks` (or
 `install.sh --with-hooks`) installs a Claude Code `PreToolUse` hook — the same `check-gates`
 behind a hook — that **actually blocks** a ship action when the gates are incomplete. It's
 per-developer (written to gitignored `.claude/settings.local.json`), Claude-specific by design
@@ -219,9 +219,9 @@ the current directory.
 
 ```bash
 cd /path/to/your-project
-npx codeforge              # install into the current directory
-npx codeforge --upgrade    # refresh framework files later
-npx codeforge --version    # print the installed codeforge version
+npx @jualopezmo/codeforge              # install into the current directory
+npx @jualopezmo/codeforge --upgrade    # refresh framework files later
+npx @jualopezmo/codeforge --version    # print the installed codeforge version
 ```
 
 The Node wrapper just runs the platform installer bundled in the package (`sh` / `pwsh`); the
@@ -358,7 +358,7 @@ discover automatically.
 Codex, and OpenCode** — driving a real project. Adds a CI-enforced skill linter + routing
 evals, anti-rationalization anatomy across every skill, a deterministic `check-gates` ship-gate
 validator (with an opt-in Claude Code hard-block via `--with-hooks`), the `adr` and `simplify`
-skills, and `.forge-version` + an `npx codeforge` entry point.
+skills, and `.forge-version` + an `npx @jualopezmo/codeforge` entry point.
 
 Engines: Claude Code, Codex, OpenCode. 13 skills, 11 rules. Neutral-source + generator model
 (no symlinks), **thin install** (only runtime lands in the target; machinery stays in codeforge)

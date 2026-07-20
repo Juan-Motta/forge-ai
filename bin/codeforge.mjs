@@ -2,12 +2,12 @@
 // codeforge — npx entry point. Thin wrapper that runs the platform installer
 // bundled in this package (install.sh on POSIX, install.ps1 on Windows),
 // passing through all arguments. The payload (src/, VERSION) travels in the
-// package, so `npx codeforge [target] [--upgrade]` works with no repo clone.
+// package, so `npx @jualopezmo/codeforge [target] [--upgrade]` works with no repo clone.
 //
-//   npx codeforge                 # install into the current directory
-//   npx codeforge ./my-project    # install into a target
-//   npx codeforge --upgrade       # refresh an existing install
-//   npx codeforge --version       # print the codeforge version
+//   npx @jualopezmo/codeforge                 # install into the current directory
+//   npx @jualopezmo/codeforge ./my-project    # install into a target
+//   npx @jualopezmo/codeforge --upgrade       # refresh an existing install
+//   npx @jualopezmo/codeforge --version       # print the codeforge version
 
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -33,7 +33,7 @@ if (args.includes('--version') || args.includes('-v')) {
 if (args.includes('--help') || args.includes('-h')) {
   console.log(`codeforge ${version()} — install the cross-engine workflow discipline into a project.
 
-  npx codeforge [target-dir] [--upgrade] [--with-hooks] [--git-init] [--no-isolate]
+  npx @jualopezmo/codeforge [target-dir] [--upgrade] [--with-hooks] [--git-init] [--no-isolate]
 
   target-dir    where to install (default: current directory)
   --upgrade     refresh framework files in an existing install

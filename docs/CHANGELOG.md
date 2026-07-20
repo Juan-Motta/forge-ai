@@ -8,7 +8,7 @@ development log; it is **not** the seed shipped to installed projects (that live
 
 **Rebrand — `forge-ai` → `codeforge`.** The framework, npm package, and CLI command are now
 `codeforge` (the original `forge-ai` name was blocked on npm by a prior unpublish). Install
-is `npx codeforge`; the GitHub repo is `Juan-Motta/codeforge`. First npm release under the
+is `npx @jualopezmo/codeforge`; the GitHub repo is `Juan-Motta/codeforge`. First npm release under the
 new name. The `.forge-version` stamp filename is unchanged (deliberately — it is not part of
 the `forge-ai` brand token).
 
@@ -129,7 +129,7 @@ fixed 5 real bugs and added a Windows CI job. Also: version stamping + `npx` fro
 - **Installer git awareness.** The workflow (branches/commits) and the ship gates operate on
   git, so the installer now checks whether the target is a repo. If it isn't, it prints an
   **advisory** (never touches VCS on its own — codeforge's no-surprises ethos); pass `--git-init`
-  (`-GitInit` / `npx codeforge --git-init`) to have it run `git init` + a baseline
+  (`-GitInit` / `npx @jualopezmo/codeforge --git-init`) to have it run `git init` + a baseline
   `chore: adopt codeforge` commit (skipped cleanly if git identity isn't configured). An existing
   repo is used as-is with no message. bash↔pwsh parity; smoke.sh gains a git case (13 total).
 
@@ -139,7 +139,7 @@ Bundles all of Phase 2 (skill quality machinery, honest enforcement, anti-ration
 anatomy) plus the first Phase-3 distribution work.
 
 - **Phase 3 — opt-in hard-block gate (`--with-hooks`, Claude Code only).** `install.sh
-  --with-hooks` (`-WithHooks` / `npx codeforge --with-hooks`) installs a Claude Code `PreToolUse`
+  --with-hooks` (`-WithHooks` / `npx @jualopezmo/codeforge --with-hooks`) installs a Claude Code `PreToolUse`
   hook into gitignored `.claude/settings.local.json` that runs `shared/scripts/claude-gate-hook.{sh,ps1}`
   — the same `check-gates` behind a hook — and **exits 2 to actually block** `git commit` /
   `git push` / `gh pr create` when the ship-gate boxes are incomplete. This is the one place
@@ -160,7 +160,7 @@ anatomy) plus the first Phase-3 distribution work.
 - **Phase 3 — version stamp + `npx` distribution.** A root `VERSION` file is now the single
   source of truth; the installers stamp it into `.forge-version` in the target and print a
   direction-aware **drift advisory** on `--upgrade` when the target's recorded version differs
-  (informational, never blocks). New `npx codeforge [target] [--upgrade]` entry point: a
+  (informational, never blocks). New `npx @jualopezmo/codeforge [target] [--upgrade]` entry point: a
   dependency-free Node wrapper (`bin/codeforge.mjs`) runs the platform installer bundled in the
   npm package, so a project can adopt codeforge with no repo clone (`--version` / `--help`
   supported). `package.json` is now a publishable `codeforge` package (`files` whitelist ships
