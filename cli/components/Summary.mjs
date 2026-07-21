@@ -14,7 +14,8 @@ export default function Summary({ answers, onNext }) {
     e(Text, null, `Profile: ${answers.profile}   Hooks: ${answers.withHooks ? 'yes' : 'no'}`),
     e(Text, null, `Default reviewer: ${answers.defaultReviewer ?? '(none)'}`),
     e(Box, { marginTop: 1, flexDirection: 'column' },
-      e(Text, { color: theme.molten }, 'Reproducible (non-interactive):'),
+      e(Text, { color: theme.molten },
+        'Equivalent non-interactive install (defaults — review policy is wizard-only for now):'),
       e(Text, { wrap: 'wrap' }, cmd)),
     e(Box, { marginTop: 1 }, e(Text, { dimColor: true }, 'Enter = install   q = cancel')));
 }

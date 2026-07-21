@@ -12,6 +12,10 @@ development log; it is **not** the seed shipped to installed projects (that live
   `install.sh`/`install.ps1` and applies config as idempotent post-install edits. Falls back
   to the non-interactive installer when flags are passed or there is no TTY (CI/pipes). Adds
   `ink`/`react` as runtime deps (the clone `install.sh` path stays dependency-free).
+  The printed "equivalent non-interactive install" command installs with **defaults only**:
+  it reproduces target + `--yes` + gate/project flags, since `install.sh` has no
+  `--profile`/`--reviewer` surface. Review-policy/profile configuration is currently
+  wizard-only — full non-interactive parity is a follow-up.
 
 ## 0.4.0 — 2026-07-20
 

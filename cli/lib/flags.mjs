@@ -25,16 +25,14 @@ export function installerFlags(answers) {
   return out;
 }
 
+// Emits ONLY tokens install.sh actually accepts (target + --yes + the four install
+// flags). Review policy / profile are applied by the wizard's post-install edits and
+// have no non-interactive equivalent today — see Summary.mjs's caveat text.
 export function nonInteractiveCommand(answers) {
   const parts = ['npx @jualopezmo/codeforge', answers.target, '--yes'];
   if (answers.withHooks) parts.push('--with-hooks');
   if (answers.gitInit) parts.push('--git-init');
   if (answers.noIsolate) parts.push('--no-isolate');
-  parts.push(`--profile=${answers.profile}`);
-  for (const r of answers.reviewers) {
-    parts.push(`--reviewer=${r.engine}:${r.model}${r.effort ? ':' + r.effort : ''}`);
-  }
-  if (answers.defaultReviewer) parts.push(`--default-reviewer=${answers.defaultReviewer}`);
   return parts.join(' ');
 }
 

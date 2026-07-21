@@ -17,11 +17,16 @@ test('installerFlags maps answers to install.sh args', () => {
   assert.deepEqual(installerFlags(a), ['/tmp/x', '--with-hooks', '--git-init']);
 });
 
-test('nonInteractiveCommand is reproducible and includes reviewer + profile', () => {
+test('nonInteractiveCommand emits only install.sh-valid tokens (no profile/reviewer)', () => {
   const a = { ...makeDefaultAnswers('/tmp/x'), profile: 'light' };
   const cmd = nonInteractiveCommand(a);
   assert.match(cmd, /npx @jualopezmo\/codeforge \/tmp\/x/);
   assert.match(cmd, /--yes/);
-  assert.match(cmd, /--profile=light/);
-  assert.match(cmd, /--reviewer=codex:gpt-5\.6-sol:xhigh/);
+  // Review policy / profile have no non-interactive equivalent today — install.sh would
+  // reject any of these tokens with exit 2, so they must never appear in the printed command.
+  assert.doesNotMatch(cmd, /--profile=/);
+  assert.doesNotMatch(cmd, /--reviewer=/);
+  assert.doesNotMatch(cmd, /--default-reviewer=/);
+  // The full command is exactly: npx @jualopezmo/codeforge <target> --yes [+ install flags]
+  assert.equal(cmd, 'npx @jualopezmo/codeforge /tmp/x --yes');
 });

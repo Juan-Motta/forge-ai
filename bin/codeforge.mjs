@@ -52,11 +52,25 @@ if (interactive) {
   const answers = await runWizard(pkgRoot, version());
   if (!answers) { console.log('codeforge: setup cancelled.'); process.exit(0); }
   const r = runInstaller(pkgRoot, installerFlags(answers));
-  if (r.status === 0) applyAll(answers.target, answers);
+  if (r.error) {
+    const hint = process.platform === 'win32' ? 'PowerShell 7 (pwsh) is required on Windows.' : '';
+    console.error(`codeforge: could not launch ${r.cmd}: ${r.error.message}. ${hint}`.trim());
+    process.exit(1);
+  }
+  if (r.status === 0) {
+    try {
+      applyAll(answers.target, answers);
+    } catch (err) {
+      console.error(`codeforge: installed, but applying config failed: ${err.message}`);
+    }
+  }
   process.exit(r.status);
 } else {
-  // Non-interactive (flags/target/CI/pipe): unchanged behavior — delegate straight to the installer.
-  const r = runInstaller(pkgRoot, args);
+  // Non-interactive (flags/target/CI/pipe): delegate straight to the installer. --yes and
+  // --non-interactive are bin-level "skip the wizard" signals only — install.sh doesn't
+  // accept them, so they're stripped before being passed through.
+  const installerArgs = args.filter((a) => a !== '--yes' && a !== '--non-interactive');
+  const r = runInstaller(pkgRoot, installerArgs);
   if (r.error) {
     const hint = process.platform === 'win32' ? 'PowerShell 7 (pwsh) is required on Windows.' : '';
     console.error(`codeforge: could not launch ${r.cmd}: ${r.error.message}. ${hint}`.trim());

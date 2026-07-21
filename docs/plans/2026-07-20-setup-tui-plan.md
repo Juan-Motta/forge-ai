@@ -1013,7 +1013,11 @@ git commit -m "docs: document the interactive setup console"
 - Gates profile + hooks → Task 4 (applyProfile), `Gates.mjs` (T6), `installerFlags` (T3) ✓
 - Project + git + isolation → Task 3 (flags), Task 4 (applyProject), `Project.mjs` (T6) ✓
 - Delegate to install.sh + post-install edits → Task 5 + Task 7 ✓
-- Non-interactive parity → Task 3 (`nonInteractiveCommand`, `hasInstallIntent`) + Task 7 fallback + Task 7 smoke case ✓
+- Non-interactive parity (partial, honestly scoped) → Task 3 (`nonInteractiveCommand`,
+  `hasInstallIntent`) + Task 7 fallback + Task 7 smoke case ✓. `nonInteractiveCommand` emits
+  only tokens `install.sh` accepts (target + `--yes` + install flags); review-policy/profile
+  configuration has no non-interactive equivalent today and is applied by the wizard only.
+  Full non-interactive parity (a `--profile=`/`--reviewer=` install.sh surface) is a follow-up.
 - Splash + theme from icon → Task 1 (`anvil.ans.mjs`) + `Splash.mjs` (T6) ✓
 - Testing → tools/test/* (T2–T6) + smoke (T7) ✓
 - Runtime dep documented → Task 1 + Task 8 CHANGELOG ✓

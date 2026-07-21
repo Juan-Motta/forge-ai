@@ -8,11 +8,15 @@ const e = React.createElement;
 export default function Gates({ answers, setAnswers, onNext, engines }) {
   const claudeInstalled = engines?.claude?.installed;
   const items = [
-    { label: 'Profile: standard (full gates)', value: { profile: 'standard' } },
-    { label: 'Profile: light (quick-fix)', value: { profile: 'light' } },
+    { key: 'profile-standard', label: 'Profile: standard (full gates)', value: { profile: 'standard' } },
+    { key: 'profile-light', label: 'Profile: light (quick-fix)', value: { profile: 'light' } },
   ];
   if (claudeInstalled) {
-    items.push({ label: 'Also install the Claude hard-block hook (--with-hooks)', value: { withHooks: true } });
+    items.push({
+      key: 'with-hooks',
+      label: 'Also install the Claude hard-block hook (--with-hooks)',
+      value: { withHooks: true },
+    });
   }
   return e(Box, { flexDirection: 'column', paddingX: 1 },
     e(Text, { color: theme.cyan, bold: true }, 'Gates'),

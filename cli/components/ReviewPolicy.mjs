@@ -18,7 +18,9 @@ export default function ReviewPolicy({ answers, setAnswers, onNext }) {
       e(SelectInput, { items, onSelect: (i) => setEngine(i.value) }));
   }
   const items = catalog[engine].options.map((o) => ({
-    label: `${o.model}${o.effort ? ' · ' + o.effort : ''}`, value: o,
+    key: `${o.model}${o.effort ? ':' + o.effort : ''}`,
+    label: `${o.model}${o.effort ? ' · ' + o.effort : ''}`,
+    value: o,
   }));
   return e(Box, { flexDirection: 'column', paddingX: 1 },
     e(Text, { color: theme.cyan, bold: true }, `Model for ${engine}`),
