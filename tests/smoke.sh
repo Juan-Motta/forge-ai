@@ -227,4 +227,12 @@ else
   echo "skip: node not installed — npx entry-point case skipped"
 fi
 
+# --- 17. the npx entry point stays non-interactive when stdin/stdout are not a TTY ---
+if command -v node >/dev/null 2>&1; then
+  TX2="$TMP/npx-notty"; mkdir -p "$TX2"
+  node "$ROOT/bin/codeforge.mjs" "$TX2" </dev/null >/dev/null 2>&1 || fail "npx non-TTY install exited non-zero"
+  [ -f "$TX2/CLAUDE.md" ] || fail "npx non-TTY did not fall back to install (no CLAUDE.md)"
+  echo "ok: npx entry point stays non-interactive without a TTY"
+fi
+
 echo "ALL PASS"
