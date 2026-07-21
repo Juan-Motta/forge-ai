@@ -9,10 +9,18 @@ function defaultSpawn(cmd, args) {
   return { status: r.status ?? 1, stdout: r.stdout ?? '' };
 }
 
+// Cross-product of an engine's curated models × its reasoning efforts → [{model, effort}].
+function curated(engine) {
+  const c = catalog[engine];
+  if (!c?.models) return [];
+  const efforts = c.efforts?.length ? c.efforts : [null];
+  return c.models.flatMap((m) => efforts.map((eff) => ({ model: m, effort: eff })));
+}
+
 // Model options for an engine, as [{ model, effort|null }].
 // - OpenCode exposes a live list via `opencode models`; we use it when available.
-// - Codex and Claude have no model-listing command, so we fall back to the curated
-//   catalog options. The caller always adds a CUSTOM entry for a free-text id.
+// - Codex and Claude have no model-listing command, so we use the curated catalog
+//   (each model × each reasoning level). The caller always adds a CUSTOM free-text entry.
 export function optionsFor(engine, spawn = defaultSpawn) {
   if (engine === 'opencode') {
     const r = spawn('opencode', ['models']);
@@ -21,5 +29,5 @@ export function optionsFor(engine, spawn = defaultSpawn) {
       if (models.length) return models.map((m) => ({ model: m, effort: null }));
     }
   }
-  return catalog[engine]?.options ?? [];
+  return curated(engine);
 }
