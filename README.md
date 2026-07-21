@@ -230,6 +230,20 @@ the same thin payload. Each install stamps `.forge-version` into the target, and
 `--upgrade` from a different version prints an advisory. _(Publishing to npm is pending name
 confirmation; until then use the clone method below.)_
 
+### Interactive setup (default)
+
+Run with no arguments in a terminal and codeforge opens a full-screen setup console:
+
+```bash
+npx @jualopezmo/codeforge          # opens the interactive wizard
+```
+
+It detects which engines you have (Claude / Codex / OpenCode — you don't need all
+three), lets you set the **default review policy** (which engine + model answers a bare
+"review"), the gate profile, and project options, then runs the installer. Pass any flag
+(or run without a TTY, e.g. in CI) to skip the UI and install non-interactively; the
+wizard's summary prints the exact non-interactive command it would run.
+
 ### From a clone
 
 ```bash

@@ -4,6 +4,15 @@ Notable changes to the codeforge framework itself, newest first. This is the fra
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
+## Unreleased
+
+- **Interactive setup console (Ink TUI).** `npx @jualopezmo/codeforge` with no args on a
+  TTY now opens a full-screen wizard: engine detection, default review-policy configuration
+  (written to `shared/rules/models.md`), gate profile, and project options. Delegates to
+  `install.sh`/`install.ps1` and applies config as idempotent post-install edits. Falls back
+  to the non-interactive installer when flags are passed or there is no TTY (CI/pipes). Adds
+  `ink`/`react` as runtime deps (the clone `install.sh` path stays dependency-free).
+
 ## 0.4.0 — 2026-07-20
 
 **Rebrand — `forge-ai` → `codeforge`.** The framework, npm package, and CLI command are now
