@@ -41,3 +41,29 @@ test('applyProject fills special rules when provided', () => {
   const md = readFileSync(join(dir, 'PROJECT.md'), 'utf8');
   assert.match(md, /Never touch prod\./);
 });
+
+test('applyProject is idempotent across repeated calls with identical answers', () => {
+  const dir = scaffoldTarget();
+  const answers = { project: { persona: '', info: '', rules: 'Never touch prod.' } };
+  applyProject(dir, answers);
+  applyProject(dir, answers);
+  const afterRun2 = readFileSync(join(dir, 'PROJECT.md'), 'utf8');
+  applyProject(dir, answers);
+  const afterRun3 = readFileSync(join(dir, 'PROJECT.md'), 'utf8');
+  assert.equal(afterRun2, afterRun3);
+  assert.equal(afterRun3, '## Special rules\n\nNever touch prod.\n');
+});
+
+test('applyProject inserts rules text containing literal replacement tokens verbatim', () => {
+  const dir = scaffoldTarget();
+  const tricky = 'Refund rule: give $1 credit, never $& the balance, escape $$ signs.';
+  applyProject(dir, { project: { persona: '', info: '', rules: tricky } });
+  const md = readFileSync(join(dir, 'PROJECT.md'), 'utf8');
+  assert.ok(md.includes(tricky), 'tricky replacement-token content should appear verbatim');
+});
+
+test('applyModels throws when the target file does not exist', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cf-apply-missing-'));
+  const answers = { reviewers: [{ engine: 'codex', model: 'gpt-5.6-sol', effort: 'xhigh' }], defaultReviewer: 'codex' };
+  assert.throws(() => applyModels(dir, answers), /not found/);
+});
