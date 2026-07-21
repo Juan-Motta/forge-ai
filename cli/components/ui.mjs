@@ -10,13 +10,13 @@ export const Indicator = ({ isSelected }) => e(Text, { color: theme.molten }, is
 export const Item = ({ isSelected, label }) =>
   e(Text, { color: isSelected ? theme.cyan : theme.text, bold: isSelected }, label);
 
-export const moveSelectFooter = [
-  e(Text, { key: 'm', color: theme.molten, bold: true }, '↑↓'), ' move   ',
-  e(Text, { key: 's', color: theme.molten, bold: true }, 'Enter'), ' select',
+export const moveSelectFooter = (ui) => [
+  e(Text, { key: 'm', color: theme.molten, bold: true }, '↑↓'), ` ${ui.move}   `,
+  e(Text, { key: 's', color: theme.molten, bold: true }, ui.enter), ` ${ui.select}`,
 ];
 
-export const enterFooter = (word) => [
-  e(Text, { key: 's', color: theme.molten, bold: true }, 'Enter'), ` ${word}`,
+export const enterFooter = (ui, word) => [
+  e(Text, { key: 's', color: theme.molten, bold: true }, ui.enter), ` ${word}`,
 ];
 
 // Bordered card: cyan title, dim subtitle, optional breadcrumb, framed body, footer.

@@ -12,5 +12,5 @@ test('Summary shows the equivalent non-interactive command (defaults only, no pr
   // Profile/reviewer are wizard-only — install.sh has no non-interactive equivalent for
   // them, so the printed command must not claim one.
   assert.doesNotMatch(lastFrame(), /--profile=/);
-  assert.match(lastFrame(), /review policy is wizard-only/);
+  assert.match(lastFrame(), /wizard-only/); // phrase may wrap inside the card border
 });
