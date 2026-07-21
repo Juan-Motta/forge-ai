@@ -16,6 +16,11 @@ with — not pinned by this project.
 | **Claude** | `opus` | `high` | `claude -p --model opus --effort high "<prompt>"` |
 | **OpenCode** | `opencode-go/glm-5.2` | default | `opencode run -m opencode-go/glm-5.2 "<prompt>"` |
 
+<!-- codeforge:review-policy:start -->
+<!-- Managed by the codeforge setup wizard. Edit here or re-run the wizard. -->
+Default reviewer(s): Codex (`gpt-5.6-sol`, xhigh)
+<!-- codeforge:review-policy:end -->
+
 Same model/effort per engine regardless of role — the role only decides **which
 engine(s)** to use:
 

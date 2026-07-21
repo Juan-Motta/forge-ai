@@ -45,10 +45,10 @@ jobs:
             if [ -n "$summary" ]; then printf '%s\n\n' "$summary"; else printf '## %s\n\n' "$tag"; fi
             printf '## Install or upgrade\n\n'
             printf '```bash\n'
-            printf 'git clone https://github.com/%s ~/forge-ai\n' "$GITHUB_REPOSITORY"
+            printf 'git clone https://github.com/%s ~/codeforge\n' "$GITHUB_REPOSITORY"
             printf 'cd /path/to/your-project\n'
-            printf '~/forge-ai/install.sh              # first install (--git-init to set up git too)\n'
-            printf '~/forge-ai/install.sh --upgrade    # update an existing install\n'
+            printf '~/codeforge/install.sh              # first install (--git-init to set up git too)\n'
+            printf '~/codeforge/install.sh --upgrade    # update an existing install\n'
             printf '```\n\n'
             printf 'Runs identically on Claude Code, Codex, and OpenCode.\n\n'
             if [ -n "$detail" ]; then

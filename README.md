@@ -1,8 +1,8 @@
-# forge-ai
+# codeforge
 
 **One workflow discipline that runs identically on Claude Code, Codex, and OpenCode.**
 
-forge-ai gives an AI coding agent a consistent, opinionated way of working — research →
+codeforge gives an AI coding agent a consistent, opinionated way of working — research →
 plan → TDD → cross-engine review → verify → ship — plus shared memory and session
 continuity. The discipline is **skills + config first** — no runtime hooks by default. The
 build-time scripts (the installer and the `sync` generator) run outside the agent's turn; a
@@ -35,16 +35,16 @@ the three CLIs at the project and they pick up the same rules, skills, and guard
 
 The shippable payload is a single **engine-neutral source** in **`src/`** — the
 instructions, skills, rules, and per-engine configs. This source and its generators live in
-the **forge-ai repo**; they never travel into a target project. `install.sh` copies only the
+the **codeforge repo**; they never travel into a target project. `install.sh` copies only the
 runtime files a target needs and runs a generator (`sync.sh` / `sync.ps1`) that produces each
 engine's config and skills **by plain copy** straight into the target — no symlinks, so it
 works identically on macOS, Linux, and Windows. Editing is centralized: change the neutral
-source in forge-ai, then re-run the installer against the target (**thin install** — the
+source in codeforge, then re-run the installer against the target (**thin install** — the
 target gets only what the agent needs at runtime, none of the build machinery).
 
 ```mermaid
 flowchart TD
-    subgraph SRC["Neutral source (lives in forge-ai, edit here)"]
+    subgraph SRC["Neutral source (lives in codeforge, edit here)"]
         INS["CLAUDE.md"]
         SK["skills/&lt;name&gt;/SKILL.md"]
         RU["shared/rules/*.md"]
@@ -56,7 +56,7 @@ flowchart TD
     GEN --> OPEN["OpenCode<br/>AGENTS.md · opencode.json · reads .claude/.agents skills"]
 ```
 
-- **Neutral source vs generated:** you edit only the neutral source in forge-ai (`CLAUDE.md`,
+- **Neutral source vs generated:** you edit only the neutral source in codeforge (`CLAUDE.md`,
   `skills/`, `shared/rules/`, `configs/`). The per-engine artifacts (`AGENTS.md`,
   `opencode.json`, `.claude/`, `.agents/`, `.codex/`) are **generated into the target and
   committed with it** — so a clone works immediately — but never hand-edited. The target holds
@@ -68,7 +68,7 @@ flowchart TD
   `.agents/skills` (Codex, also read by OpenCode). Codex only discovers project skills under
   `.agents/skills` — not `.codex/skills`.
 - **Configs:** `configs/claude/settings.json`, `configs/codex/config.toml`,
-  `configs/opencode.json` are the editable gate configs in the forge-ai source. Sync places
+  `configs/opencode.json` are the editable gate configs in the codeforge source. Sync places
   each where its engine looks for it in the target (`.claude/settings.json`,
   `.codex/config.toml`, root `opencode.json`) as a generated baseline. Per-project Claude
   overrides go in `.claude/settings.local.json` (gitignored, never touched by the installer).
@@ -106,7 +106,7 @@ reads no gate state and matches by command pattern, so it's bypassable:
 The prompt is a commit-confirmation, **not** proof the gates are green: the approver must run
 `check-gates.sh` or read `.workflow/state.md` first.
 
-**Optional hard block (Claude Code only):** `npx forge-ai --with-hooks` (or
+**Optional hard block (Claude Code only):** `npx @jualopezmo/codeforge --with-hooks` (or
 `install.sh --with-hooks`) installs a Claude Code `PreToolUse` hook — the same `check-gates`
 behind a hook — that **actually blocks** a ship action when the gates are incomplete. It's
 per-developer (written to gitignored `.claude/settings.local.json`), Claude-specific by design
@@ -116,12 +116,12 @@ same (Tier C in [`src/docs/extending.md`](src/docs/extending.md)); no adapter sh
 ### Repo layout
 
 The payload lives in `src/`, keeping the repo root free of files that would collide when
-working ON forge-ai (a root `CLAUDE.md`, `docs/`, etc.). `install.sh` reads `src/` but copies
+working ON codeforge (a root `CLAUDE.md`, `docs/`, etc.). `install.sh` reads `src/` but copies
 only the runtime subset into a target; the source, generators, and seed templates stay here:
 
 ```
-forge-ai/
-├── src/                          # ── SOURCE (stays in forge-ai; only runtime is copied) ──
+codeforge/
+├── src/                          # ── SOURCE (stays in codeforge; only runtime is copied) ──
 │   ├── CLAUDE.md                 #    canonical instructions (copied to the target)
 │   ├── skills/<name>/SKILL.md    #    canonical skills → generated into .claude/ + .agents/
 │   ├── shared/rules/*.md         #    discipline: severity, tdd, ship-gates, memory, …
@@ -133,7 +133,7 @@ forge-ai/
 │   └── CONTINUITY.template.md · PROJECT.template.md   # seed-only (never copied)
 │
 ├── VERSION                       # single source of truth for the version (→ .forge-version)
-├── bin/forge-ai.mjs              # npx entry point (wraps the installer)   ┐
+├── bin/codeforge.mjs              # npx entry point (wraps the installer)   ┐
 ├── tools/                        # dev-only quality machinery (linter + evals) │ framework only
 ├── install.sh · install.ps1      # installers (bash + PowerShell)             │ (never copied
 └── package.json · README.md · LICENSE   # npm package + docs + license        ┘  into a target)
@@ -144,8 +144,8 @@ After a **thin install**, a target project holds only runtime files: the managed
 the project-owned `PROJECT.md`, `CONTINUITY.md`, `docs/`; and the generated engine artifacts —
 `AGENTS.md`, `opencode.json`,
 `.claude/`, `.agents/`, `.codex/`. Committing the generated layer means a fresh clone of the
-project works immediately, with no post-clone step and no dependency on forge-ai. There is no
-source or generator in the target — to customize or upgrade, edit the forge-ai source and
+project works immediately, with no post-clone step and no dependency on codeforge. There is no
+source or generator in the target — to customize or upgrade, edit the codeforge source and
 re-run the installer against the project. (Only local state — `.workflow/`,
 `.claude/settings.local.json` — is gitignored.) Running an upgrade over a project installed
 by an older, non-thin version cleans up the leftover machinery automatically (`sync.sh`,
@@ -209,19 +209,19 @@ edit; the skills read from there rather than hard-coding commands.
 
 ## Installation
 
-forge-ai is the framework repo — install its discipline into a target project. It's a
+codeforge is the framework repo — install its discipline into a target project. It's a
 **thin install**: only the agent's runtime files land in the target (the generated engine
 artifacts + a small managed baseline), so a clone of that project works with no dependency on
-forge-ai, while all build machinery stays here. With no target argument the installer uses
+codeforge, while all build machinery stays here. With no target argument the installer uses
 the current directory.
 
 ### Fastest — `npx` (no clone)
 
 ```bash
 cd /path/to/your-project
-npx forge-ai              # install into the current directory
-npx forge-ai --upgrade    # refresh framework files later
-npx forge-ai --version    # print the installed forge-ai version
+npx @jualopezmo/codeforge              # install into the current directory
+npx @jualopezmo/codeforge --upgrade    # refresh framework files later
+npx @jualopezmo/codeforge --version    # print the installed codeforge version
 ```
 
 The Node wrapper just runs the platform installer bundled in the package (`sh` / `pwsh`); the
@@ -230,18 +230,32 @@ the same thin payload. Each install stamps `.forge-version` into the target, and
 `--upgrade` from a different version prints an advisory. _(Publishing to npm is pending name
 confirmation; until then use the clone method below.)_
 
+### Interactive setup (default)
+
+Run with no arguments in a terminal and codeforge opens a full-screen setup console:
+
+```bash
+npx @jualopezmo/codeforge          # opens the interactive wizard
+```
+
+It detects which engines you have (Claude / Codex / OpenCode — you don't need all
+three), lets you set the **default review policy** (which engine + model answers a bare
+"review"), the gate profile, and project options, then runs the installer. Pass any flag
+(or run without a TTY, e.g. in CI) to skip the UI and install non-interactively; the
+wizard's summary prints the exact non-interactive command it would run.
+
 ### From a clone
 
 ```bash
 # macOS / Linux
-cd /path/to/your-project && /path/to/forge-ai/install.sh   # install into the current dir
+cd /path/to/your-project && /path/to/codeforge/install.sh   # install into the current dir
 ./install.sh /path/to/your-project                         # or name the target explicitly
 ./install.sh /path/to/your-project --upgrade               # refresh framework files later
 ```
 
 ```powershell
 # Windows (PowerShell)
-pwsh /path/to/forge-ai/install.ps1                          # install into the current dir
+pwsh /path/to/codeforge/install.ps1                          # install into the current dir
 pwsh ./install.ps1 C:\path\to\your-project                  # or name the target explicitly
 pwsh ./install.ps1 C:\path\to\your-project -Upgrade         # refresh framework files later
 ```
@@ -252,14 +266,14 @@ What it does:
   `shared/state.template.md`, the framework's own entries in `shared/rules/` (refreshed **by
   name**), and the docs scaffolding. Your own rules dropped into `shared/rules/` are left
   untouched, so they **survive upgrades**. The source, generators (`sync.sh`/`sync.ps1`),
-  `configs/`, and seed templates are **not** copied — they live only in forge-ai.
+  `configs/`, and seed templates are **not** copied — they live only in codeforge.
 - **Creates project-owned files only if missing** (never clobbered on re-run): `PROJECT.md`,
   `CONTINUITY.md`, a seed `docs/CHANGELOG.md`. Per-project Claude overrides go in
   `.claude/settings.local.json` (gitignored, never touched).
 - **Generates the engine artifacts** by running `sync --out <target>` (no symlinks):
   `AGENTS.md`, `opencode.json`, and `.claude/`, `.agents/`, `.codex/` (config + skills) as a
-  baseline from the forge-ai source. These are **committed with the project** (so clones work
-  as-is); to change them, edit the forge-ai source and re-run the installer.
+  baseline from the codeforge source. These are **committed with the project** (so clones work
+  as-is); to change them, edit the codeforge source and re-run the installer.
 - **Self-heals an older, non-thin install** on upgrade: leftover machinery (`sync.sh`,
   `sync.ps1`, root templates, `docs/extending.md`) is removed, and a pre-existing `configs/`
   or neutral `skills/` is backed up to `*.pre-forge.bak` (never silently deleted).
@@ -280,7 +294,7 @@ What it does:
   `--no-isolate` to keep inheritance (e.g. an intentional monorepo root). It only manages a
   `settings.local.json` it created; one you own is never touched.
 
-Then fill in `PROJECT.md` in the target, edit the neutral source in forge-ai as needed
+Then fill in `PROJECT.md` in the target, edit the neutral source in codeforge as needed
 (`skills/`, `configs/`, `CLAUDE.md`) and re-run the installer against the project, and open
 the project in any of the three engines.
 
@@ -358,10 +372,10 @@ discover automatically.
 Codex, and OpenCode** — driving a real project. Adds a CI-enforced skill linter + routing
 evals, anti-rationalization anatomy across every skill, a deterministic `check-gates` ship-gate
 validator (with an opt-in Claude Code hard-block via `--with-hooks`), the `adr` and `simplify`
-skills, and `.forge-version` + an `npx forge-ai` entry point.
+skills, and `.forge-version` + an `npx @jualopezmo/codeforge` entry point.
 
 Engines: Claude Code, Codex, OpenCode. 13 skills, 11 rules. Neutral-source + generator model
-(no symlinks), **thin install** (only runtime lands in the target; machinery stays in forge-ai)
+(no symlinks), **thin install** (only runtime lands in the target; machinery stays in codeforge)
 — cross-platform (`install.sh` + `install.ps1`), validated by dry-run install on both bash and
 PowerShell (engine dirs, configs, and `AGENTS.md` generate; bare run targets the cwd; `--upgrade`
 preserves project-owned files and rules and self-heals an older non-thin install; bash↔pwsh

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# forge-ai smoke test — install into throwaway targets and assert the result.
+# codeforge smoke test — install into throwaway targets and assert the result.
 # Backs the README's "validated on bash and PowerShell" claim and guards install/sync
 # parity. Framework dev tool — NOT payload, never installed into a target.
 #
@@ -100,13 +100,13 @@ printf 'keep-me\n' > "$TB/shared/rules/keep-me.md"
 [ -e "$TB/shared/rules/keep-me.md" ] || fail "project rule was wrongly pruned"
 echo "ok: --upgrade prunes upstream-removed framework rules, keeps project rules"
 
-# --- 7. bare run installs into cwd; running from inside forge-ai is refused ---
+# --- 7. bare run installs into cwd; running from inside codeforge is refused ---
 TC="$TMP/cwd"; mkdir -p "$TC"
 ( cd "$TC" && "$ROOT/install.sh" >/dev/null ) || fail "bare install into cwd exited non-zero"
 [ -f "$TC/CLAUDE.md" ] || fail "bare run did not install into the current directory"
-if ( cd "$ROOT"     && "$ROOT/install.sh" >/dev/null 2>&1 ); then fail "self-install from forge-ai root should be refused"; fi
+if ( cd "$ROOT"     && "$ROOT/install.sh" >/dev/null 2>&1 ); then fail "self-install from codeforge root should be refused"; fi
 if ( cd "$ROOT/src" && "$ROOT/install.sh" >/dev/null 2>&1 ); then fail "install into the payload dir (src) should be refused"; fi
-echo "ok: bare run targets cwd; self-install into forge-ai/src is refused"
+echo "ok: bare run targets cwd; self-install into codeforge/src is refused"
 
 # --- 8. migration self-heal: an older bloated install is cleaned up on upgrade ---
 TM="$TMP/migrate"; mkdir -p "$TM"
@@ -219,12 +219,20 @@ echo "ok: re-install leaves a project's own configs/ and skills/ in place"
 # --- 16. the npx entry point installs on POSIX (must use bash, not sh — install.sh needs pipefail) ---
 if command -v node >/dev/null 2>&1; then
   TX="$TMP/npx"; mkdir -p "$TX"
-  node "$ROOT/bin/forge-ai.mjs" "$TX" >/dev/null 2>&1 || fail "npx wrapper (node bin/forge-ai.mjs) exited non-zero"
+  node "$ROOT/bin/codeforge.mjs" "$TX" >/dev/null 2>&1 || fail "npx wrapper (node bin/codeforge.mjs) exited non-zero"
   [ -f "$TX/CLAUDE.md" ] || fail "npx wrapper did not install (no CLAUDE.md)"
-  [ "$(node "$ROOT/bin/forge-ai.mjs" --version)" = "$(head -n1 "$ROOT/VERSION" | tr -d '[:space:]')" ] || fail "npx --version mismatch"
+  [ "$(node "$ROOT/bin/codeforge.mjs" --version)" = "$(head -n1 "$ROOT/VERSION" | tr -d '[:space:]')" ] || fail "npx --version mismatch"
   echo "ok: npx entry point installs on POSIX and reports the version"
 else
   echo "skip: node not installed — npx entry-point case skipped"
+fi
+
+# --- 17. the npx entry point stays non-interactive when stdin/stdout are not a TTY ---
+if command -v node >/dev/null 2>&1; then
+  TX2="$TMP/npx-notty"; mkdir -p "$TX2"
+  node "$ROOT/bin/codeforge.mjs" "$TX2" </dev/null >/dev/null 2>&1 || fail "npx non-TTY install exited non-zero"
+  [ -f "$TX2/CLAUDE.md" ] || fail "npx non-TTY did not fall back to install (no CLAUDE.md)"
+  echo "ok: npx entry point stays non-interactive without a TTY"
 fi
 
 echo "ALL PASS"

@@ -9,7 +9,7 @@
 // exactly those two classes cheaply and reproducibly.
 
 // Stopwords: standard English + this catalog's shared boilerplate. Every
-// forge-ai description ends "...under Claude Code, Codex, or OpenCode" and opens
+// codeforge description ends "...under Claude Code, Codex, or OpenCode" and opens
 // with "Use when/for" — left in, that boilerplate dominates similarity and
 // manufactures false collisions. Engine names are catalog-wide noise here.
 const STOPWORDS = new Set([

@@ -1,5 +1,5 @@
 // The VERSION file (read by the installers to stamp .forge-version) and the
-// npm package version (what `npx forge-ai` publishes/pins) must never drift.
+// npm package version (what `npx codeforge` publishes/pins) must never drift.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,7 +18,7 @@ test('VERSION matches package.json version', () => {
 
 test('the bin the npx entry point points to is whitelisted in files', () => {
   const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
-  assert.equal(pkg.bin['forge-ai'], 'bin/forge-ai.mjs');
+  assert.equal(pkg.bin['codeforge'], 'bin/codeforge.mjs');
   assert.ok(pkg.files.includes('bin/'), 'files[] must ship bin/');
   assert.ok(pkg.files.includes('src/'), 'files[] must ship the src/ payload');
   assert.ok(pkg.files.includes('VERSION'), 'files[] must ship VERSION');

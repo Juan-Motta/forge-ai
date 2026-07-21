@@ -1,10 +1,42 @@
-# Changelog — forge-ai (framework)
+# Changelog — codeforge (framework)
 
-Notable changes to the forge-ai framework itself, newest first. This is the framework's own
+Notable changes to the codeforge framework itself, newest first. This is the framework's own
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
+## 0.5.0 — 2026-07-21
+
+- **Interactive setup console (Ink TUI).** `npx @jualopezmo/codeforge` with no args on a
+  TTY now opens a full-screen wizard: engine detection, default review-policy configuration
+  (written to `shared/rules/models.md`), gate profile, and project options. Delegates to
+  `install.sh`/`install.ps1` and applies config as idempotent post-install edits. Falls back
+  to the non-interactive installer when flags are passed or there is no TTY (CI/pipes). Adds
+  `ink`/`react` as runtime deps (the clone `install.sh` path stays dependency-free).
+- **Fullscreen wizard + real pixel-art splash.** The wizard now takes over the whole terminal
+  via the alternate screen buffer (restored on exit/Ctrl-C) and re-flows on resize, instead of
+  rendering inline. The splash renders the codeforge anvil icon as a truecolor half-block image
+  (generated from `cli/assets/codeforge-icon.png` by the dev-only `tools/gen-splash.mjs`, which
+  uses `jimp` — a `devDependency`, never shipped; the runtime only prints the committed string).
+  The printed "equivalent non-interactive install" command installs with **defaults only**:
+  it reproduces target + `--yes` + gate/project flags, since `install.sh` has no
+  `--profile`/`--reviewer` surface. Review-policy/profile configuration is currently
+  wizard-only — full non-interactive parity is a follow-up.
+- **Configurable review policy + bilingual wizard.** Curated models × reasoning levels
+  (Codex `sol/luna/terra`, Claude `opus/sonnet/haiku/fable`) plus a live OpenCode list and a
+  custom-id option; pick **multiple default reviewers** and **council advisors** (written to
+  `shared/rules/models.md`). English/Español language picker with every screen translated and
+  centered; the engine summary now lives on the splash. New **execution mode** (Claude-only):
+  inline vs subagent-driven + subagent model, wired into `new-feature`/`fix-bug` via
+  `shared/rules/execution.md`, recorded in `PROJECT.md`, with a generated
+  `.claude/agents/codeforge-implementer.md`.
+
 ## 0.4.0 — 2026-07-20
+
+**Rebrand — `forge-ai` → `codeforge`.** The framework, npm package, and CLI command are now
+`codeforge` (the original `forge-ai` name was blocked on npm by a prior unpublish). Install
+is `npx @jualopezmo/codeforge`; the GitHub repo is `Juan-Motta/codeforge`. First npm release under the
+new name. The `.forge-version` stamp filename is unchanged (deliberately — it is not part of
+the `forge-ai` brand token).
 
 **Fix — `codex exec` hangs when an agent drives the council.** `shared/rules/models.md`'s
 Codex invocation lacked `< /dev/null`, so a driver (e.g. Claude Code) running an advisor
@@ -81,7 +113,7 @@ fixed 5 real bugs and added a Windows CI job. Also: version stamping + `npx` fro
 
 - **Council-review fixes (5 real bugs + hardening).** A 4-engine review (Claude Opus 4.8 +
   Codex gpt-5.6-sol + opencode glm-5.2 + kimi-k3), every finding verified against the code:
-  - **npx was broken on real platforms.** `bin/forge-ai.mjs` ran `sh install.sh`, but the script
+  - **npx was broken on real platforms.** `bin/codeforge.mjs` ran `sh install.sh`, but the script
     needs bash `pipefail` (dash — the `/bin/sh` on Debian/Ubuntu — aborts) → now runs `bash`.
     On Windows it forwarded POSIX `--flags` to `install.ps1`, which declares `-Switch` params →
     now translates them.
@@ -110,21 +142,21 @@ fixed 5 real bugs and added a Windows CI job. Also: version stamping + `npx` fro
 - **Auto-isolation from ancestor CLAUDE.md (default-on).** Codex (git-root scope) and OpenCode
   (first-AGENTS.md-wins) already confine to the project, but Claude Code walks to the filesystem
   root and concatenates *every* ancestor `CLAUDE.md`/`.claude/rules` into the project — so a
-  forge-ai target nested under a directory with its own instructions silently inherits them
+  codeforge target nested under a directory with its own instructions silently inherits them
   (verified against Claude Code's memory docs; there is no `stop_traversal` setting yet).
   The installer now detects ancestor `CLAUDE.md`/`CLAUDE.local.md`/`.claude/rules` above the
   target and writes `claudeMdExcludes` into the gitignored `.claude/settings.local.json`, giving
   Claude Code the same project-scoped isolation as the other two engines. `--no-isolate`
   (`-NoIsolate`) keeps inheritance. The global `~/.claude` config is never excluded. Unified with
-  `--with-hooks` into one settings-writer that forge-ai owns only when it created the file
+  `--with-hooks` into one settings-writer that codeforge owns only when it created the file
   (tracked via a `localsettings:managed` manifest marker) — a `settings.local.json` you own is
   never clobbered. bash↔pwsh parity; smoke.sh gains an isolation case (14 total). Surfaced while
   dogfooding: an ancestor project's (outdated) security rule bled into a nested project's council.
 - **Installer git awareness.** The workflow (branches/commits) and the ship gates operate on
   git, so the installer now checks whether the target is a repo. If it isn't, it prints an
-  **advisory** (never touches VCS on its own — forge-ai's no-surprises ethos); pass `--git-init`
-  (`-GitInit` / `npx forge-ai --git-init`) to have it run `git init` + a baseline
-  `chore: adopt forge-ai` commit (skipped cleanly if git identity isn't configured). An existing
+  **advisory** (never touches VCS on its own — codeforge's no-surprises ethos); pass `--git-init`
+  (`-GitInit` / `npx @jualopezmo/codeforge --git-init`) to have it run `git init` + a baseline
+  `chore: adopt codeforge` commit (skipped cleanly if git identity isn't configured). An existing
   repo is used as-is with no message. bash↔pwsh parity; smoke.sh gains a git case (13 total).
 
 ## 0.2.0 — 2026-07-18
@@ -133,11 +165,11 @@ Bundles all of Phase 2 (skill quality machinery, honest enforcement, anti-ration
 anatomy) plus the first Phase-3 distribution work.
 
 - **Phase 3 — opt-in hard-block gate (`--with-hooks`, Claude Code only).** `install.sh
-  --with-hooks` (`-WithHooks` / `npx forge-ai --with-hooks`) installs a Claude Code `PreToolUse`
+  --with-hooks` (`-WithHooks` / `npx @jualopezmo/codeforge --with-hooks`) installs a Claude Code `PreToolUse`
   hook into gitignored `.claude/settings.local.json` that runs `shared/scripts/claude-gate-hook.{sh,ps1}`
   — the same `check-gates` behind a hook — and **exits 2 to actually block** `git commit` /
   `git push` / `gh pr create` when the ship-gate boxes are incomplete. This is the one place
-  forge-ai can hard-block; it's deliberately non-default (per-developer, Claude-specific so the
+  codeforge can hard-block; it's deliberately non-default (per-developer, Claude-specific so the
   cross-engine default stays portable, fails open if it can't verify, still *attested* not
   *verified*). Never clobbers existing local overrides. `ship-gates.md` / README / `extending.md`
   updated; smoke.sh gains a `--with-hooks` case (12 total) asserting it blocks a red ship and
@@ -154,13 +186,13 @@ anatomy) plus the first Phase-3 distribution work.
 - **Phase 3 — version stamp + `npx` distribution.** A root `VERSION` file is now the single
   source of truth; the installers stamp it into `.forge-version` in the target and print a
   direction-aware **drift advisory** on `--upgrade` when the target's recorded version differs
-  (informational, never blocks). New `npx forge-ai [target] [--upgrade]` entry point: a
-  dependency-free Node wrapper (`bin/forge-ai.mjs`) runs the platform installer bundled in the
-  npm package, so a project can adopt forge-ai with no repo clone (`--version` / `--help`
-  supported). `package.json` is now a publishable `forge-ai` package (`files` whitelist ships
+  (informational, never blocks). New `npx @jualopezmo/codeforge [target] [--upgrade]` entry point: a
+  dependency-free Node wrapper (`bin/codeforge.mjs`) runs the platform installer bundled in the
+  npm package, so a project can adopt codeforge with no repo clone (`--version` / `--help`
+  supported). `package.json` is now a publishable `codeforge` package (`files` whitelist ships
   the `src/` payload + install scripts, and excludes the dev-only `tools/`); a version-sync test
   binds `VERSION` to `package.json`. smoke.sh gains a `.forge-version` case (now 11). NOTE:
-  publishing to npm requires confirming the `forge-ai` package name is available (or scoping it).
+  publishing to npm requires confirming the `codeforge` package name is available (or scoping it).
 - **Phase 2 — honest tiered enforcement (priority #2): `check-gates` + Verified/Attested/Advisory.**
   New **Tier-B** validator `shared/scripts/check-gates.{sh,ps1}` (POSIX + PowerShell parity) reads
   `.workflow/state.md`, confirms every ship-gate box for the active profile is checked (or N/A),
@@ -180,7 +212,7 @@ anatomy) plus the first Phase-3 distribution work.
   ship). Lint + evals + 22 tests + smoke all green.
 - **Phase 2 — skill quality machinery (priority #1): linter + routing evals + CI.** New
   dependency-free Node tooling under `tools/` (dev-only — never shipped into a target). A
-  **structural + forge-ai-bespoke skill linter** (`lint-skills.mjs`) enforces frontmatter,
+  **structural + codeforge-bespoke skill linter** (`lint-skills.mjs`) enforces frontmatter,
   `name`==dir, description ≤1024 with a "Use when" trigger, CLAUDE.md index parity (both ways),
   **model-id quarantine** (`models.md` is the single source), and `shared/` reference integrity;
   missing `## Verification`/>500 lines are warnings. **Routing/collision evals** (`run-evals.mjs`,
@@ -199,7 +231,7 @@ OpenCode** — driving a real project.
 - **Thin installer + default target = cwd.** `install.sh`/`install.ps1` run with no argument
   now install into the current directory, and arg parsing is position-agnostic. The target
   receives only agent-runtime files — all machinery (neutral `skills/`, `configs/`,
-  `sync.sh`/`sync.ps1`, seed templates, `docs/extending.md`) stays in the forge-ai repo.
+  `sync.sh`/`sync.ps1`, seed templates, `docs/extending.md`) stays in the codeforge repo.
   `sync.sh`/`sync.ps1` gain `--out <dir>` to generate straight into the target. Engine configs
   become a generated baseline (per-project Claude overrides in `.claude/settings.local.json`);
   `state.template.md` moves to `shared/`. Upgrading an older, non-thin install self-heals

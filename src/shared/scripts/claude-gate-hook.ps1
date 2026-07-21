@@ -15,7 +15,7 @@ if ($payload -notmatch 'git commit|git push|gh pr create') { exit 0 }
 $hookDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $gates = Join-Path $hookDir 'check-gates.ps1'
 if (-not (Test-Path -LiteralPath $gates -PathType Leaf)) {
-    [Console]::Error.WriteLine("forge-ai gate-hook: check-gates.ps1 not found next to the hook; allowing (fail-open).")
+    [Console]::Error.WriteLine("codeforge gate-hook: check-gates.ps1 not found next to the hook; allowing (fail-open).")
     exit 0
 }
 
@@ -23,11 +23,11 @@ if (-not (Test-Path -LiteralPath $gates -PathType Leaf)) {
 $rc = $LASTEXITCODE
 if ($rc -eq 0) { exit 0 }   # gates complete → allow
 if ($rc -ne 1) {            # can't verify (e.g. no workflow state, exit 3) → fail OPEN, never block
-    [Console]::Error.WriteLine("forge-ai gate-hook: could not verify gates (check-gates exit $rc); allowing (fail-open).")
+    [Console]::Error.WriteLine("codeforge gate-hook: could not verify gates (check-gates exit $rc); allowing (fail-open).")
     exit 0
 }
 
-[Console]::Error.WriteLine("forge-ai gate: ship BLOCKED — ship-gate boxes are not complete.")
+[Console]::Error.WriteLine("codeforge gate: ship BLOCKED — ship-gate boxes are not complete.")
 $detail = & pwsh -NoProfile -File $gates 2>&1
 foreach ($line in $detail) { [Console]::Error.WriteLine("  $line") }
 [Console]::Error.WriteLine("  (opt-in -WithHooks gate; Claude Code only. Finish the boxes in")

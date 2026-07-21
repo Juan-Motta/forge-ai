@@ -1,0 +1,21 @@
+{
+  "codex": {
+    "models": ["gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.6-terra"],
+    "efforts": ["none", "low", "medium", "high", "xhigh"],
+    "default": { "model": "gpt-5.6-sol", "effort": "xhigh" }
+  },
+  "claude": {
+    "models": ["opus", "sonnet", "haiku", "fable"],
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "default": { "model": "opus", "effort": "high" }
+  },
+  "opencode": {
+    "models": [
+      "opencode-go/glm-5.2",
+      "opencode-go/kimi-k3",
+      "opencode-go/deepseek-v4-flash"
+    ],
+    "efforts": [null],
+    "default": { "model": "opencode-go/glm-5.2", "effort": null }
+  }
+}

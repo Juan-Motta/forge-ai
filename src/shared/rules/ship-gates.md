@@ -157,7 +157,7 @@ For the one engine that supports it, `install.sh --with-hooks` (`-WithHooks` on 
 installs a Claude Code `PreToolUse` hook into `.claude/settings.local.json` that runs
 `shared/scripts/claude-gate-hook.sh` — the same `check-gates.sh` behind a hook — and **exits 2
 to actually block** `git commit` / `git push` / `gh pr create` when the gates are incomplete.
-This is the only place forge-ai can hard-block. It is deliberately **not the default**: it's
+This is the only place codeforge can hard-block. It is deliberately **not the default**: it's
 per-developer (the local settings file is gitignored), Claude-Code-specific (breaks the
 cross-engine promise, so it stays opt-in), and fails **open** if it can't verify. The gate is
 still *attested* — it confirms the recorded boxes, not the underlying work. Codex/OpenCode have
