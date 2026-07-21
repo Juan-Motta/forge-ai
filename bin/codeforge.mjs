@@ -2,18 +2,18 @@
 // codeforge — npx entry point. Thin wrapper that runs the platform installer
 // bundled in this package (install.sh on POSIX, install.ps1 on Windows),
 // passing through all arguments. The payload (src/, VERSION) travels in the
-// package, so `npx codeforge [target] [--upgrade]` works with no repo clone.
+// package, so `npx @jualopezmo/codeforge [target] [--upgrade]` works with no repo clone.
 //
-//   npx codeforge                 # install into the current directory
-//   npx codeforge ./my-project    # install into a target
-//   npx codeforge --upgrade       # refresh an existing install
-//   npx codeforge --version       # print the codeforge version
+//   npx @jualopezmo/codeforge                 # install into the current directory
+//   npx @jualopezmo/codeforge ./my-project    # install into a target
+//   npx @jualopezmo/codeforge --upgrade       # refresh an existing install
+//   npx @jualopezmo/codeforge --version       # print the codeforge version
 
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { platform } from 'node:os';
+import { hasInstallIntent, installerFlags } from '../cli/lib/flags.mjs';
+import { runInstaller } from '../cli/lib/run-installer.mjs';
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -33,7 +33,7 @@ if (args.includes('--version') || args.includes('-v')) {
 if (args.includes('--help') || args.includes('-h')) {
   console.log(`codeforge ${version()} — install the cross-engine workflow discipline into a project.
 
-  npx codeforge [target-dir] [--upgrade] [--with-hooks] [--git-init] [--no-isolate]
+  npx @jualopezmo/codeforge [target-dir] [--upgrade] [--with-hooks] [--git-init] [--no-isolate]
 
   target-dir    where to install (default: current directory)
   --upgrade     refresh framework files in an existing install
@@ -44,21 +44,37 @@ if (args.includes('--help') || args.includes('-h')) {
   process.exit(0);
 }
 
-const isWin = platform() === 'win32';
-// Windows: install.ps1 declares PowerShell switches (-Upgrade, ...), not POSIX long-flags,
-// so translate them; an unmapped arg (e.g. the target dir) passes through untouched.
-const winFlag = { '--upgrade': '-Upgrade', '--with-hooks': '-WithHooks', '--git-init': '-GitInit', '--no-isolate': '-NoIsolate' };
-// POSIX: run with `bash`, NOT `sh` — install.sh uses `set -o pipefail`, which dash (the /bin/sh
-// on Debian/Ubuntu) does not support, so `sh install.sh` would abort immediately.
-const cmd = isWin ? 'pwsh' : 'bash';
-const cmdArgs = isWin
-  ? ['-NoProfile', '-File', join(pkgRoot, 'install.ps1'), ...args.map((a) => winFlag[a] ?? a)]
-  : [join(pkgRoot, 'install.sh'), ...args];
+const interactive = process.stdin.isTTY && process.stdout.isTTY && !hasInstallIntent(args);
 
-const r = spawnSync(cmd, cmdArgs, { stdio: 'inherit' });
-if (r.error) {
-  const hint = isWin ? 'PowerShell 7 (pwsh) is required on Windows.' : '';
-  console.error(`codeforge: could not launch ${cmd}: ${r.error.message}. ${hint}`.trim());
-  process.exit(1);
+if (interactive) {
+  const { runWizard } = await import('../cli/index.mjs');
+  const { applyAll } = await import('../cli/lib/apply.mjs');
+  const answers = await runWizard(pkgRoot, version());
+  if (!answers) { console.log('codeforge: setup cancelled.'); process.exit(0); }
+  const r = runInstaller(pkgRoot, installerFlags(answers));
+  if (r.error) {
+    const hint = process.platform === 'win32' ? 'PowerShell 7 (pwsh) is required on Windows.' : '';
+    console.error(`codeforge: could not launch ${r.cmd}: ${r.error.message}. ${hint}`.trim());
+    process.exit(1);
+  }
+  if (r.status === 0) {
+    try {
+      applyAll(answers.target, answers);
+    } catch (err) {
+      console.error(`codeforge: installed, but applying config failed: ${err.message}`);
+    }
+  }
+  process.exit(r.status);
+} else {
+  // Non-interactive (flags/target/CI/pipe): delegate straight to the installer. --yes and
+  // --non-interactive are bin-level "skip the wizard" signals only — install.sh doesn't
+  // accept them, so they're stripped before being passed through.
+  const installerArgs = args.filter((a) => a !== '--yes' && a !== '--non-interactive');
+  const r = runInstaller(pkgRoot, installerArgs);
+  if (r.error) {
+    const hint = process.platform === 'win32' ? 'PowerShell 7 (pwsh) is required on Windows.' : '';
+    console.error(`codeforge: could not launch ${r.cmd}: ${r.error.message}. ${hint}`.trim());
+    process.exit(1);
+  }
+  process.exit(r.status ?? 1);
 }
-process.exit(r.status ?? 1);
