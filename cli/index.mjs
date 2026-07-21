@@ -41,7 +41,7 @@ function Wizard({ version, resolve }) {
   else if (step === 'project') screen = e(Project, { answers, setAnswers, onNext: next });
   else screen = e(Summary, { answers, onNext: (ok) => resolve(ok ? answers : null) });
 
-  const centered = step === 'splash' || step === 'detect';
+  const centered = true; // every screen is vertically + horizontally centered
   // Root fills the whole terminal (alternate screen); splash is centered, the rest top-aligned.
   return e(
     Box,
