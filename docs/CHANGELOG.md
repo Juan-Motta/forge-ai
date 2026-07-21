@@ -4,7 +4,7 @@ Notable changes to the codeforge framework itself, newest first. This is the fra
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
-## Unreleased
+## 0.5.0 — 2026-07-21
 
 - **Interactive setup console (Ink TUI).** `npx @jualopezmo/codeforge` with no args on a
   TTY now opens a full-screen wizard: engine detection, default review-policy configuration
@@ -21,6 +21,14 @@ development log; it is **not** the seed shipped to installed projects (that live
   it reproduces target + `--yes` + gate/project flags, since `install.sh` has no
   `--profile`/`--reviewer` surface. Review-policy/profile configuration is currently
   wizard-only — full non-interactive parity is a follow-up.
+- **Configurable review policy + bilingual wizard.** Curated models × reasoning levels
+  (Codex `sol/luna/terra`, Claude `opus/sonnet/haiku/fable`) plus a live OpenCode list and a
+  custom-id option; pick **multiple default reviewers** and **council advisors** (written to
+  `shared/rules/models.md`). English/Español language picker with every screen translated and
+  centered; the engine summary now lives on the splash. New **execution mode** (Claude-only):
+  inline vs subagent-driven + subagent model, wired into `new-feature`/`fix-bug` via
+  `shared/rules/execution.md`, recorded in `PROJECT.md`, with a generated
+  `.claude/agents/codeforge-implementer.md`.
 
 ## 0.4.0 — 2026-07-20
 
