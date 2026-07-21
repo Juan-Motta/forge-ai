@@ -6,10 +6,10 @@ import Splash from './components/Splash.mjs';
 import ReviewPolicy from './components/ReviewPolicy.mjs';
 import Gates from './components/Gates.mjs';
 import Project from './components/Project.mjs';
+import ClaudeAgents from './components/ClaudeAgents.mjs';
 import Summary from './components/Summary.mjs';
 
 const e = React.createElement;
-const STEPS = ['splash', 'review', 'gates', 'project', 'summary'];
 
 // Track terminal size so the root Box can fill the whole screen and re-flow on resize.
 function useTerminalSize() {
@@ -28,6 +28,11 @@ function useTerminalSize() {
 function Wizard({ version, resolve }) {
   const { columns, rows } = useTerminalSize();
   const engines = React.useMemo(() => detectAll(), []);
+  // The Claude-subagents step only exists when Claude is installed.
+  const STEPS = React.useMemo(
+    () => ['splash', 'review', 'gates', 'project', ...(engines?.claude?.installed ? ['claude'] : []), 'summary'],
+    [engines],
+  );
   const [lang, setLang] = React.useState('en');
   const [answers, setAnswers] = React.useState(makeDefaultAnswers(process.cwd()));
   const [i, setI] = React.useState(0);
@@ -39,6 +44,7 @@ function Wizard({ version, resolve }) {
   else if (step === 'review') screen = e(ReviewPolicy, { answers, setAnswers, lang, onNext: next });
   else if (step === 'gates') screen = e(Gates, { answers, setAnswers, engines, lang, onNext: next });
   else if (step === 'project') screen = e(Project, { answers, setAnswers, lang, onNext: next });
+  else if (step === 'claude') screen = e(ClaudeAgents, { answers, setAnswers, lang, onNext: next });
   else screen = e(Summary, { answers, lang, onNext: (ok) => resolve(ok ? answers : null) });
 
   const centered = true; // every screen is vertically + horizontally centered

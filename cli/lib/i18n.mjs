@@ -47,7 +47,16 @@ const en = {
     profileHooks: (p, h) => `Profile: ${p}   Hooks: ${h ? 'yes' : 'no'}`,
     reviewers: (l) => `Default reviewers: ${l || '(none)'}`,
     council: (l) => `Council advisors: ${l || '(none)'}`,
+    execution: (m) => `Execution: ${m}`,
     repro: 'Equivalent non-interactive install (defaults — review policy is wizard-only for now):',
+  },
+  claude: {
+    title: '⚒  Claude subagents (advanced)',
+    subtitle: 'Claude-only: how the driver runs a multi-task plan. Subagent-driven dispatches a fresh subagent per task (isolated context) at a model you choose.',
+    inline: 'Inline — the driver does each task in its own turn (default)',
+    subagent: 'Subagent-driven — dispatch a fresh subagent per task',
+    modelTitle: '⚒  Subagent model',
+    modelSubtitle: 'Model each dispatched implementation subagent runs with.',
   },
   ui: { move: 'move', select: 'select', enter: 'Enter', confirm: 'confirm', install: 'install', cancel: 'cancel', begin: 'begin', space: 'space', toggle: 'toggle' },
 };
@@ -99,7 +108,16 @@ const es = {
     profileHooks: (p, h) => `Perfil: ${p}   Hooks: ${h ? 'sí' : 'no'}`,
     reviewers: (l) => `Reviewers por defecto: ${l || '(ninguno)'}`,
     council: (l) => `Council advisors: ${l || '(ninguno)'}`,
+    execution: (m) => `Ejecución: ${m}`,
     repro: 'Instalación no-interactiva equivalente (defaults — la política de review es solo del wizard por ahora):',
+  },
+  claude: {
+    title: '⚒  Subagentes de Claude (avanzado)',
+    subtitle: 'Solo Claude: cómo el driver ejecuta un plan multi-task. Subagent-driven despacha un subagente fresco por task (contexto aislado) con el modelo que elijas.',
+    inline: 'Inline — el driver hace cada task en su propio turno (por defecto)',
+    subagent: 'Subagent-driven — despacha un subagente fresco por task',
+    modelTitle: '⚒  Modelo de subagente',
+    modelSubtitle: 'Modelo con el que corre cada subagente de implementación despachado.',
   },
   ui: { move: 'mover', select: 'elegir', enter: 'Enter', confirm: 'confirmar', install: 'instalar', cancel: 'cancelar', begin: 'empezar', space: 'espacio', toggle: 'marcar' },
 };

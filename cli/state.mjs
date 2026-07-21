@@ -12,6 +12,8 @@ export function makeDefaultAnswers(cwd) {
     withHooks: false,
     gitInit: false,
     noIsolate: false,
+    // Claude-only: execution mode + the model dispatched subagents run with.
+    claude: { subagents: false, model: null },
     project: { persona: '', info: `Project: ${basename(cwd)}`, rules: '' },
   };
 }

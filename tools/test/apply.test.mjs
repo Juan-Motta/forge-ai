@@ -1,10 +1,10 @@
 // tools/test/apply.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { applyModels, applyProfile, applyProject } from '../../cli/lib/apply.mjs';
+import { applyModels, applyProfile, applyProject, applyClaudeAgents } from '../../cli/lib/apply.mjs';
 
 function scaffoldTarget() {
   const dir = mkdtempSync(join(tmpdir(), 'cf-apply-'));
@@ -65,6 +65,21 @@ test('applyProject inserts rules text containing literal replacement tokens verb
   applyProject(dir, { project: { persona: '', info: '', rules: tricky } });
   const md = readFileSync(join(dir, 'PROJECT.md'), 'utf8');
   assert.ok(md.includes(tricky), 'tricky replacement-token content should appear verbatim');
+});
+
+test('applyClaudeAgents writes an agent file with the chosen model when subagent-driven', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cf-agents-'));
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  applyClaudeAgents(dir, { claude: { subagents: true, model: { model: 'sonnet', effort: 'high' } } });
+  const f = readFileSync(join(dir, '.claude', 'agents', 'codeforge-implementer.md'), 'utf8');
+  assert.match(f, /^model: sonnet$/m);
+  assert.match(f, /name: codeforge-implementer/);
+});
+
+test('applyClaudeAgents is a no-op for inline mode', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cf-agents-inline-'));
+  applyClaudeAgents(dir, { claude: { subagents: false, model: null } });
+  assert.equal(existsSync(join(dir, '.claude', 'agents', 'codeforge-implementer.md')), false);
 });
 
 test('applyModels throws when the target file does not exist', () => {
