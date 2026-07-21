@@ -12,6 +12,11 @@ development log; it is **not** the seed shipped to installed projects (that live
   `install.sh`/`install.ps1` and applies config as idempotent post-install edits. Falls back
   to the non-interactive installer when flags are passed or there is no TTY (CI/pipes). Adds
   `ink`/`react` as runtime deps (the clone `install.sh` path stays dependency-free).
+- **Fullscreen wizard + real pixel-art splash.** The wizard now takes over the whole terminal
+  via the alternate screen buffer (restored on exit/Ctrl-C) and re-flows on resize, instead of
+  rendering inline. The splash renders the codeforge anvil icon as a truecolor half-block image
+  (generated from `cli/assets/codeforge-icon.png` by the dev-only `tools/gen-splash.mjs`, which
+  uses `jimp` — a `devDependency`, never shipped; the runtime only prints the committed string).
   The printed "equivalent non-interactive install" command installs with **defaults only**:
   it reproduces target + `--yes` + gate/project flags, since `install.sh` has no
   `--profile`/`--reviewer` surface. Review-policy/profile configuration is currently
