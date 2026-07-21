@@ -17,6 +17,12 @@ const en = {
     customTitle: (eng) => `⚒  Custom model for ${eng}`,
     customSubtitle: 'Type any model id this engine accepts, then press Enter.',
     modelField: 'model: ',
+    perEngineSubtitle: 'Choose one model per engine (used when it reviews or advises). Skip engines you won\'t use.',
+    skipOption: '— don\'t use this engine —',
+    reviewersTitle: '⚒  Default reviewers',
+    reviewersSubtitle: 'Which engine(s) answer a bare "review"? Pick 1–3.',
+    councilTitle: '⚒  Council advisors',
+    councilSubtitle: 'Which engines run in a /council? Pick any — diversity is the point.',
   },
   gates: {
     title: '⚒  Ship-gates',
@@ -39,10 +45,11 @@ const en = {
     title: '⚒  Review & confirm',
     target: 'Target: ',
     profileHooks: (p, h) => `Profile: ${p}   Hooks: ${h ? 'yes' : 'no'}`,
-    reviewer: (r) => `Default reviewer: ${r ?? '(none)'}`,
+    reviewers: (l) => `Default reviewers: ${l || '(none)'}`,
+    council: (l) => `Council advisors: ${l || '(none)'}`,
     repro: 'Equivalent non-interactive install (defaults — review policy is wizard-only for now):',
   },
-  ui: { move: 'move', select: 'select', enter: 'Enter', confirm: 'confirm', install: 'install', cancel: 'cancel', begin: 'begin' },
+  ui: { move: 'move', select: 'select', enter: 'Enter', confirm: 'confirm', install: 'install', cancel: 'cancel', begin: 'begin', space: 'space', toggle: 'toggle' },
 };
 
 const es = {
@@ -62,6 +69,12 @@ const es = {
     customTitle: (eng) => `⚒  Modelo personalizado para ${eng}`,
     customSubtitle: 'Escribe cualquier id de modelo que acepte este engine y presiona Enter.',
     modelField: 'modelo: ',
+    perEngineSubtitle: 'Elige un modelo por engine (se usa cuando revisa o asesora). Omite los engines que no uses.',
+    skipOption: '— no usar este engine —',
+    reviewersTitle: '⚒  Reviewers por defecto',
+    reviewersSubtitle: '¿Qué engine(s) responden a un "revisa" a secas? Elige 1–3.',
+    councilTitle: '⚒  Advisors del council',
+    councilSubtitle: '¿Qué engines corren en un /council? Elige los que quieras — la diversidad es el punto.',
   },
   gates: {
     title: '⚒  Ship-gates',
@@ -84,10 +97,11 @@ const es = {
     title: '⚒  Revisar y confirmar',
     target: 'Destino: ',
     profileHooks: (p, h) => `Perfil: ${p}   Hooks: ${h ? 'sí' : 'no'}`,
-    reviewer: (r) => `Reviewer por defecto: ${r ?? '(ninguno)'}`,
+    reviewers: (l) => `Reviewers por defecto: ${l || '(ninguno)'}`,
+    council: (l) => `Council advisors: ${l || '(ninguno)'}`,
     repro: 'Instalación no-interactiva equivalente (defaults — la política de review es solo del wizard por ahora):',
   },
-  ui: { move: 'mover', select: 'elegir', enter: 'Enter', confirm: 'confirmar', install: 'instalar', cancel: 'cancelar', begin: 'empezar' },
+  ui: { move: 'mover', select: 'elegir', enter: 'Enter', confirm: 'confirmar', install: 'instalar', cancel: 'cancelar', begin: 'empezar', space: 'espacio', toggle: 'marcar' },
 };
 
 const dict = { en, es };

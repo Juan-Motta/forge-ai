@@ -6,11 +6,15 @@ const START = '<!-- codeforge:review-policy:start -->';
 const END = '<!-- codeforge:review-policy:end -->';
 
 function renderReviewBlock(answers) {
+  const models = answers.models || {};
+  const label = (en) => {
+    const m = models[en];
+    return m ? `${en} (\`${m.model}\`${m.effort ? ' · ' + m.effort : ''})` : en;
+  };
+  const list = (engines) => (engines && engines.length ? engines.map(label).join(', ') : 'none');
   const lines = [START, '<!-- Managed by the codeforge setup wizard. Edit here or re-run the wizard. -->'];
-  for (const r of answers.reviewers) {
-    lines.push(`Reviewer — ${r.engine}: \`${r.model}\`${r.effort ? ` (${r.effort})` : ''}`);
-  }
-  lines.push(`Default reviewer(s): ${answers.defaultReviewer ?? answers.reviewers[0]?.engine ?? 'none'}`);
+  lines.push(`Default reviewer(s): ${list(answers.reviewers)}`);
+  lines.push(`Council advisors: ${list(answers.council)}`);
   lines.push(END);
   return lines.join('\n');
 }

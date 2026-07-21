@@ -19,7 +19,8 @@ export default function Summary({ answers, onNext, lang }) {
     e(Box, { flexDirection: 'column' },
       e(Text, { color: theme.steelDim }, [s.target, e(Text, { key: 't', color: theme.text }, answers.target)]),
       e(Text, { color: theme.text }, s.profileHooks(answers.profile, answers.withHooks)),
-      e(Text, { color: theme.text }, s.reviewer(answers.defaultReviewer)),
+      e(Text, { color: theme.text }, s.reviewers((answers.reviewers || []).join(', '))),
+      e(Text, { color: theme.text }, s.council((answers.council || []).join(', '))),
       e(Box, { marginTop: 1, flexDirection: 'column' },
         e(Text, { color: theme.molten }, s.repro),
         e(Text, { wrap: 'wrap', color: theme.steel }, cmd))));

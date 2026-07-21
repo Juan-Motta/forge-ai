@@ -18,11 +18,16 @@ function scaffoldTarget() {
 
 test('applyModels rewrites the managed block idempotently', () => {
   const dir = scaffoldTarget();
-  const answers = { reviewers: [{ engine: 'codex', model: 'gpt-5.6-sol', effort: 'xhigh' }, { engine: 'opencode', model: 'opencode-go/kimi-k3', effort: null }], defaultReviewer: 'codex' };
+  const answers = {
+    models: { codex: { model: 'gpt-5.6-sol', effort: 'xhigh' }, opencode: { model: 'opencode-go/kimi-k3', effort: null } },
+    reviewers: ['codex', 'opencode'],
+    council: ['codex', 'claude', 'opencode'],
+  };
   applyModels(dir, answers);
   applyModels(dir, answers); // idempotent
   const md = readFileSync(join(dir, 'shared', 'rules', 'models.md'), 'utf8');
   assert.match(md, /Default reviewer\(s\): codex/i);
+  assert.match(md, /Council advisors:/);
   assert.match(md, /kimi-k3/);
   assert.equal(md.match(/review-policy:start/g).length, 1); // not duplicated
   assert.doesNotMatch(md, /OLD/);
@@ -64,6 +69,6 @@ test('applyProject inserts rules text containing literal replacement tokens verb
 
 test('applyModels throws when the target file does not exist', () => {
   const dir = mkdtempSync(join(tmpdir(), 'cf-apply-missing-'));
-  const answers = { reviewers: [{ engine: 'codex', model: 'gpt-5.6-sol', effort: 'xhigh' }], defaultReviewer: 'codex' };
+  const answers = { models: {}, reviewers: ['codex'], council: ['codex'] };
   assert.throws(() => applyModels(dir, answers), /not found/);
 });
