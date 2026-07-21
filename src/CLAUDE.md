@@ -59,6 +59,7 @@ state and is bypassable. It runs identically under Claude Code, Codex, and OpenC
 - `severity.md` — P0–P3 rubric for review findings
 - `ship-gates.md` — what must be true before commit/push/PR, and how each harness gates it
 - `tdd.md` — red-green-refactor discipline
+- `execution.md` — inline vs subagent-driven implementation (subagents are Claude-only)
 - `research.md` — when to research and what a good brief contains
 - `approach-comparison.md` — fixed-axes table for choosing an approach
 - `memory.md` — what to save and where (repo-first, portable across engines)

@@ -33,7 +33,8 @@ the fix approach with the `review` skill (a different engine) before implementin
 ## 4. Fix minimally
 
 Make the smallest change that turns the test green. Refactor only if it clarifies. Fix
-the real cause, not the symptom.
+the real cause, not the symptom. Execute per `shared/rules/execution.md` (inline, or
+subagent-driven on Claude Code).
 
 ## 5. Code review (cross-engine)
 

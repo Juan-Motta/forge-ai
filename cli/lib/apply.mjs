@@ -1,16 +1,20 @@
 // cli/lib/apply.mjs
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const START = '<!-- codeforge:review-policy:start -->';
 const END = '<!-- codeforge:review-policy:end -->';
 
 function renderReviewBlock(answers) {
+  const models = answers.models || {};
+  const label = (en) => {
+    const m = models[en];
+    return m ? `${en} (\`${m.model}\`${m.effort ? ' · ' + m.effort : ''})` : en;
+  };
+  const list = (engines) => (engines && engines.length ? engines.map(label).join(', ') : 'none');
   const lines = [START, '<!-- Managed by the codeforge setup wizard. Edit here or re-run the wizard. -->'];
-  for (const r of answers.reviewers) {
-    lines.push(`Reviewer — ${r.engine}: \`${r.model}\`${r.effort ? ` (${r.effort})` : ''}`);
-  }
-  lines.push(`Default reviewer(s): ${answers.defaultReviewer ?? answers.reviewers[0]?.engine ?? 'none'}`);
+  lines.push(`Default reviewer(s): ${list(answers.reviewers)}`);
+  lines.push(`Council advisors: ${list(answers.council)}`);
   lines.push(END);
   return lines.join('\n');
 }
@@ -73,8 +77,47 @@ export function applyProject(targetDir, answers) {
   writeFileSync(path, md);
 }
 
+// Claude-only: when subagent-driven execution is chosen, write a Claude Code agent
+// definition whose `model:` is the model dispatched implementation subagents run with.
+// No-op for inline mode (or non-Claude installs). Not shipped to other engines.
+export function applyClaudeAgents(targetDir, answers) {
+  const c = answers.claude;
+  if (!c?.subagents || !c.model?.model) return;
+  const dir = join(targetDir, '.claude', 'agents');
+  mkdirSync(dir, { recursive: true });
+  const file = `---
+name: codeforge-implementer
+description: Implements exactly one task from the active codeforge plan (TDD: red → green → refactor), runs the covering tests, commits, and reports back. Dispatch one per task when running the workflow subagent-driven.
+model: ${c.model.model}
+---
+
+You implement ONE task from the active codeforge plan. Read the task, write the failing
+test first, make it pass with the minimal change, run the covering tests, commit, then
+report status (DONE / BLOCKED), the commit sha, and a one-line test summary. Do not start
+other tasks. Follow the repo's TDD and ship-gate rules.
+`;
+  writeFileSync(join(dir, 'codeforge-implementer.md'), file);
+}
+
+// Record the execution mode in PROJECT.md's "## Execution" section so the workflow skills
+// (via shared/rules/execution.md) can read it. Lives in PROJECT.md because it is
+// project-owned and survives `--upgrade` (unlike the by-name-refreshed shared/rules).
+export function applyExecution(targetDir, answers) {
+  const path = join(targetDir, 'PROJECT.md');
+  if (!existsSync(path)) return;
+  const c = answers.claude || {};
+  const body = `Execution: ${c.subagents ? `subagent-driven (model: ${c.model?.model ?? '?'})` : 'inline'}`;
+  let md = readFileSync(path, 'utf8');
+  md = md.includes('## Execution')
+    ? replaceSection(md, '## Execution', body)
+    : `${md.replace(/\s*$/, '')}\n\n## Execution\n\n${body}\n`;
+  writeFileSync(path, md);
+}
+
 export function applyAll(targetDir, answers) {
   applyModels(targetDir, answers);
   applyProfile(targetDir, answers);
   applyProject(targetDir, answers);
+  applyExecution(targetDir, answers);
+  applyClaudeAgents(targetDir, answers);
 }

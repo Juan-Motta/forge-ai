@@ -44,6 +44,7 @@
     "workflow"
   ],
   "devDependencies": {
-    "ink-testing-library": "^4.0.0"
+    "ink-testing-library": "^4.0.0",
+    "jimp": "^1.6.1"
   }
 }

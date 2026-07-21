@@ -1,29 +1,21 @@
 {
   "codex": {
-    "default": { "model": "gpt-5.6-sol", "effort": "xhigh" },
-    "cost": { "model": "gpt-5.4-mini", "effort": "high" },
-    "options": [
-      { "model": "gpt-5.6-sol", "effort": "xhigh" },
-      { "model": "gpt-5.6-sol", "effort": "high" },
-      { "model": "gpt-5.4-mini", "effort": "high" }
-    ]
+    "models": ["gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.6-terra"],
+    "efforts": ["none", "low", "medium", "high", "xhigh"],
+    "default": { "model": "gpt-5.6-sol", "effort": "xhigh" }
   },
   "claude": {
-    "default": { "model": "opus", "effort": "high" },
-    "cost": { "model": "sonnet", "effort": "high" },
-    "options": [
-      { "model": "opus", "effort": "high" },
-      { "model": "sonnet", "effort": "high" },
-      { "model": "haiku", "effort": "medium" }
-    ]
+    "models": ["opus", "sonnet", "haiku", "fable"],
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "default": { "model": "opus", "effort": "high" }
   },
   "opencode": {
-    "default": { "model": "opencode-go/glm-5.2", "effort": null },
-    "cost": { "model": "opencode-go/deepseek-v4-flash", "effort": null },
-    "options": [
-      { "model": "opencode-go/glm-5.2", "effort": null },
-      { "model": "opencode-go/kimi-k3", "effort": null },
-      { "model": "opencode-go/deepseek-v4-flash", "effort": null }
-    ]
+    "models": [
+      "opencode-go/glm-5.2",
+      "opencode-go/kimi-k3",
+      "opencode-go/deepseek-v4-flash"
+    ],
+    "efforts": [null],
+    "default": { "model": "opencode-go/glm-5.2", "effort": null }
   }
 }

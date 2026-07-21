@@ -25,3 +25,10 @@
 <Project-specific dos/don'ts that go beyond the global baseline. Bullet list.>
 
 - <rule>
+
+## Execution
+
+<How the driver runs a multi-task plan. Managed by the codeforge setup wizard — see
+`shared/rules/execution.md`. Default: inline.>
+
+Execution: inline

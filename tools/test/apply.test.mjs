@@ -1,10 +1,10 @@
 // tools/test/apply.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { applyModels, applyProfile, applyProject } from '../../cli/lib/apply.mjs';
+import { applyModels, applyProfile, applyProject, applyClaudeAgents, applyExecution } from '../../cli/lib/apply.mjs';
 
 function scaffoldTarget() {
   const dir = mkdtempSync(join(tmpdir(), 'cf-apply-'));
@@ -18,11 +18,16 @@ function scaffoldTarget() {
 
 test('applyModels rewrites the managed block idempotently', () => {
   const dir = scaffoldTarget();
-  const answers = { reviewers: [{ engine: 'codex', model: 'gpt-5.6-sol', effort: 'xhigh' }, { engine: 'opencode', model: 'opencode-go/kimi-k3', effort: null }], defaultReviewer: 'codex' };
+  const answers = {
+    models: { codex: { model: 'gpt-5.6-sol', effort: 'xhigh' }, opencode: { model: 'opencode-go/kimi-k3', effort: null } },
+    reviewers: ['codex', 'opencode'],
+    council: ['codex', 'claude', 'opencode'],
+  };
   applyModels(dir, answers);
   applyModels(dir, answers); // idempotent
   const md = readFileSync(join(dir, 'shared', 'rules', 'models.md'), 'utf8');
   assert.match(md, /Default reviewer\(s\): codex/i);
+  assert.match(md, /Council advisors:/);
   assert.match(md, /kimi-k3/);
   assert.equal(md.match(/review-policy:start/g).length, 1); // not duplicated
   assert.doesNotMatch(md, /OLD/);
@@ -62,8 +67,35 @@ test('applyProject inserts rules text containing literal replacement tokens verb
   assert.ok(md.includes(tricky), 'tricky replacement-token content should appear verbatim');
 });
 
+test('applyClaudeAgents writes an agent file with the chosen model when subagent-driven', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cf-agents-'));
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  applyClaudeAgents(dir, { claude: { subagents: true, model: { model: 'sonnet', effort: 'high' } } });
+  const f = readFileSync(join(dir, '.claude', 'agents', 'codeforge-implementer.md'), 'utf8');
+  assert.match(f, /^model: sonnet$/m);
+  assert.match(f, /name: codeforge-implementer/);
+});
+
+test('applyClaudeAgents is a no-op for inline mode', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cf-agents-inline-'));
+  applyClaudeAgents(dir, { claude: { subagents: false, model: null } });
+  assert.equal(existsSync(join(dir, '.claude', 'agents', 'codeforge-implementer.md')), false);
+});
+
+test('applyExecution records the mode in PROJECT.md and overwrites on re-run', () => {
+  const dir = scaffoldTarget();
+  applyExecution(dir, { claude: { subagents: true, model: { model: 'sonnet' } } });
+  let md = readFileSync(join(dir, 'PROJECT.md'), 'utf8');
+  assert.match(md, /## Execution/);
+  assert.match(md, /Execution: subagent-driven \(model: sonnet\)/);
+  applyExecution(dir, { claude: { subagents: false } }); // switch to inline
+  md = readFileSync(join(dir, 'PROJECT.md'), 'utf8');
+  assert.match(md, /Execution: inline/);
+  assert.doesNotMatch(md, /subagent-driven/);
+});
+
 test('applyModels throws when the target file does not exist', () => {
   const dir = mkdtempSync(join(tmpdir(), 'cf-apply-missing-'));
-  const answers = { reviewers: [{ engine: 'codex', model: 'gpt-5.6-sol', effort: 'xhigh' }], defaultReviewer: 'codex' };
+  const answers = { models: {}, reviewers: ['codex'], council: ['codex'] };
   assert.throws(() => applyModels(dir, answers), /not found/);
 });
