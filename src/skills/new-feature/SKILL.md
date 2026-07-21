@@ -36,7 +36,9 @@ in `.workflow/state.md`.
 ## 4. TDD
 
 Red → green → refactor (`shared/rules/tdd.md`). Write the failing test first, make it pass
-minimally, then refactor. Never write implementation before a failing test exists.
+minimally, then refactor. Never write implementation before a failing test exists. Execute
+the implementation per the configured mode in `shared/rules/execution.md` (inline, or
+subagent-driven on Claude Code).
 
 ## 5. Code review (cross-engine)
 

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { applyModels, applyProfile, applyProject, applyClaudeAgents } from '../../cli/lib/apply.mjs';
+import { applyModels, applyProfile, applyProject, applyClaudeAgents, applyExecution } from '../../cli/lib/apply.mjs';
 
 function scaffoldTarget() {
   const dir = mkdtempSync(join(tmpdir(), 'cf-apply-'));
@@ -80,6 +80,18 @@ test('applyClaudeAgents is a no-op for inline mode', () => {
   const dir = mkdtempSync(join(tmpdir(), 'cf-agents-inline-'));
   applyClaudeAgents(dir, { claude: { subagents: false, model: null } });
   assert.equal(existsSync(join(dir, '.claude', 'agents', 'codeforge-implementer.md')), false);
+});
+
+test('applyExecution records the mode in PROJECT.md and overwrites on re-run', () => {
+  const dir = scaffoldTarget();
+  applyExecution(dir, { claude: { subagents: true, model: { model: 'sonnet' } } });
+  let md = readFileSync(join(dir, 'PROJECT.md'), 'utf8');
+  assert.match(md, /## Execution/);
+  assert.match(md, /Execution: subagent-driven \(model: sonnet\)/);
+  applyExecution(dir, { claude: { subagents: false } }); // switch to inline
+  md = readFileSync(join(dir, 'PROJECT.md'), 'utf8');
+  assert.match(md, /Execution: inline/);
+  assert.doesNotMatch(md, /subagent-driven/);
 });
 
 test('applyModels throws when the target file does not exist', () => {

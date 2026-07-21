@@ -99,9 +99,25 @@ other tasks. Follow the repo's TDD and ship-gate rules.
   writeFileSync(join(dir, 'codeforge-implementer.md'), file);
 }
 
+// Record the execution mode in PROJECT.md's "## Execution" section so the workflow skills
+// (via shared/rules/execution.md) can read it. Lives in PROJECT.md because it is
+// project-owned and survives `--upgrade` (unlike the by-name-refreshed shared/rules).
+export function applyExecution(targetDir, answers) {
+  const path = join(targetDir, 'PROJECT.md');
+  if (!existsSync(path)) return;
+  const c = answers.claude || {};
+  const body = `Execution: ${c.subagents ? `subagent-driven (model: ${c.model?.model ?? '?'})` : 'inline'}`;
+  let md = readFileSync(path, 'utf8');
+  md = md.includes('## Execution')
+    ? replaceSection(md, '## Execution', body)
+    : `${md.replace(/\s*$/, '')}\n\n## Execution\n\n${body}\n`;
+  writeFileSync(path, md);
+}
+
 export function applyAll(targetDir, answers) {
   applyModels(targetDir, answers);
   applyProfile(targetDir, answers);
   applyProject(targetDir, answers);
+  applyExecution(targetDir, answers);
   applyClaudeAgents(targetDir, answers);
 }
