@@ -4,20 +4,6 @@ Notable changes to the codeforge framework itself, newest first. This is the fra
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
-## Unreleased
-
-- **`check-gates` now validates gate IDENTITY, not just count.** A ship-gate checklist with the
-  right *number* of checked boxes but the wrong (renamed or missing) gates used to read green —
-  the validator only enforced a required count per profile (standard = 6, light = 3). It now
-  also requires each profile's canonical gates to be present. Each gate is matched by a tolerant
-  case-insensitive anchor **anchored to the box's leading words**, so free-form trailing text (a
-  report path, an `— N/A: <reason>`, a note) can never satisfy a different gate's anchor. The
-  E2E evidence extractor was aligned to the same leniency (case-insensitive, optional
-  whitespace) so a box that satisfies the E2E identity can't skip report validation. sh + ps1
-  parity; no POSIX `\b` and `set -f` around the sh match loop (BSD/GNU + glob safety). Closes an
-  enforcement bypass surfaced and hardened over four rounds of cross-engine (Codex) review;
-  fully covered by TDD. Anchors mirror `shared/state.template.md` / `shared/rules/ship-gates.md`.
-
 ## 0.6.0 — 2026-07-22
 
 - **Enforcement reframed to a Verified-tier CI template (`docs/ci-templates/gates.yml`).** codeforge
@@ -31,6 +17,17 @@ development log; it is **not** the seed shipped to installed projects (that live
   installs) so existing scripts don't break. Rationale: two rounds of cross-engine plan review showed
   a local git hook cannot be portable, mandatory enforcement (per-clone `core.hooksPath`, server-side
   merges skip it, silent bypasses). Docs reframed to an honest Advisory/Attested/Verified ladder.
+- **`check-gates` now validates gate IDENTITY, not just count.** A ship-gate checklist with the
+  right *number* of checked boxes but the wrong (renamed or missing) gates used to read green —
+  the validator only enforced a required count per profile (standard = 6, light = 3). It now
+  also requires each profile's canonical gates to be present. Each gate is matched by a tolerant
+  case-insensitive anchor **anchored to the box's leading words**, so free-form trailing text (a
+  report path, an `— N/A: <reason>`, a note) can never satisfy a different gate's anchor. The
+  E2E evidence extractor was aligned to the same leniency (case-insensitive, optional
+  whitespace) so a box that satisfies the E2E identity can't skip report validation. sh + ps1
+  parity; no POSIX `\b` and `set -f` around the sh match loop (BSD/GNU + glob safety). Closes an
+  enforcement bypass surfaced and hardened over four rounds of cross-engine (Codex) review;
+  fully covered by TDD. Anchors mirror `shared/state.template.md` / `shared/rules/ship-gates.md`.
 
 ## 0.5.1 — 2026-07-22
 
