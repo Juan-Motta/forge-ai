@@ -161,10 +161,14 @@ is worth (see [`ship-gates.md`](src/shared/rules/ship-gates.md)):
 - **Advisory** — the skills *instruct* the agent to pass the gates before shipping.
 - **Attested** — `finish-branch` runs `shared/scripts/check-gates.sh` (`.ps1` on Windows), a
   deterministic check that reads `.workflow/state.md` and **exits non-zero** listing any
-  unchecked box. It validates the *record* (a checked box is a claim), and only when invoked.
-- **Verified** — the only signal independent of the agent: run `check-gates` **plus your tests
-  in CI with branch protection**, binding the check to the exact PR commit outside the agent's
-  turn. This is the honest place to put a real gate.
+  unchecked box. It validates the *record* (a checked box is a claim), it's **local**, and it
+  only runs when invoked.
+- **Verified** — the only signal independent of the agent, and the only one that binds for
+  every clone and every merge: a shipped **Verified-tier CI template**
+  (`docs/ci-templates/gates.yml`) reruns your tests on the PR's merge commit. Copy it into
+  `.github/workflows/`, fill in the test step, and make it a **required status check** under
+  branch protection — that's the real gate. Repo/org admins can still bypass branch protection
+  unless you've configured otherwise.
 
 On top of that, each engine shows a **best-effort native prompt** on outward actions — it
 matches by command pattern and reads no gate state, so it's a commit-confirmation, not proof
@@ -176,10 +180,10 @@ the gates are green:
 | Codex | `approval_policy` asks when a command crosses the sandbox boundary | `.codex/config.toml` |
 | OpenCode | `git push*` / `gh pr create*` set to `ask` (force-push `deny`) | `opencode.json` |
 
-**Optional hard block (Claude Code only):** `npx @jualopezmo/codeforge --with-hooks` installs a
-Claude Code `PreToolUse` hook that **actually blocks** a ship action when the gates are
-incomplete. It's per-developer (gitignored `.claude/settings.local.json`), Claude-specific by
-design (so the cross-engine default stays hook-free), and fails open.
+**No per-engine runtime hooks.** Local discipline is advisory + `finish-branch`'s
+`check-gates` (Attested); the shipped Verified-tier CI template
+(`docs/ci-templates/`), made a required check via branch protection, is what actually binds
+for everyone.
 
 ### Memory & continuity
 
@@ -217,7 +221,7 @@ codeforge/
 │   ├── CLAUDE.md                 #    canonical instructions (copied to the target)
 │   ├── skills/<name>/SKILL.md    #    14 canonical skills → generated into .claude/ + .agents/
 │   ├── shared/rules/*.md         #    12 rules: severity, tdd, ship-gates, execution, memory, …
-│   ├── shared/scripts/*.{sh,ps1} #    agent-invoked helpers: check-gates, claude-gate-hook
+│   ├── shared/scripts/*.{sh,ps1} #    agent-invoked helper: check-gates (local, Attested tier)
 │   ├── shared/state.template.md  #    workflow-state seed (copied to the target)
 │   ├── configs/                  #    gate-config source → generated engine configs (not copied)
 │   ├── sync.sh · sync.ps1        #    the generator (never copied into the target)
@@ -350,8 +354,10 @@ This release adds a **full-screen interactive setup wizard** (Ink/React) with En
 configurable **reviewers + council advisors**, a Claude-only **execution mode** (inline vs
 subagent-driven), and the **`verify-e2e`** skill whose evidence report is bound to the ship-gate.
 It builds on the earlier CI-enforced skill linter + routing evals, anti-rationalization anatomy
-across every skill, the deterministic `check-gates` validator (with an opt-in Claude Code
-hard-block via `--with-hooks`), and the `adr` / `simplify` skills.
+across every skill, the deterministic `check-gates` validator, and the `adr` / `simplify`
+skills. Enforcement is a shipped **Verified-tier CI template** (`docs/ci-templates/`) made a
+required check via branch protection; local discipline is advisory + `finish-branch`'s
+`check-gates`; there are no per-engine runtime hooks.
 
 **14 skills, 12 rules.** Neutral-source + generator model (no symlinks), **thin install** (only
 runtime lands in the target; machinery stays in codeforge), cross-platform (`install.sh` +

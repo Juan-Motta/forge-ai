@@ -110,8 +110,12 @@ Be precise about the strength of each gate signal. A claim is only as strong as 
 produced it:
 
 - **Verified** — an out-of-turn check *recomputed* the fact, independent of the agent's
-  say-so. Example: CI ran the test suite at the exact PR commit and it passed. This is the
-  strongest signal, and the only one that survives a bad-faith or mistaken agent.
+  say-so. The concrete mechanism codeforge ships for this: `docs/ci-templates/gates.yml`,
+  copied into `.github/workflows/`, its test step filled in, and made a **required status
+  check** under branch protection (bypass disabled) — it reruns your tests on the PR's merge
+  commit, outside any agent's turn. This is the strongest signal, and the only one that
+  survives a bad-faith or mistaken agent — though repo/org admins can still bypass branch
+  protection unless you've configured otherwise.
 - **Attested** — an agent or human *claimed* it and something validated the claim's *shape*,
   not its truth. A `- [x]` box in `.workflow/state.md`, or `check-gates.sh` reporting the
   checklist is complete, is attested: it confirms the record says "done", not that the work
@@ -123,10 +127,11 @@ produced it:
 move a claim up the ladder — e.g. bind "tests passing" to CI (verified) rather than a box
 someone ticked (attested).
 
-## How enforcement works here (advisory + Tier-B check + native prompt)
+## How enforcement works here (advisory + Tier-B check + native prompt, locally — CI is the real gate)
 
-**Be honest about what this is: discipline, not a hard gate.** Nothing conditionally
-blocks a commit when a box is unchecked. Three things stand in — none of them a hard block:
+**Be honest about what this is: locally, discipline, not a hard gate.** Nothing conditionally
+blocks a commit when a box is unchecked on your machine. Three things stand in locally — none
+of them a hard block — plus one thing that actually binds, in CI:
 
 1. **Advisory (all engines):** you are instructed — here and in the workflow skill — not
    to ship until the profile's boxes pass. Honor it.
@@ -137,10 +142,9 @@ blocks a commit when a box is unchecked. Three things stand in — none of them 
    checked boxes but renamed or omitted gates is rejected, so the box wording must name each
    required gate (the canonical wording lives in `shared/state.template.md`). This turns
    "eyeball the file" into "run a command that fails loudly" — a much harder thing to
-   rationalize past, and the *same* command a human or CI can run. It is still **attested** (it validates the record, not the
-   work) and still **skippable** (Tier B runs only when invoked — it is not a hook). For a
-   real *verified* gate, run it in CI with branch protection so the check binds to the PR
-   commit outside the agent's turn.
+   rationalize past, and the *same* command a human or CI can run. It is still **attested** (it
+   validates the record, not the work) and still **skippable** (Tier B runs only when invoked —
+   it is not a hook).
 3. **Best-effort native prompt (per engine):** each engine can prompt for human approval
    on outward commands — but it reads **no** gate state and matches commands by pattern,
    so it is bypassable (e.g. `git -C . push`, a PR via API, another tool):
@@ -154,14 +158,12 @@ The prompt shows the human a generic "allow this command?", **not** the checklis
 is a commit-confirmation, not proof the gates are green. The approver must
 **independently check `.workflow/state.md` before approving** (or run `check-gates.sh`).
 
-### Opt-in hard block (Tier C, Claude Code only)
-
-For the one engine that supports it, `install.sh --with-hooks` (`-WithHooks` on PowerShell)
-installs a Claude Code `PreToolUse` hook into `.claude/settings.local.json` that runs
-`shared/scripts/claude-gate-hook.sh` — the same `check-gates.sh` behind a hook — and **exits 2
-to actually block** `git commit` / `git push` / `gh pr create` when the gates are incomplete.
-This is the only place codeforge can hard-block. It is deliberately **not the default**: it's
-per-developer (the local settings file is gitignored), Claude-Code-specific (breaks the
-cross-engine promise, so it stays opt-in), and fails **open** if it can't verify. The gate is
-still *attested* — it confirms the recorded boxes, not the underlying work. Codex/OpenCode have
-the mechanism (see `docs/extending.md` Tier C) but no adapter ships yet.
+4. **The hard gate (binds for everyone): CI + branch protection.** codeforge ships
+   `docs/ci-templates/gates.yml` as the concrete **Verified**-tier mechanism. Copy it into
+   `.github/workflows/gates.yml`, fill in its test step, and make it a **required status
+   check** with branch protection ("do not allow bypassing" enabled) — it then reruns your
+   tests on the PR's merge commit, outside any agent's turn, and no local skip or engine
+   choice can get around it. This is the **only** signal in this ladder that binds for every
+   clone and every merge. Repo/org admins can still bypass branch protection unless you've
+   configured otherwise — decide who that should be. There are no per-engine runtime hooks
+   in codeforge; local enforcement is advisory + the Tier-B check above.

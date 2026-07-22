@@ -28,5 +28,5 @@ names an active workflow, open that `.workflow/state.md` too and continue there.
 ## Caveat
 
 Saving the handoff **automatically** right before an unexpected context compaction needs a
-hook (Tier C) and is not covered here. Keep `CONTINUITY.md` current manually so any reset
+per-engine hook and is not covered here. Keep `CONTINUITY.md` current manually so any reset
 point already reflects reality.
