@@ -25,12 +25,12 @@ function make(box, report) {
 `## Active workflow
 - **Profile:** standard
 ## Ship-gate checklist
-- [x] a
-- [x] b
-- [x] c
-- [x] d
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Tests written (TDD) and passing
+- [x] Code review clean
 ${box}
-- [x] f
+- [x] State updated
 `);
   if (report !== undefined) {
     mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
@@ -78,12 +78,12 @@ test('ps1 parity: box checked + report git-add STAGED (not committed) on branch 
 `## Active workflow
 - **Profile:** standard
 ## Ship-gate checklist
-- [x] a
-- [x] b
-- [x] c
-- [x] d
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Tests written (TDD) and passing
+- [x] Code review clean
 - [x] E2E verified via verify-e2e (report: docs/e2e/reports/r.md)
-- [x] f
+- [x] State updated
 `);
   assert.equal(run(dir), 0);
   rmSync(dir, { recursive: true, force: true });
@@ -105,12 +105,12 @@ test('ps1 parity: named-path mismatch — box names ABSENT report, unrelated fre
 `## Active workflow
 - **Profile:** standard
 ## Ship-gate checklist
-- [x] a
-- [x] b
-- [x] c
-- [x] d
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Tests written (TDD) and passing
+- [x] Code review clean
 - [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
-- [x] f
+- [x] State updated
 `);
   assert.equal(run(dir), 1);
   rmSync(dir, { recursive: true, force: true });
@@ -131,12 +131,12 @@ test('ps1 parity: placeholder report path rejected even with an unrelated fresh 
 `## Active workflow
 - **Profile:** standard
 ## Ship-gate checklist
-- [x] a
-- [x] b
-- [x] c
-- [x] d
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Tests written (TDD) and passing
+- [x] Code review clean
 - [x] E2E verified via verify-e2e (report: docs/e2e/reports/<...>.md)
-- [x] f
+- [x] State updated
 `);
   assert.equal(run(dir), 1);
   rmSync(dir, { recursive: true, force: true });
@@ -158,12 +158,12 @@ test('ps1 parity: named report committed on the feature branch (base = main) + P
 `## Active workflow
 - **Profile:** standard
 ## Ship-gate checklist
-- [x] a
-- [x] b
-- [x] c
-- [x] d
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Tests written (TDD) and passing
+- [x] Code review clean
 - [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
-- [x] f
+- [x] State updated
 `);
   assert.equal(run(dir), 0);
   rmSync(dir, { recursive: true, force: true });
@@ -187,12 +187,12 @@ test('ps1 parity: dev-based branch — inherited PASS on dev cannot satisfy the 
 `## Active workflow
 - **Profile:** standard
 ## Ship-gate checklist
-- [x] a
-- [x] b
-- [x] c
-- [x] d
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Tests written (TDD) and passing
+- [x] Code review clean
 - [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
-- [x] f
+- [x] State updated
 `);
   assert.equal(run(dir), 1);
   rmSync(dir, { recursive: true, force: true });
@@ -216,12 +216,12 @@ test('ps1 parity: no-base fail-safe — single branch, PRESENT+PASS → exit 0; 
 `## Active workflow
 - **Profile:** standard
 ## Ship-gate checklist
-- [x] a
-- [x] b
-- [x] c
-- [x] d
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Tests written (TDD) and passing
+- [x] Code review clean
 - [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
-- [x] f
+- [x] State updated
 `);
     return dir;
   };
@@ -250,12 +250,12 @@ test('ps1 parity: SYMLINK at the box-named path (external fabricated PASS) → e
 `## Active workflow
 - **Profile:** standard
 ## Ship-gate checklist
-- [x] a
-- [x] b
-- [x] c
-- [x] d
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Tests written (TDD) and passing
+- [x] Code review clean
 - [x] E2E verified via verify-e2e (report: docs/e2e/reports/feat.md)
-- [x] f
+- [x] State updated
 `);
   assert.equal(run(dir), 1);
   rmSync(parent, { recursive: true, force: true });
@@ -274,12 +274,12 @@ test('ps1 parity: path TRAVERSAL out of the repo (no base resolves) → exit 1',
 `## Active workflow
 - **Profile:** standard
 ## Ship-gate checklist
-- [x] a
-- [x] b
-- [x] c
-- [x] d
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Tests written (TDD) and passing
+- [x] Code review clean
 - [x] E2E verified via verify-e2e (report: ../evil.md)
-- [x] f
+- [x] State updated
 `);
   writeFileSync(join(parent, 'evil.md'), 'VERDICT: PASS\n');
   assert.equal(run(dir), 1);
@@ -300,15 +300,47 @@ test('ps1 parity: SUBDIR path under docs/e2e/reports/ → exit 1 (whitelist reje
 `## Active workflow
 - **Profile:** standard
 ## Ship-gate checklist
-- [x] a
-- [x] b
-- [x] c
-- [x] d
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Tests written (TDD) and passing
+- [x] Code review clean
 - [x] E2E verified via verify-e2e (report: docs/e2e/reports/sub/dir/x.md)
-- [x] f
+- [x] State updated
 `);
   assert.equal(run(dir), 1);
   rmSync(dir, { recursive: true, force: true });
+});
+
+test('ps1 parity: identity — 6 checked boxes but NONE are the required gates → exit 1', { skip: !hasPwsh }, () => {
+  // Mirrors check-gates.test.mjs test 'w' — count-only satisfied the profile before; identity
+  // must require the profile's named gates, not just a box count.
+  const dir = mkdtempSync(join(tmpdir(), 'cgps-id-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x'); git(dir, 'add', '.'); git(dir, 'commit', '-qm', 's');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] gate one
+- [x] gate two
+- [x] gate three
+- [x] gate four
+- [x] gate five
+- [x] gate six
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('ps1 parity: identity — E2E gate replaced by a non-E2E box → exit 1', { skip: !hasPwsh }, () => {
+  // Mirrors check-gates.test.mjs test 'h' — the 5 non-E2E canonical gates are present but the
+  // E2E gate is replaced by an unrelated box; identity must reject the missing E2E gate.
+  const d = make('- [x] Change verified by exercising it', undefined);
+  assert.equal(run(d), 1);
+  rmSync(d, { recursive: true, force: true });
 });
 
 test('ps1 parity: MULTI-REPORT line (two "(report:" groups) → exit 1 (ambiguous)', { skip: !hasPwsh }, () => {
@@ -326,13 +358,87 @@ test('ps1 parity: MULTI-REPORT line (two "(report:" groups) → exit 1 (ambiguou
 `## Active workflow
 - **Profile:** standard
 ## Ship-gate checklist
-- [x] a
-- [x] b
-- [x] c
-- [x] d
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Tests written (TDD) and passing
+- [x] Code review clean
 - [x] E2E verified via verify-e2e (report: docs/e2e/reports/<...>.md) see also (report: docs/e2e/reports/real.md)
-- [x] f
+- [x] State updated
 `);
   assert.equal(run(dir), 1);
   rmSync(dir, { recursive: true, force: true });
+});
+
+test('ps1 parity: Tests gate omitted, fresh PASS E2E report named tdd.md must NOT satisfy it → exit 1', { skip: !hasPwsh }, () => {
+  // Mirrors check-gates.test.mjs test 'x' — anchors match only each box's LEADING words, so a
+  // trailing `(report: docs/e2e/reports/tdd.md)` cannot satisfy the Tests gate's `tests?` anchor.
+  const dir = mkdtempSync(join(tmpdir(), 'cgps-id-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x'); git(dir, 'add', '.'); git(dir, 'commit', '-qm', 's');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, 'docs', 'e2e', 'reports'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'e2e', 'reports', 'tdd.md'), 'VERDICT: PASS\n');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Code review clean
+- [x] E2E verified via verify-e2e (report: docs/e2e/reports/tdd.md)
+- [x] State updated
+- [x] Notes captured
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('ps1 parity: lowercase "e2e verified" satisfies identity but STILL triggers evidence check → exit 1', { skip: !hasPwsh }, () => {
+  // Mirrors check-gates.test.mjs test 'x3' — the E2E evidence extractor must be at least as
+  // lenient as the identity anchor (case-insensitive, optional whitespace), or a box that
+  // satisfies identity would skip report validation. Lowercase E2E box + no report → exit 1.
+  const dir = mkdtempSync(join(tmpdir(), 'cgps-lc-'));
+  git(dir, 'init', '-q', '-b', 'main');
+  git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+  writeFileSync(join(dir, 'seed'), 'x'); git(dir, 'add', '.'); git(dir, 'commit', '-qm', 's');
+  git(dir, 'checkout', '-q', '-b', 'feat/x');
+  mkdirSync(join(dir, '.workflow'), { recursive: true });
+  writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** standard
+## Ship-gate checklist
+- [x] On a feature branch (not \`main\`)
+- [x] Plan written and design-reviewed
+- [x] Tests written (TDD) and passing
+- [x] Code review clean
+- [x] e2e verified via verify-e2e
+- [x] State updated
+`);
+  assert.equal(run(dir), 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('ps1 parity: light profile — 3 canonical gates → exit 0; "trivial" gate renamed → exit 1', { skip: !hasPwsh }, () => {
+  // Mirrors check-gates.test.mjs tests 'y'/'z' — light profile identity coverage.
+  const mkLight = (thirdBox) => {
+    const dir = mkdtempSync(join(tmpdir(), 'cgps-light-'));
+    git(dir, 'init', '-q', '-b', 'main');
+    git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't');
+    writeFileSync(join(dir, 'seed'), 'x'); git(dir, 'add', '.'); git(dir, 'commit', '-qm', 's');
+    git(dir, 'checkout', '-q', '-b', 'feat/x');
+    mkdirSync(join(dir, '.workflow'), { recursive: true });
+    writeFileSync(join(dir, '.workflow', 'state.md'),
+`## Active workflow
+- **Profile:** light
+## Ship-gate checklist
+- [x] On a feature branch (not \`main\`)
+- [x] Change verified (ran it)
+${thirdBox}
+`);
+    return dir;
+  };
+  let d = mkLight('- [x] Still trivial (<3 files, no behavior risk)'); assert.equal(run(d), 0); rmSync(d, { recursive: true, force: true });
+  d = mkLight('- [x] Looks fine to me');                               assert.equal(run(d), 1); rmSync(d, { recursive: true, force: true });
 });

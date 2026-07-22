@@ -132,9 +132,12 @@ blocks a commit when a box is unchecked. Three things stand in — none of them 
    to ship until the profile's boxes pass. Honor it.
 2. **Deterministic Tier-B check (all engines):** `finish-branch` runs
    `shared/scripts/check-gates.sh` (`.ps1` on Windows), which reads `.workflow/state.md` and
-   exits non-zero listing any unchecked box. This turns "eyeball the file" into "run a
-   command that fails loudly" — a much harder thing to rationalize past, and the *same*
-   command a human or CI can run. It is still **attested** (it validates the record, not the
+   exits non-zero listing any unchecked box **or any missing required gate**. It validates the
+   profile's gates by **identity, not just count** — a checklist with the right number of
+   checked boxes but renamed or omitted gates is rejected, so the box wording must name each
+   required gate (the canonical wording lives in `shared/state.template.md`). This turns
+   "eyeball the file" into "run a command that fails loudly" — a much harder thing to
+   rationalize past, and the *same* command a human or CI can run. It is still **attested** (it validates the record, not the
    work) and still **skippable** (Tier B runs only when invoked — it is not a hook). For a
    real *verified* gate, run it in CI with branch protection so the check binds to the PR
    commit outside the agent's turn.
