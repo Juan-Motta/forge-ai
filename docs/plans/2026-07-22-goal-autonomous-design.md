@@ -1,46 +1,48 @@
 # codeforge `/goal` — autonomous mode (Fase 2) — design spec
 
 **Written:** 2026-07-22. **Branch:** `feat/goal-autonomous` (off `dev`, v0.6.0).
-**Status:** design approved in brainstorming; **revised after 3-engine spec review** (Opus +
-Codex `gpt-5.6-sol` + OpenCode `kimi-k3`) — see §12. Next: human spec-review gate → writing-plans.
+**Status:** design approved in brainstorming; **revised twice** after cross-engine spec review
+(iter 1 + iter 2, Opus + Codex `gpt-5.6-sol` + OpenCode `kimi-k3`) — see §14. Next: focused
+re-review of §6/§4 → human spec-review gate → writing-plans.
 
 Repo: `~/Desktop/personal/projects/forge-ai` (GitHub `Juan-Motta/codeforge`, npm
 `@jualopezmo/codeforge`). Cross-engine (Claude Code / Codex / OpenCode) workflow-discipline
-framework. This spec designs the `/goal` autonomous skill — the top remaining capability gap
-vs the origin project `claude-codex-forge`. Cross-engine `/goal` makes codeforge's version
-**unique** (the origin's is Claude+Codex only).
+framework. `/goal` is the top remaining capability gap vs the origin `claude-codex-forge`; a
+cross-engine `/goal` is **unique** (the origin's is Claude+Codex only).
 
 ---
 
 ## 1. Goal
 
-Add a resumable, mostly-autonomous workflow driver that takes a **single feature objective**
-from idea to a PR-ready branch — `prd → research → plan → review → TDD → review → simplify →
-verify → PR` — pausing for the human at **exactly two** planned points (entry approval + PR
-creation) plus any unplanned HALT. Everything in between runs autonomously; genuinely ambiguous
-forks route to the `council` skill instead of pausing; non-convergence and unrecoverable failure
-HALT for a human.
+A resumable, mostly-autonomous workflow driver that takes a **single feature objective** from
+idea to a PR-ready branch — `prd → research → plan → review → TDD → review → simplify → verify →
+PR` — pausing for the human at **exactly two** planned points (entry approval + PR creation) plus
+any unplanned HALT.
 
-It must run **identically under Claude Code, Codex, and OpenCode**, and it must be **honest**:
-the two-pause guarantee is delivered by an **explicit driver-issued approval step on all three
-engines** (§5), not by any engine's native permission prompt. The autonomy is skill-level
-discipline; the only bad-faith-resistant hard gate remains the Fase 1 CI template **once fully
-activated** (§8).
+Between the two gates it runs autonomously; genuinely ambiguous forks route to `council`;
+non-convergence and unrecoverable failure HALT for a human. It must run **identically under
+Claude Code, Codex, and OpenCode** — which requires a **capability preflight** (§6.4) before the
+first gate that proves the loop's own autonomous actions (cross-engine reviewer/council spawns)
+are prompt-free on the driver engine. If that cannot be proven, `/goal` does **not** enter the
+autonomous middle — it HALTs honestly rather than silently stalling on a per-round prompt.
+
+Honesty: the two-pause guarantee is delivered by an **explicit driver-issued approval step on
+all three engines** (§5), never by an engine's bypassable native permission prompt. The autonomy
+is skill-level discipline; the only bad-faith-resistant hard gate remains the fully-activated
+Fase 1 CI template (§8).
 
 ### Scope decision (locked): **feature-only in v1**
 
-v1 drives feature objectives only (the `new-feature` phase sequence with a full PRD entry gate).
-The bug path (`fix-bug`) is a deliberate **follow-up** with its own state/gate map. Consequently,
-**objective classification must explicitly reject a bug objective** and route the human to
-`/fix-bug` — it must NOT silently half-route a bug into the feature machine (review finding H).
+v1 drives feature objectives only. A bug objective is **explicitly rejected** at classification
+with a route to `/fix-bug` — never silently half-routed into the feature machine.
 
 ### Non-goals (YAGNI)
 
-- No new hook/enforcement mechanism. `--with-hooks` was retired in Fase 1 and stays retired.
-- No re-implementation of phase logic already owned by existing skills.
-- No dedicated third state file — loop state lives in the existing `.workflow/state.md`.
-- No auto-approval of `ask`-tier prompts (an autonomous loop cannot, by design).
-- No bug path in v1 (see scope decision above).
+- No new hook/enforcement mechanism (`--with-hooks` retired in Fase 1, stays retired).
+- No re-implementation of phase logic owned by existing skills.
+- No dedicated third state file — loop state lives in `.workflow/state.md`.
+- No auto-approval of `ask`-tier prompts.
+- No bug path in v1.
 
 ---
 
@@ -48,308 +50,417 @@ The bug path (`fix-bug`) is a deliberate **follow-up** with its own state/gate m
 
 | # | Fork | Decision |
 | - | ---- | -------- |
-| 1 | Enforcement posture of the loop's safety gates | **Discipline + `check-gates` at the ship transition (Attested), cross-engine, honest.** No new hooks. Intermediate phase progress is **Advisory** (the `## /goal loop` `phase`/`status` fields), not Attested — corrected per review finding G. |
-| 2 | Durable resume of loop progress | **Reuse `.workflow/state.md` (new `## /goal loop` section) + `CONTINUITY.md`.** No new files. A tested, non-enforcing state-update helper is in scope (§4). |
+| 1 | Enforcement posture | **Discipline + `check-gates` at the SHIP transition only (Attested), cross-engine, honest.** Intermediate phase progress is **Advisory**. |
+| 2 | Durable resume | **Reuse `.workflow/state.md` (`## /goal loop` + `## Blockers`) + `CONTINUITY.md`.** A **tested, mandatory** state helper owns the atomic writes (§9); it is not an enforcement hook. |
 | 3 | Human pause points | **Entry (PRD approval) + PR creation only**, both explicit driver-issued approvals on all three engines. Ambiguous → `council`; non-convergence / unrecoverable failure → human HALT. |
-| 4 | v1 scope | **Feature-only.** Bug objectives are rejected with a route to `/fix-bug`. |
+| 4 | v1 scope | **Feature-only.** Bug objectives rejected → `/fix-bug`. |
+| 5 | Autonomy precondition | **Capability preflight (§6.4) before GATE 1.** If reviewer/council spawns aren't prompt-free on the driver engine, or no non-driver reviewer exists, `/goal` HALTs before the autonomous middle — it never degrades to per-round prompting or driver self-review. |
 
 ### Chosen approach: **A — orchestrator that composes existing skills**
 
-`/goal` is a thin engine-neutral `SKILL.md` the driver follows. It does not duplicate skill
-content (rejected B — DRY violation + linter index-parity friction) and it keeps an explicit
-phase state machine (rejected C — a bare wrapper has no explicit phase ledger; decision #2
-requires one). Composition requires an explicit **phase-ownership contract** (§3) because the
-composed skills were written to run standalone (they re-init state and self-ship).
+`/goal` is a thin engine-neutral `SKILL.md` the driver follows, composing existing skills as
+subordinate phase-workers under an explicit ownership contract (§3) and advancing a state machine
+(§4, §11). Rejected B (duplicate content → DRY/linter friction) and C (bare wrapper → no explicit
+phase ledger, which decision #2 requires).
 
 ---
 
 ## 3. Architecture + composition contract
 
-`/goal <objetivo>` → new file `src/skills/goal/SKILL.md`, engine-neutral. The driver follows it,
-calling existing skills **as subordinate phase-workers** and advancing the phase machine in
-`.workflow/state.md`.
+`/goal <objetivo>` → new file `src/skills/goal/SKILL.md`, engine-neutral.
 
 ```
 /goal <objetivo>
   → classify: feature | bug
-        bug  → STOP, tell the human to run /fix-bug (v1 rejects bugs)
+        bug  → STOP, tell the human to run /fix-bug  (v1 rejects bugs)
         feature ↓
-  → prd            → GATE 1 (human, explicit, all engines): approve PRD ──┐
-  → research       (only if external tech)                                │
-  → plan  (its internal review IS the /goal plan-review pass)             │ autonomous
-  → plan-review loop (cross-engine, bounded — §6)                         │  ambiguous fork → council
-  → tdd            (execution.md; implementers NON-committing — §7)       │  non-convergence → HALT
-  → code-review loop (cross-engine, bounded — §6)                         │  unrecoverable fail → HALT
-  → simplify       (runs INSIDE/at the tail of the code-review loop,      │
-                    before certification, so no commit lands between      │
-                    certification and loop exit — §6)                     │
-  → verify-e2e     (or honest N/A)                                        │
-  → finish-branch  → GATE 2 (human, explicit, all engines): create PR ────┘
+  → CAPABILITY PREFLIGHT (§6.4): prove reviewer/council spawns are prompt-free on the
+        driver engine AND a non-driver reviewer is available. If not → HALT (no autonomy).
+  → prd            → GATE 1 (human, explicit, all engines): approve PRD ────────────────┐
+  → research       (only if external tech)                                              │
+  → plan           (its internal review IS the /goal plan-review pass; the plan skill    │
+        must emit §10 review-log lines, honor breaker N, and return a certification flag)│ autonomous
+  → tdd            (execution.md; implementers commit_policy=defer, non-committing — §7) │  ambiguous → council
+  → code-review LOOP (bounded — §6):                                                     │  non-convergence → HALT
+        review rounds → first clean pass → run simplify ONCE → one certification pass    │  unrecoverable fail → HALT
+        at the post-simplify digest → exit                                              │
+  → verify-e2e     (or honest N/A)  [if it changes code, certification is invalidated —  │
+        §6.5, re-enter code-review]                                                      │
+  → finish-branch  → GATE 2 (human, explicit, all engines): create PR ───────────────────┘
 ```
 
-### Phase-ownership contract (review finding C — mandatory in the skill body)
+`simplify` is **not** a phase that flows to `verify`; it is a **sub-step inside the code-review
+loop** (§6.3). The only exit from that loop is a certification pass at the current digest.
 
-The composed skills (`prd`, `research`, `plan`, `new-feature`/its phases, `review`, `simplify`,
-`verify-e2e`, `finish-branch`) were authored to run standalone: `new-feature §0` **copies the
-state template and initializes `.workflow/state.md`**, and `new-feature §7` / `finish-branch`
-**own shipping**. Composed naïvely, they would erase `/goal`'s loop state or ship on their own.
-The skill therefore declares:
+### Phase-ownership contract (mandatory in the skill body)
 
-- **`/goal` OWNS:** one-time initialization of `.workflow/state.md` (including `## /goal loop`),
-  all phase transitions, retries, the two human gates, and the terminal ship. Subordinate skills
-  **must not** re-initialize state or trigger `git commit`/push/PR themselves.
-- **Subordinate skills CONTRIBUTE** only their phase's work and their named section(s) in
-  `state.md` (e.g., `plan` writes the plan + its `## Review log` design-review lines). `plan`'s
-  built-in cross-engine review **is** the `/goal` plan-review pass — `/goal` does not run a
-  second, separate plan review.
-- **On Claude Code**, `/goal` runs implementers via the `codeforge-implementer` subagent
-  (`execution.md`), but those implementers are **non-committing** (§7).
+Composed skills were authored to run standalone: `new-feature §0` copies the state template and
+**initializes `.workflow/state.md`**; `new-feature §7` / `finish-branch` **own shipping**
+(verified `src/skills/new-feature/SKILL.md:14,56-60`). Composed naïvely they erase `/goal`'s loop
+state or self-ship. The contract:
+
+- **`/goal` OWNS:** one-time state initialization (incl. `## /goal loop` + `## Blockers`), all
+  phase transitions, the `step` task cursor (§10), retries + durable attempt counters (§7), the
+  two human gates, the single ship commit, and the terminal transition. `/goal` composes
+  subordinate skills **in `owner=goal` mode**: they contribute only their phase's work + their
+  named section(s) in `state.md`, and MUST NOT (a) re-initialize state, (b) run `git commit` /
+  push / PR, or (c) self-cap a review loop silently.
+- **`plan`** contributes the plan + its cross-engine design review, which **is** the `/goal`
+  plan-review pass (no second, separate plan review). Under `owner=goal`, `plan`'s internal review
+  MUST emit §10 review-log lines per round, honor the breaker budget N (§6.2), and **return a
+  certification flag**; an uncertified return is treated by `/goal` as a breaker HALT.
+- **`new-feature` / `finish-branch`** are composed for their phase content only; their standalone
+  init (`§0`) and ship (`§7`) steps are disabled under `owner=goal` (see §9 — `execution.md` +
+  the generated agent gain an `owner`/`commit_policy` contract). `/goal` performs init and ship.
+- On Claude Code, implementers run via the `codeforge-implementer` subagent (§7) with
+  `commit_policy=defer`.
 
 ---
 
-## 4. State machine — `## /goal loop` in `.workflow/state.md`
+## 4. State machine — `## /goal loop` + `## Blockers` in `.workflow/state.md`
 
-New section, **REPLACE semantics** (whole section overwritten atomically on each kickoff; a stale
-loop is never appended to). It is the **single authoritative** loop state — it does **not**
-duplicate the existing `## Active workflow` `Phase` field; `/goal` supersedes that field for the
-duration of the loop and `## /goal loop.phase` is the source of truth (review finding D).
+`## /goal loop` is the **single authoritative** loop state (REPLACE semantics — §4.1). It does
+NOT duplicate the existing `## Active workflow` `Phase`; `/goal` supersedes that field for the
+loop's duration and `## /goal loop.phase` is the source of truth.
 
 ```
 ## /goal loop
 
-| Field         | Value                                                              |
-| ------------- | ------------------------------------------------------------------ |
-| nonce         | <uuid-v4-lowercase>  (empty ⇒ INACTIVE)                            |
-| goal          | <one-line feature objective>                                       |
-| status        | active | awaiting-gate1 | awaiting-gate2 | halted                  |
-| phase         | prd|research|plan|plan-review|tdd|code-review|simplify|verify|ship |
-| step          | <cursor within phase, delegated to the composed skill's ledger>    |
-| gate1         | <ISO-8601-UTC when approved, else empty>                           |
-| issued_at     | <ISO-8601-UTC>                                                     |
+| Field     | Value                                                                     |
+| --------- | ------------------------------------------------------------------------- |
+| nonce     | <uuid-v4-lowercase>   (empty ⇒ INACTIVE / terminal)                       |
+| goal      | <one-line feature objective>                                              |
+| status    | active | awaiting-gate1 | awaiting-gate2 | halted | done                  |
+| phase     | preflight|prd|research|plan|tdd|code-review|verify|ship                   |
+| step      | <phase>:<N>/<M>  (e.g. tdd:16/20; the task cursor /goal OWNS — §10)        |
+| base_sha  | <merge-base SHA at kickoff; the digest base — §10>                        |
+| gate1     | <see §10 gate1 record; empty until approved>                              |
+| issued_at | <ISO-8601-UTC>                                                            |
 ```
 
-- **Active** = `nonce` non-empty. `status` distinguishes running vs waiting-for-human vs halted.
-- **`step`**: intra-phase progress (e.g., mid-TDD task 17/20) is delegated to the composed skill's
-  own progress ledger (on Claude, the subagent-driven ledger). "Never restart a completed phase"
-  must NOT be read as "restart the current phase from scratch" — resume continues from `step`
-  within the current phase.
-- **GATE 1 record**: the `gate1` timestamp is the durable proof the entry gate was approved
-  (review finding: GATE 1 had no durable record). Resume must not enter the autonomous middle if
-  `status=awaiting-gate1` or `gate1` is empty.
-- **GATE 2 / PR authorization**: recorded per the existing gate convention — an authorization
-  line carrying `nonce + HEAD SHA + branch/remote`, written **only after** the explicit GATE 2
-  approval (§5), and re-verified against HEAD immediately before `gh pr create`.
-- **Review-iteration counters** live in `## Review log` with a fixed schema so a resuming driver
-  can recompute convergence deterministically (§6).
-- **`## Blockers`**: every HALT path (non-convergence, council failure, tool failure, twice-red
-  gate) writes a head-bound line here and sets `status=halted`. This section is **added to the
-  state template** (it does not exist today) — review finding D.
-- **Resume procedure** (review findings D/J): read `.workflow/state.md` **with the Read tool**
-  (never Bash) + `CONTINUITY.md`. Then:
-  1. If `status=halted` OR any unresolved `## Blockers` line exists → **STOP and report to the
-     human**; resume only after the human writes a head-bound adjudication line clearing it.
-  2. If `status=awaiting-gate1`/`awaiting-gate2` → re-issue that gate (do not auto-proceed).
-  3. Else continue from `phase`+`step`, never restarting a completed phase.
-- **Terminal**: on successful PR creation, `status` is set terminal and the `nonce` cleared so a
-  later session does not treat the finished loop as active.
-- **State-update helper**: a small, **tested, non-enforcing** helper (Node, zero-dep, in `tools/`
-  or a shared script) may own the REPLACE-write of `## /goal loop` and the `## Review log`
-  line-append, to make write-before/write-after semantics testable. It is **not** an enforcement
-  hook — it only reads/writes state deterministically.
+GATE 2 authorization, review rounds, blockers, and attempt counters are recorded as **fixed-schema
+lines** (§10) in `## /goal loop` (for GATE 2 auth), `## Review log`, and `## Blockers`
+respectively — parseable by the state helper.
+
+### 4.1 Kickoff, REPLACE, and collision (fix N10)
+
+Kickoff writes `## /goal loop` with REPLACE semantics (whole section overwritten atomically). But
+kickoff **MUST REFUSE** when `nonce` is non-empty (an active/halted loop exists): it stops and
+requires the human to either (a) write an explicit abandon line in `## Blockers`
+(`- [x] ABANDON loop nonce=<n> — <disposition of staged tree> — ts=<ts>`) **and** clean/disposition
+the working tree, or (b) resume the existing loop. Never silently REPLACE a live loop — that would
+erase a HALT record and fold orphaned staged changes into a new loop's ship commit.
+
+### 4.2 Resume procedure (fix N-cursor, N6, P2 gate1-guard)
+
+On a new session or after compaction, read `.workflow/state.md` **with the Read tool** (never
+Bash) + `CONTINUITY.md`, then apply this numbered procedure (this is the part §9 tests):
+
+1. If `nonce` empty OR `status=done` → **INACTIVE**; do not resume.
+2. If `status=halted` OR any **unresolved** `## Blockers` line exists (§10) → **STOP, report to
+   the human**; resume only after a human head-bound adjudication line resolves every blocker.
+3. If `status=awaiting-gate1` OR `gate1` empty → re-issue GATE 1 (never auto-enter the autonomous
+   middle without a valid `gate1` record).
+4. If `status=awaiting-gate2` → re-issue GATE 2 (§5).
+5. Else `status=active` → continue from `phase`+`step`, never restarting a completed phase;
+   intra-phase, continue from the `step` cursor.
+
+### 4.3 Terminal
+
+On successful PR creation, set `status=done` **and** clear `nonce`. Empty `nonce` is the sole
+terminal signal; a resuming driver treats `nonce`-empty (or `status=done`) as INACTIVE (§4.2.1).
 
 ---
 
-## 5. Human gates + council routing
+## 5. Human gates (portable + content/action-bound — fixes P0-B, N9)
 
 ### GATE 1 — entry (PRD approval)
-After `prd`, the driver sets `status=awaiting-gate1` and issues an **explicit approval request**:
-`AskUserQuestion` on Claude Code, a plain in-conversation approval prompt on Codex/OpenCode. On
-approval it writes the `gate1` timestamp and sets `status=active`. The autonomous run does not
-begin until `gate1` is set.
+After `prd`, set `status=awaiting-gate1` and issue an **explicit approval request** (`AskUserQuestion`
+on Claude; a plain in-conversation prompt on Codex/OpenCode). On approval, write the **gate1
+record** (§10: `approved ts + prd path + prd_digest`) and set `status=active`. The autonomous run
+does not begin until a valid `gate1` record exists. Any later change to the PRD (digest mismatch)
+invalidates `gate1` and re-issues GATE 1.
 
-### GATE 2 — PR creation (portable; review findings B/P0-B)
-`finish-branch` reaches `git push` / `gh pr create`. Before running ANY push/PR command, on
-**all three engines** the driver issues an **explicit in-conversation approval request**
-(`AskUserQuestion` on Claude; a plain approval prompt on Codex/OpenCode). The engine's native
-`ask`-tier permission prompt is treated as **defense-in-depth only** — it is best-effort and may
-be silently absent if the user has allow-listed `git push`/`gh` or runs full-auto, so it can
-never be the gate. Only after explicit approval does the driver write the PR authorization line
-(`nonce + HEAD + branch/remote`) and then re-verify HEAD against that line immediately before
-`gh pr create` (including on resume).
+### GATE 2 — PR creation (portable)
+`finish-branch` reaches push / `gh pr create`. Before running **any** push or PR command, on all
+three engines the driver issues an **explicit in-conversation approval** (`AskUserQuestion` on
+Claude; plain prompt elsewhere). The engine's native `ask`-tier prompt is **defense-in-depth
+only** (bypassable / may be absent under an allow-list or full-auto). Only after explicit approval
+does the driver write the **gate2 authorization line** (§10: `nonce + action set + HEAD + tree
+digest + branch + remote + ts`). The driver **re-verifies HEAD and tree digest against that line
+immediately before EACH push AND each PR action** (not only before `gh pr create`), including on
+resume; any mismatch clears the authorization, sets `status=awaiting-gate2`, and re-issues GATE 2.
 
-### Council instead of pausing (autonomous middle)
-The driver invokes `council` — not the human — when: an ambiguous product/technical choice would
-otherwise prompt the user; a reviewer recommends **revising the plan** (not merely patching);
-a high-impact implementation fork has multiple defensible approaches; a retried tool/subagent has
-**also** failed and recovery is a judgment call; reviewer/council output is unrecognizable.
-
-### Explicit NON-triggers
-Normal plan-review / code-review loop iterations; **non-convergence** (→ human HALT, never
-council). If `council` itself fails → **HALT**, write `## Blockers`, `status=halted`.
+Council routing and NON-triggers are unchanged from the prior revision: ambiguous fork → `council`;
+normal review iterations and non-convergence are NON-triggers (non-convergence → human HALT); if
+`council` itself fails → HALT + `## Blockers` + `status=halted`.
 
 ---
 
-## 6. Cross-engine review loops + bounded convergence (review findings A/P0-A, K)
+## 6. Cross-engine review loops + bounded convergence
 
-Reuse the `review` skill (reviewer ≠ driver; models per `models.md`). Two loops: **plan-review**
-(the `plan` skill's own cross-engine review) and **code-review** (post-TDD, reviewer(s) + a
-self-pass over the diff). Each loop exits **only** when no reviewer reports P0/P1/P2 on the same
-pass — that clean pass is **certification, and certification is the single exit condition**
-(there are not two definitions).
+Two loops: **plan-review** (the `plan` skill's own cross-engine review, run under `owner=goal` per
+§3) and **code-review** (post-TDD, reviewer(s) + a self-pass over the diff). Reviewer ≠ driver
+(`models.md`).
 
-### Bounded termination (the fix for the dead-code breaker)
-The breaker counts **rounds from loop start**, per loop, independent of certification:
+### 6.1 The certification digest (fix N1 — the load-bearing definition)
 
-- Each round appends to `## Review log` a fixed-schema line:
-  `- <loop> iter <N> — <reviewer> — clean|findings=<P0/P1/P2 counts> — head=<sha> — digest=<sha256 of plan-or-diff>`
-- **Breaker:** if a loop has **not certified within `N` rounds** (default `N=4`), the driver
-  **HALTs for a human** with a `## Blockers` line and `status=halted`. This bounds the genuinely
-  non-converging case that never reaches an all-clean pass — the case the origin's certification-
-  relative counter silently missed.
-- **Content binding:** each pass binds to a **content/diff `digest`**, not merely HEAD, because
-  an uncommitted plan or working-tree diff shares one HEAD across edits. Certification is defined
-  at a specific `digest`; a later change (new digest) is a new round.
-- **`simplify` placement:** `simplify` runs **inside the code-review loop, before certification**,
-  so no commit lands between certification and loop exit (removing the "post-clean commit leaves
-  certification undefined" ambiguity). `simplify` therefore does not appear as a post-certification
-  phase; the `simplify` enum value marks the sub-step for resume granularity only.
-- **Release:** human-only, via a head-bound adjudication line; the driver never writes it.
+Each review pass is bound to a **canonical content digest**, not HEAD (an uncommitted plan/diff
+shares one HEAD across edits; implementers stage-only per §7 so `git diff` alone can be empty).
+The digest is computed **at pass start, before the round's review-log line is appended**, as:
 
-### Reviewer routing when the driver is the mandatory reviewer (finding K)
-`models.md` requires reviewer ≠ driver. When the configured default reviewer equals the driver
-engine, select a different available engine (Claude/OpenCode/Codex as available); if none is
-available, apply the documented single-engine waiver in `ship-gates.md` and record it — never let
-the driver self-review.
+> `sha256` over the concatenation of (a) `git diff <base_sha>` covering **tracked staged +
+> unstaged** changes, and (b) the sorted contents of **untracked, non-git-ignored code files**,
+> **EXCLUDING** everything under `.workflow/`, `docs/e2e/reports/`, `CONTINUITY.md`, and any other
+> state/evidence/review-log artifact.
 
-### Reviewer/council spawn must be prompt-free on the driver engine (finding F)
-The loop's most-repeated autonomous action is spawning the *other* engine's CLI (`claude -p …`,
-`codex exec …`, `opencode run …`). On Codex/OpenCode this can trip the driver engine's approval
-policy and silently stall each round. The skill therefore **requires** the driver engine's
-approval config to pre-allow reviewer/council spawns (documents the exact `.codex/config.toml` /
-`opencode.json` allow-entries), **or** honestly states that full unattended autonomy is
-Claude-only and the run degrades to a per-round prompt on the other engines. No silent stall.
+The exclusion is mandatory: without it, appending the mandatory review-log line (or any state
+write) would change the digest and **no pass could ever certify** (the loop would always HALT at
+N). `base_sha` is recorded at kickoff (§4). The exact byte-level command is finalized in the plan
+(§12) but the definition above is normative.
+
+### 6.2 Bounded termination (fixes P0-A + N2 plan-loop)
+
+- **Certification = the single exit condition:** the first pass where all *expected* reviewers are
+  clean (no P0/P1/P2) **at the same digest**. Each round appends a §10 review-log line.
+- **Breaker:** rounds are counted **from loop start**, per loop. If a loop has **not certified
+  within N rounds** (default `N=4`, a named constant), the driver **HALTs** (`## Blockers`,
+  `status=halted`). This bounds the genuinely non-converging case that never reaches an all-clean
+  pass. Rounds that consist only of the simplify+re-certify sequence (§6.3) do **not** consume N.
+- **Plan-review loop:** because `plan` runs its review internally, the §3 contract requires it to
+  emit §10 review-log lines per round, honor N, and **return a certification flag**. `/goal` treats
+  an uncertified return (or N exceeded) as a breaker HALT — the breaker reaches the plan loop, not
+  just the code loop.
+- **Release:** human-only, via a §10 adjudication line that **explicitly carries a budget effect**
+  (`rounds-reset` or `budget+K`); only post-adjudication rounds count thereafter (fix N6 — without
+  this, resume recomputes N uncertified rounds and instantly re-HALTs = deadlock). The driver never
+  writes the adjudication line.
+
+### 6.3 `simplify` placement (fix N3)
+
+`simplify` runs **exactly once**, immediately after the **first clean pass**, inside the
+code-review loop. Exactly **one** certification pass follows, at the **post-simplify digest**. The
+simplify + re-certify sequence does not consume N (§6.2). The loop exits only when
+`digest-at-exit == digest-at-certification` (nothing changed after the certifying pass). Rationale
+is **digest binding** (reviewers must certify the final content), not "no commit between cert and
+exit" (moot — §7 removed all mid-loop commits). This is a `/goal`-scoped override of
+`new-feature §5`'s standalone "clean review THEN simplify" ordering; `/goal` owns the transition.
+
+### 6.4 Capability preflight (fix N7, N8 — runs BEFORE GATE 1)
+
+Before entering the autonomous middle, `/goal` proves, on the **driver engine**:
+
+1. A **non-driver reviewer** engine is available (`models.md`); if the configured default reviewer
+   equals the driver, a different available engine is selected.
+2. Spawning that reviewer/council CLI (`claude -p` / `codex exec` / `opencode run`) is
+   **prompt-free** under the driver engine's current permission config.
+
+If either fails → **HALT before GATE 1** with a `## Blockers` line explaining the missing
+capability (e.g., "reviewer spawn would prompt; add the allow-entry and re-run"). `/goal` does
+**not**: degrade to per-round prompting (breaks the two-pause + cross-engine claims), or invoke the
+`ship-gates.md` single-engine **delayed-self-review** waiver in autonomous mode (that waiver's
+human-review branch is unavailable autonomously, and self-review would hollow out certification).
+The delayed-self-review waiver remains valid for **interactive** (non-`/goal`) use only. The
+required allow-entries for `.claude/settings.json` / `.codex/config.toml` / `opencode.json` are
+documented for **all three** engines (the shipped `src/configs/claude/settings.json` has no Bash
+allow-list today, so Claude needs entries too — this is not a Claude-only-is-free situation);
+exact syntax is finalized in the plan's research step (§12).
+
+### 6.5 Certification does not survive content change (fix N5)
+
+Certification is bound to a digest. **Any working-tree change after certification invalidates it.**
+Concretely: if `verify-e2e` (or a §8 red-path fix) changes code, the driver MUST re-enter the
+code-review loop before shipping — it may not carry a stale "Code review clean" box to the ship
+transition. Dependency invalidation: a plan change clears all downstream evidence (code-review +
+verify + gate2 auth); a code change clears code-review + verify + gate2 auth; a verify change
+invalidates the final snapshot. The ship transition (§8) re-checks `ship-tree digest ==
+certification digest` and refuses if they differ.
 
 ---
 
 ## 7. Per-engine execution + failure handling
 
-- **Execution mode** per `execution.md`: **subagent-driven on Claude Code**, **inline** on
-  Codex/OpenCode. `/goal` never changes the engine-neutral core.
-- **Implementers are NON-committing (review finding E/P1-E).** `execution.md`'s default subagent
-  commits per task, but `ship-gates.md` forbids `git commit` before all standard gates are green.
-  Under `/goal`, implementers **stage only** (no commit) and report back; `/goal` performs the
-  single commit at the ship transition once gates are green. (This is a `/goal`-scoped override of
-  the subagent commit behavior; state it explicitly and consistently for all engines — inline mode
-  likewise does not commit mid-loop.)
-- **Tool/subagent failure:** retry once → if still failing and recovery is a judgment call →
-  `council`; else **HALT** with a `## Blockers` line + `status=halted`.
+- **Execution mode** per `execution.md`: subagent-driven on Claude Code, inline on Codex/OpenCode.
+- **`commit_policy=defer` (fixes P1-E + N4).** `execution.md` and the generated
+  `codeforge-implementer` agent gain an explicit `commit_policy` contract with values
+  `per-task` (today's default, standalone use) and `defer` (`/goal` use). Under `defer`, the
+  implementer **stages only after its task is green and accepted**, does **not** commit, and
+  reports `task-id + test evidence + before/after tree digest` instead of a commit SHA. `/goal`
+  then writes the durable task cursor `step=<phase>:<N>/<M>` into `## /goal loop`. `/goal` makes
+  the single commit at the ship transition once gates are green. Inline mode likewise defers.
+  The generator (`cli/lib/apply.mjs`, verified to currently order "commits… report the commit
+  sha") is updated to emit the `commit_policy`-aware agent (§9).
+- **Durable attempt counters (fix N11).** "retry once" / "twice-red → HALT" counters are persisted
+  as §10 attempt lines keyed by `operation/transition + failure fingerprint`, incremented
+  **before** each attempt, so a restart between failures cannot reset the budget.
+- **Tool/subagent failure:** retry once (per the durable counter) → if still failing and recovery
+  is a judgment call → `council`; else HALT (`## Blockers`, `status=halted`).
 - **`ask`-tier commands (`rm -rf`, etc.):** an autonomous loop cannot self-approve the native
-  prompt, so such a command silently stalls. The skill instructs preferring prompt-free
-  alternatives (cache flags, `: >` truncation instead of `rm`) and announcing any unavoidable
-  recursive delete in-conversation first (mirrors the origin `workflow.md`).
+  prompt. Any **unavoidable** ask-tier action MUST **HALT explicitly** (write `## Blockers`,
+  `status=halted`) and hand to the human — it must NOT launch a command that then blocks silently
+  (announcing it is not enough; the native prompt still hangs the run). Prefer prompt-free
+  alternatives (cache flags, `: >` truncation instead of `rm`).
 
 ---
 
-## 8. Enforcement model (honest — the identity; review findings G, I)
+## 8. Enforcement model (honest — fixes P1-G, N5 red path)
 
-- **`check-gates.sh` is a terminal, full-profile validator, not a per-phase checkpoint.** It
-  validates the entire standard-profile checklist (identity + count) and exits non-zero if any
-  required box is unchecked/not-N/A — so it can only pass at the **ship transition**. The driver
-  runs it **only before shipping**. Intermediate phase progress is tracked by the `## /goal loop`
-  `phase`/`status` fields and is **Advisory**, not Attested. (Corrects the earlier claim that
-  check-gates runs "at each phase transition.")
-- **Ship-gate red path (finding G/P1-5):** if `check-gates` is red at the ship transition, the
-  driver returns to the owning phase to green it; if the **same** transition fails twice, it
-  **HALTs** with a `## Blockers` line and `status=halted` (deterministic red is not retried
-  forever and is not sent to `council`).
-- **CI honesty (finding I/P1-8):** the skill reuses the **exact conditional wording** from
-  `ship-gates.md` — the Fase 1 CI template (`docs/ci-templates/gates.yml`) is **inert until
-  copied into `.github/workflows/`, its test step filled, and made a required status check**, and
-  becomes bad-faith-**resistant** only with the full activation (CODEOWNERS on the workflow and
-  test-defining files, dismiss-stale-approvals, strict/up-to-date checks or a merge queue, bypass
-  disabled for admins). It is **not** described as "the hard gate" unconditionally.
+- **`check-gates.sh` is a terminal, full-profile validator, not a per-phase checkpoint** (verified:
+  validates the entire standard profile by identity + count, requires `Code review clean` /
+  `E2E verified` / `State updated`, so it can only pass at ship). The driver runs it **only before
+  shipping**. Intermediate phase progress (`## /goal loop` `phase`/`status`) is **Advisory**.
+- **Ship-gate red path:** if `check-gates` is red at ship, the driver returns to the **owning
+  phase** to green it. If the greening fix **touches code**, it MUST re-enter the code-review loop
+  (§6.5) — never jump straight back to ship carrying a stale certification. If the **same
+  transition** fails twice (per the durable counter, §7), HALT (`## Blockers`, `status=halted`).
+  The ship transition additionally refuses unless `ship-tree digest == certification digest`.
+- **CI honesty:** reuse the exact conditional wording from `ship-gates.md` — the Fase 1 CI template
+  is **inert until copied into `.github/workflows/`, its test step filled, and made a required
+  status check**, and becomes bad-faith-**resistant** only with full activation (CODEOWNERS on the
+  workflow + test-defining files, dismiss-stale-approvals, strict/up-to-date checks or a merge
+  queue, bypass disabled for admins). Never called "the hard gate" unconditionally.
 
-Honesty block (must appear in the skill body): *"This autonomy is discipline plus a terminal
-Attested checkpoint, not a runtime hard gate. Intermediate phase progress is Advisory. On all
-three engines the only bad-faith-resistant gate is the fully-activated Fase 1 CI template.
-`/goal` does not, and cannot, block a bad ship locally."*
+Honesty block (in the skill body): *"This autonomy is discipline plus a terminal Attested
+checkpoint, not a runtime hard gate. Intermediate progress is Advisory. On all three engines the
+only bad-faith-resistant gate is the fully-activated Fase 1 CI template. `/goal` does not, and
+cannot, block a bad ship locally."*
 
 ---
 
-## 9. Landing checklist (linter / evals / tests)
+## 9. Landing checklist (linter / evals / tests / generator)
 
-- `src/skills/goal/SKILL.md` — full **anti-rationalization anatomy** (`## Common rationalizations`
-  + `## Red flags` + `## Verification`, HARD-required by `tools/lint-skills.mjs`). Body includes
-  the phase-ownership contract (§3), the portable GATE 2 rule (§5), the bounded-convergence rule
-  (§6), non-committing implementers (§7), and the honesty block (§8).
-- `src/CLAUDE.md` — add `goal` to the "Workflow skills" index (index parity is a linter hard
-  error).
-- `tools/run-evals.mjs` fixture — routing/collision cases for `/goal` (rank-1 ≥ floor); must not
-  collide with `new-feature`/`fix-bug`; include a **bug objective → route to /fix-bug** rejection
-  case if the eval harness models it.
-- `src/shared/state.template.md` — add the `## /goal loop` section (INACTIVE by default:
-  heading + empty-value table) **and the `## Blockers` section** (currently absent).
-- `src/shared/rules/workflow.md` — add a `/goal` row to "Which skill" + a short "autonomous run"
-  note (two explicit gates, council routing, bounded convergence, honest non-enforcement).
-- Tests (`tools/test/*.test.mjs`, `node --test`, zero-dep): cover the state-update helper's
-  REPLACE + `## Review log` append + resume-decision logic (halted/awaiting/continue); assert the
-  skill passes the linter and the eval routes `/goal` rank-1; assert bug objectives are rejected.
-  Extend `tests/smoke.sh` expected-skills list to include `goal`.
-- `docs/CHANGELOG.md` — add under `## Unreleased`. Per the user's instruction this stays on
-  v0.6.0; no separate release is cut for it now.
-
----
-
-## 10. Open questions for the plan (all v1-blocking ones resolved)
-
-- Exact `N` for the convergence breaker (default 4) — tune during implementation against real
-  runs; make it a named constant, not a magic number.
-- Exact allow-entry syntax to pre-approve reviewer/council spawns in `.codex/config.toml` /
-  `opencode.json` (§6, finding F) — verify against current Codex/OpenCode config schemas in the
-  plan's research step.
-- Whether the state-update helper lives in `tools/` (dev-only) or `shared/scripts/` (ships to
-  targets) — it must ship, since `/goal` runs in targets, so likely `shared/scripts/` with tests
-  in `tools/test/`. Confirm in the plan.
-
-Resolved inline: v1 scope (feature-only), bug rejection/routing, GATE 1 durable record, GATE 2
-portability, convergence-breaker semantics, check-gates placement + red path, CI honesty wording,
-`## Blockers` section, `simplify` placement, reviewer routing.
+- `src/skills/goal/SKILL.md` — full anti-rationalization anatomy (`## Common rationalizations` +
+  `## Red flags` + `## Verification`, HARD-required by `tools/lint-skills.mjs`). Body carries the
+  §3 ownership contract, §5 portable gates, §6 convergence + preflight, §7 `commit_policy=defer`,
+  §8 honesty block.
+- `src/CLAUDE.md` — add `goal` to the "Workflow skills" index (parity is a linter hard error).
+- `tools/run-evals.mjs` — routing/collision cases for `/goal` (rank-1 ≥ floor); no collision with
+  `new-feature`/`fix-bug`; a **bug-objective → route to /fix-bug** rejection case.
+- `src/shared/state.template.md` — add `## /goal loop` (INACTIVE default) **and `## Blockers`**.
+- `src/shared/rules/execution.md` — add the `owner` + `commit_policy=per-task|defer` contract.
+- `cli/lib/apply.mjs` — update the generated `codeforge-implementer` agent to be
+  `commit_policy`-aware (report task-id + test evidence + before/after tree digest under `defer`,
+  not a commit SHA). Update the wizard/tests that assert the agent body.
+- `src/shared/rules/workflow.md` — add a `/goal` row + a short "autonomous run" note.
+- Tests (`tools/test/*.test.mjs`, `node --test`, zero-dep): the **mandatory** state helper —
+  `## /goal loop` REPLACE + collision refusal (§4.1), the §4.2 resume decision (inactive / halted /
+  awaiting-gate1 / awaiting-gate2 / active), the §10 line parsers (review-log, gate1, gate2,
+  blocker, attempt, cursor), digest exclusion set (§6.1), and the §11 transition table invariants.
+  Assert the skill passes the linter + routes rank-1 + bug objectives are rejected. Extend
+  `tests/smoke.sh` expected-skills to include `goal`.
+- `docs/CHANGELOG.md` — under `## Unreleased`; stays on v0.6.0 (no release cut now, per user).
 
 ---
 
-## 11. How this proceeds (process)
+## 10. Data schemas (normative — the operational contract)
 
-1. **Human spec-review gate** (this revised file), then adjust inline.
-2. `superpowers:writing-plans` → implementation plan (task list + test stubs).
-3. **Cross-engine plan review** (Opus + Codex `gpt-5.6-sol` + OpenCode `kimi-k3`) — mandatory.
-4. `superpowers:subagent-driven-development` — per-task impl + review; final whole-branch review
+All lines are single-line, fixed-order, parseable by the state helper. `<sha>`=git SHA,
+`<digest>`=§6.1 content digest, `<ts>`=ISO-8601-UTC.
+
+- **Task cursor** (`## /goal loop.step`): `<phase>:<N>/<M>` — N tasks done of M. `/goal` writes it
+  after each staged+accepted task.
+- **gate1 record** (`## /goal loop.gate1`): `approved ts=<ts> prd=<path> prd_digest=<sha256>`.
+  Empty until approved. Digest mismatch ⇒ re-gate.
+- **gate2 authorization** (line in `## /goal loop`): `- [x] GATE2 authorized — nonce=<n> —
+  action=push+pr — head=<sha> — tree_digest=<digest> — branch=<b> — remote=<r> — ts=<ts>`.
+  Re-verified before each push and each PR action; mismatch clears it.
+- **Review-log line** (`## Review log`): `- <plan|code>-review round <N> — <reviewer-engine> —
+  <clean | findings P0=a/P1=b/P2=c> — digest=<digest> — base=<sha> — ts=<ts>`. Certification =
+  first N where all expected reviewers are `clean` at one `digest`.
+- **Blocker line** (`## Blockers`), unresolved: `- [ ] BLOCKER <id> — <phase> — <reason> —
+  tree_digest=<digest> — ts=<ts>`. Resolved (human, head-bound):
+  `- [x] BLOCKER <id> — ADJUDICATED — <decision> — budget=<rounds-reset | +K> — head=<sha> —
+  ts=<ts>`. Resume rule §4.2.2 treats any `- [ ] BLOCKER` as unresolved.
+- **Attempt counter** (`## Blockers` or a dedicated `## Attempts` block): `- ATTEMPT
+  <operation-or-transition> — fingerprint=<hash> — n=<k> — ts=<ts>`, incremented before each try.
+- **Abandon line** (`## Blockers`): `- [x] ABANDON loop nonce=<n> — <staged-tree disposition> —
+  ts=<ts>` (required by §4.1 before a new loop replaces a live one).
+
+---
+
+## 11. State transition table (normative)
+
+| From `phase`/`status` | Event | To | Writes |
+| --- | --- | --- | --- |
+| — / (no loop) | `/goal <feature>` + preflight OK | `preflight`→`prd` / `awaiting-gate1` | init `## /goal loop` (refuse if nonce set — §4.1), `base_sha` |
+| — / — | `/goal <bug>` | (none) | STOP → route to `/fix-bug` |
+| `preflight` | reviewer spawn prompts / no non-driver reviewer | `halted` | `## Blockers` (§6.4) |
+| `prd` / `awaiting-gate1` | human approves | `research`\|`plan` / `active` | `gate1` record |
+| `plan` / `active` | plan returns certified | `tdd` | review-log lines |
+| `plan` / `active` | plan uncertified OR N exceeded | `halted` | `## Blockers` |
+| `tdd` / `active` | task k green+accepted | `tdd` | `step=tdd:k/M` (stage only, no commit) |
+| `tdd` / `active` | all tasks done | `code-review` | — |
+| `code-review` / `active` | first clean pass | `code-review` (simplify sub-step) | review-log line |
+| `code-review` / `active` | post-simplify re-certify clean, digest stable | `verify` | review-log line |
+| `code-review` / `active` | N exceeded uncertified | `halted` | `## Blockers` |
+| `verify` / `active` | verify changes code | `code-review` | invalidate certification (§6.5) |
+| `verify` / `active` | verify pass / N/A | `ship` / `awaiting-gate2` | evidence |
+| `ship` / `awaiting-gate2` | human approves | `ship` / `active` | `gate2` auth line |
+| `ship` / `active` | check-gates red, fix touches code | `code-review` | invalidate cert |
+| `ship` / `active` | check-gates green, digest matches, PR created | `done` (nonce cleared) | — |
+| any / `active` | unrecoverable failure / ask-tier unavoidable / council fails | `halted` | `## Blockers` + attempt line |
+| `halted` | human adjudication line (budget effect) | resume owning phase | resolve blocker |
+
+---
+
+## 12. Open questions for the plan (v1-blocking ones resolved in-spec)
+
+- Exact byte-level digest command implementing §6.1 (exclusion globs, untracked-file ordering,
+  normalization) — finalize + test in the plan.
+- Exact reviewer/council pre-allow syntax for `.claude/settings.json` / `.codex/config.toml` /
+  `opencode.json` (§6.4) — verify against current schemas in the plan's research step.
+- `N` default (4) — tune against real runs; named constant.
+- State helper home: `shared/scripts/` (ships to targets — `/goal` runs in targets) with tests in
+  `tools/test/`. Confirm in the plan.
+
+---
+
+## 13. How this proceeds (process)
+
+1. **Focused re-review of §6/§4** (the hot zones) — Opus + Codex `gpt-5.6-sol` + OpenCode `kimi-k3`.
+2. Human spec-review gate → adjust inline.
+3. `superpowers:writing-plans` → implementation plan (task list + test stubs, incl. the §10 schemas
+   and §11 table as testable units).
+4. **Cross-engine plan review** (mandatory).
+5. `superpowers:subagent-driven-development` — per-task impl + review; final whole-branch review
    (Opus + Codex) before PR.
-5. PR `feat/goal-autonomous` → `dev`. Stays on v0.6.0 (no release cut now, per user).
+6. PR `feat/goal-autonomous` → `dev`. Stays on v0.6.0 (no release cut now, per user).
 
 ---
 
-## 12. Spec review log
+## 14. Spec review log
 
-- **Design-spec review iteration 1 — 3 engines — 2026-07-22.** Opus (subagent) + Codex
-  `gpt-5.6-sol` (xhigh, read-only) + OpenCode `kimi-k3`, focused on real structural/portability/
-  honesty defects (not nitpicks). Strong convergence. Findings resolved in this revision:
-  - **P0-A** (all 3) — convergence-breaker was dead code (certification = exit, so "past-cert"
-    never happens; non-converging loop never certifies) → rewrote §6: rounds-from-start, breaker =
-    HALT if not certified within N, content-digest binding, `simplify` before certification.
-  - **P0-B** (all 3) — GATE 2 delegated to bypassable native prompt → §5 now requires explicit
-    driver-issued approval on all three engines; native prompt is defense-in-depth only.
-  - **P1-C** (Codex, ✓code `new-feature §0`) — no composition contract → §3 phase-ownership matrix.
-  - **P1-D** (all 3) — resume state insufficient/duplicated → §4 adds `status`, `gate1` record,
-    `step` cursor, nonce-clear, single authoritative phase, `## Blockers` section + resume rules.
-  - **P1-E** (Codex, ✓code `execution.md`) — subagent per-task commit vs ship-gates → §7 non-
-    committing implementers.
-  - **P1-F** (Opus) — reviewer/council CLI spawn stalls autonomy on Codex/OpenCode → §6 pre-allow
-    requirement or honest Claude-only-autonomy degradation.
-  - **P1-G** (all 3) — check-gates is terminal, not per-phase; red path undefined → §8 rewrite.
-  - **P1-H** (all 3) — bug path unspecified → §1 feature-only v1 + explicit bug rejection/routing.
-  - **P1-I** (Codex) — CI honesty overclaim → §8 exact conditional wording from ship-gates.md.
-  - **P1-J** (kimi) — resume could revive a halted loop → §4 `status=halted` + resume STOP rule.
-  - **P2-K** (Codex) — reviewer routing vs Codex driver → §6 non-driver selection + waiver.
-  - **P2-L** (kimi) — enum omitted `simplify` → §4 enum includes it (resume-granularity sub-step).
+- **Iteration 1 — 3 engines — 2026-07-22.** Found 2 P0 + 8 P1 + 2 P2; all resolved in revision 1.
+  (Convergence-breaker dead code, GATE 2 bypassable, composition/resume/commit/reviewer-spawn/
+  check-gates/bug-path/CI-honesty/routing.)
+- **Iteration 2 (focused §3–§8) — 3 engines — 2026-07-22.** Confirmed 7–8 iter-1 findings CLOSED
+  (P0-B, P1-C, P1-E, P1-F, P1-G, P1-I, P1-J, P2-K). Found the revision **not clean**: 11
+  consolidated new P1s (3 P0-class under plausible readings), all in §6/§4. Resolved in **this**
+  revision (revision 2):
+  - **N1** digest undefined → §6.1 normative digest with mandatory `.workflow/**` + evidence
+    exclusion, computed before the log append.
+  - **N2** plan-review loop had no breaker → §3/§6.2 contract: `plan` emits review-log lines, honors
+    N, returns a certification flag; uncertified ⇒ HALT.
+  - **N3** simplify placement → §6.3 exactly-once, one post-simplify re-cert, doesn't consume N,
+    digest-at-exit == cert digest; §3 diagram fixed; overrides `new-feature §5`.
+  - **N4** resume cursor lost + generated agent commits → §7 `commit_policy=defer` + `/goal`-owned
+    `step` cursor (§10); §9 updates `execution.md` + `cli/lib/apply.mjs` (verified it orders a
+    commit today).
+  - **N5** cross-phase certification laundering → §6.5 + §8: any post-cert code change invalidates
+    certification; red-path code fix re-enters code-review; ship refuses on digest mismatch.
+  - **N6** breaker-release deadlock → §6.2 adjudication line carries an explicit budget effect;
+    only post-adjudication rounds count.
+  - **N7** single-engine self-review contradiction → §6.4 HALT before autonomy; no self-review
+    waiver in autonomous mode.
+  - **N8** "Claude-only autonomy" false premise → §6.4 capability preflight for all three engines
+    (verified shipped `src/configs/claude/settings.json` has no Bash allow-list).
+  - **N9** gate records not content/action-bound → §5/§10 gate1 binds PRD digest; gate2 binds
+    action+HEAD+tree digest+branch+remote; re-verify before each push and PR.
+  - **N10** kickoff REPLACE collision → §4.1 refuse when nonce set; require human abandon +
+    tree disposition.
+  - **N11** non-durable failure counters + ask-tier hang → §7 persisted attempt lines (§10);
+    unavoidable ask-tier HALTs explicitly instead of launching a blocking command.
+  - P2 residuals folded in: `status=done` terminal value (§4), resume gate1-empty guard (§4.2.3),
+    HALT-time staged-tree digest (§10 blocker line `tree_digest`).
 
   Raw reviewer outputs archived in the session scratchpad (not committed).
