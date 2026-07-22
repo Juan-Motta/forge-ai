@@ -34,8 +34,7 @@ for f in CLAUDE.md AGENTS.md opencode.json PROJECT.md CONTINUITY.md \
          .claude/skills/new-feature/SKILL.md .agents/skills/new-feature/SKILL.md \
          .claude/settings.json .codex/config.toml docs/CHANGELOG.md \
          shared/state.template.md \
-         shared/scripts/check-gates.sh shared/scripts/check-gates.ps1 \
-         shared/scripts/claude-gate-hook.sh shared/scripts/claude-gate-hook.ps1; do
+         shared/scripts/check-gates.sh shared/scripts/check-gates.ps1; do
   [ -e "$TB/$f" ] || fail "bash: expected runtime file $f was not produced"
 done
 [ -x "$TB/shared/scripts/check-gates.sh" ] || fail "bash: check-gates.sh is not executable"
@@ -167,25 +166,19 @@ printf '%s' "$up_out" | grep -q "upgrading this target" || fail "older prior did
 [ "$(head -n1 "$TV/.forge-version" | tr -d '[:space:]')" = "$want" ] || fail "upgrade did not re-stamp .forge-version"
 echo "ok: .forge-version stamped on install; drift advisory on version change"
 
-# --- 12. --with-hooks (opt-in Claude gate): writes settings.local.json; hook blocks a red state ---
+# --- 12. --with-hooks is a retired no-op; the gate hook is never installed ---
 TH="$TMP/hooks"; mkdir -p "$TH"
-"$ROOT/install.sh" "$TH" --with-hooks >/dev/null || fail "--with-hooks install exited non-zero"
-SL="$TH/.claude/settings.local.json"
-[ -f "$SL" ] || fail "--with-hooks did not write the local settings file"
-grep -q "claude-gate-hook" "$SL" || fail "local settings file does not reference the gate hook"
-mkdir -p "$TH/.workflow"
-GHOOK="$TH/shared/scripts/claude-gate-hook.sh"
-write_state "$TH/.workflow/state.md" red
-rc=0; ( cd "$TH" && printf '{"tool_input":{"command":"git commit -m x"}}' | sh "$GHOOK" >/dev/null 2>&1 ) || rc=$?
-[ "$rc" = 2 ] || fail "gate hook should exit 2 (block) on a red state + ship action, got $rc"
-write_state "$TH/.workflow/state.md" green
-( cd "$TH" && printf '{"tool_input":{"command":"git push"}}' | sh "$GHOOK" >/dev/null 2>&1 ) || fail "gate hook should allow (exit 0) on a green state"
-( cd "$TH" && printf '{"tool_input":{"command":"ls -la"}}' | sh "$GHOOK" >/dev/null 2>&1 ) || fail "gate hook should allow (exit 0) a non-ship command"
-rm -f "$TH/.workflow/state.md"
-( cd "$TH" && printf '{"tool_input":{"command":"git push"}}' | sh "$GHOOK" >/dev/null 2>&1 ) || fail "gate hook should fail OPEN (exit 0) when state is missing/unverifiable"
-TH2="$TMP/nohooks"; mkdir -p "$TH2"; "$ROOT/install.sh" "$TH2" >/dev/null
-[ -f "$TH2/.claude/settings.local.json" ] && fail "bare install wrongly created the opt-in local settings file"
-echo "ok: --with-hooks installs the Claude gate; it blocks a red ship and allows a green one"
+"$ROOT/install.sh" "$TH" --with-hooks >/dev/null 2>&1 || fail "--with-hooks (deprecated no-op) should still install cleanly"
+[ ! -e "$TH/shared/scripts/claude-gate-hook.sh" ] || fail "claude-gate-hook.sh must no longer be installed"
+[ ! -e "$TH/shared/scripts/claude-gate-hook.ps1" ] || fail "claude-gate-hook.ps1 must no longer be installed"
+if [ -f "$TH/.claude/settings.local.json" ]; then
+  grep -q 'claude-gate-hook' "$TH/.claude/settings.local.json" && fail "settings.local.json must not reference the retired gate hook"
+fi
+# upgrade prunes a stale hook left by an older install
+mkdir -p "$TH/shared/scripts"; : > "$TH/shared/scripts/claude-gate-hook.sh"
+"$ROOT/install.sh" "$TH" --upgrade >/dev/null 2>&1 || fail "upgrade over a stale-hook target should succeed"
+[ ! -e "$TH/shared/scripts/claude-gate-hook.sh" ] || fail "upgrade must prune a stale claude-gate-hook.sh"
+echo "ok: --with-hooks retired (deprecated no-op, gate hook never installed, stale hook pruned)"
 
 # --- 13. git: a non-git target warns (and stays non-git); --git-init initializes a repo ---
 TG1="$TMP/nogit"; mkdir -p "$TG1"

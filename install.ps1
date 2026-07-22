@@ -3,7 +3,7 @@
 # codeforge installer (Windows / PowerShell) — copy the workflow discipline into a target
 # project. Mirror of install.sh.
 #
-#   pwsh ./install.ps1 [target-dir] [-Upgrade] [-WithHooks] [-GitInit] [-NoIsolate]
+#   pwsh ./install.ps1 [target-dir] [-Upgrade] [-GitInit] [-NoIsolate]
 #
 # With no target-dir, installs into the current working directory.
 #
@@ -32,6 +32,10 @@ param(
   [switch]$NoIsolate
 )
 $ErrorActionPreference = 'Stop'
+
+if ($WithHooks) {
+  [Console]::Error.WriteLine("  ! -WithHooks is retired (the Claude gate hook is superseded by the CI Verified tier); ignoring.")
+}
 
 $Src = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Payload = Join-Path $Src 'src'
@@ -87,6 +91,16 @@ function Has-ForgeMarker([string]$file) {
 # install (.forge-manifest present) so a FIRST install never touches an unrelated project's
 # own configs/ or skills/ dirs.
 if (Test-Path (Join-Path $Target '.forge-manifest')) {
+  $ghSh = Join-Path $Target 'shared/scripts/claude-gate-hook.sh'
+  $ghPs1 = Join-Path $Target 'shared/scripts/claude-gate-hook.ps1'
+  if ((Test-Path $ghSh) -or (Test-Path $ghPs1)) {
+    Write-Host "  ~ the Claude gate hook (-WithHooks) is retired — enforcement is now the CI Verified tier (docs/ci-templates/)."
+  }
+  # Retired: the opt-in Claude gate hook (superseded by the CI Verified tier).
+  foreach ($rel in 'shared/scripts/claude-gate-hook.sh', 'shared/scripts/claude-gate-hook.ps1') {
+    $p = Join-Path $Target $rel
+    if (Test-Path $p) { Remove-Item -Force $p; Write-Host "  - removed retired gate hook: $rel" }
+  }
   # Detect a genuinely OLD (pre-thin) forge install by its machinery; only then migrate
   # configs/skills, so a routine re-install never relocates an app's own top-level dirs.
   $oldInstall = $false
@@ -221,11 +235,11 @@ if ((Test-Path $tAgents) -and -not (Has-ForgeMarker $tAgents)) {
 #     writes straight into the target) ---
 & (Join-Path $Src 'src/sync.ps1') -Out $Target | Out-Null
 
-# --- Claude Code .claude/settings.local.json: auto-isolation + opt-in gate hook ---
+# --- Claude Code .claude/settings.local.json: auto-isolation ---
 # Auto-isolation (default; -NoIsolate to keep inheritance) adds claudeMdExcludes so Claude Code
 # doesn't blend ancestor CLAUDE.md/.claude/rules into this project (Codex/OpenCode already scope
-# to the project root). -WithHooks adds the Tier-C PreToolUse gate. Both land in the one
-# gitignored file; codeforge only (re)writes it when absent or a prior install owned it.
+# to the project root). Lands in the one gitignored file; codeforge only (re)writes it when
+# absent or a prior install owned it.
 $excludes = @()
 if (-not $NoIsolate) {
   $d = Split-Path -Parent $Target
@@ -239,27 +253,16 @@ if (-not $NoIsolate) {
 }
 
 $sl = Join-Path $Target '.claude/settings.local.json'
-if ($excludes.Count -gt 0 -or $WithHooks) {
+if ($excludes.Count -gt 0) {
   if ((Test-Path -LiteralPath $sl -PathType Leaf) -and (-not $priorLocalManaged)) {
     Write-Host "  ! .claude/settings.local.json exists and isn't codeforge-managed — not touching it."
-    Write-Host "    (skipped auto-isolation / gate hook; remove that file and re-run, or edit it by hand.)"
+    Write-Host "    (skipped auto-isolation; remove that file and re-run, or edit it by hand.)"
   } else {
     $settings = [ordered]@{}
     if ($excludes.Count -gt 0) { $settings['claudeMdExcludes'] = $excludes }
-    if ($WithHooks) {
-      $settings['hooks'] = [ordered]@{
-        PreToolUse = @(
-          [ordered]@{
-            matcher = 'Bash'
-            hooks   = @([ordered]@{ type = 'command'; command = 'pwsh -NoProfile -File "$env:CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.ps1"' })
-          }
-        )
-      }
-    }
     $settings | ConvertTo-Json -Depth 10 | Set-Content -Path $sl
     if (-not (Select-String -LiteralPath $mf -Pattern '^localsettings:managed$' -Quiet)) { Add-Content -Path $mf -Value 'localsettings:managed' }
     if ($excludes.Count -gt 0) { Write-Host "  + auto-isolated Claude Code from $($excludes.Count) ancestor instruction path(s) -> .claude/settings.local.json (-NoIsolate to keep inheritance)" }
-    if ($WithHooks)            { Write-Host "  + Claude gate hook -> .claude/settings.local.json (opt-in, hard-blocks ship on incomplete gates)" }
   }
 } elseif ($priorLocalManaged -and (Test-Path -LiteralPath $sl -PathType Leaf)) {
   Remove-Item -LiteralPath $sl -Force
