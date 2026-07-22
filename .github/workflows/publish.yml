@@ -1,0 +1,53 @@
+name: Publish to npm (manual)
+
+# Manually publish a tagged version of @jualopezmo/codeforge to npm.
+#
+# Trigger: workflow_dispatch only — nothing is published automatically. You choose the tag.
+# Auth:    OIDC trusted publishing — NO stored npm token. GitHub Actions authenticates with a
+#          short-lived OIDC credential, works with 2FA on the account, and (public repo) npm
+#          generates provenance automatically.
+#
+# One-time setup on npmjs.com (Settings → Trusted Publisher → GitHub Actions):
+#   Organization/user: Juan-Motta   Repository: codeforge
+#   Workflow filename: publish.yml  Allowed action: npm publish
+#
+# The tag must already exist (release.yml creates v<VERSION> on a VERSION bump merged to main),
+# and its committed package.json version must match the tag — otherwise the run fails fast.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to publish (e.g. v0.5.1). Must already exist.'
+        required: true
+        type: string
+
+permissions:
+  id-token: write   # required: mints the OIDC token npm trusts
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Ensure npm supports trusted publishing (>= 11.5.1)
+        run: npm install -g npm@latest
+      - name: Verify tag matches package.json version
+        run: |
+          set -euo pipefail
+          tag="${{ inputs.tag }}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "v${pkg}" ]; then
+            echo "::error::input tag '${tag}' does not match package.json version 'v${pkg}'"
+            exit 1
+          fi
+          echo "publishing ${pkg} from ${tag}"
+      - name: Publish to npm (OIDC, provenance auto)
+        run: npm publish --access public

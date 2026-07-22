@@ -13,6 +13,11 @@ development log; it is **not** the seed shipped to installed projects (that live
   `@jualopezmo/codeforge` is published, and the interactive setup wizard, `verify-e2e` skill,
   Claude-only execution mode, and EN/ES support are documented. Docs-only — no code or shipped
   payload changed.
+- **Manual npm publish workflow (`publish.yml`).** A `workflow_dispatch`-only job publishes a
+  chosen tag to npm via **OIDC trusted publishing** — no stored token, works with account 2FA,
+  and (public repo) emits provenance automatically. Fails fast if the input tag doesn't match
+  the committed `package.json` version. Requires a one-time Trusted Publisher registration on
+  npmjs.com. Repo infra only — not shipped in the package.
 
 ## 0.5.0 — 2026-07-21
 
