@@ -2,7 +2,7 @@
 #
 # codeforge installer — copy the workflow discipline into a target project.
 #
-#   ./install.sh [target-dir] [--upgrade] [--with-hooks] [--git-init] [--no-isolate]
+#   ./install.sh [target-dir] [--upgrade] [--git-init] [--no-isolate]
 #
 # With no target-dir, installs into the current working directory. So the common flow is:
 #   cd my-project && /path/to/codeforge/install.sh
@@ -42,15 +42,14 @@ FORGE_VERSION="unknown"
 [ -f "$SRC/VERSION" ] && FORGE_VERSION="$(head -n1 "$SRC/VERSION" | tr -d '[:space:]')"
 [ -n "$FORGE_VERSION" ] || FORGE_VERSION="unknown"
 MODE="install"
-WITH_HOOKS=0
 GIT_INIT=0
 ISOLATE=1   # auto-isolate Claude Code from ancestor CLAUDE.md by default (--no-isolate to keep inheritance)
 TARGET=""
-usage="usage: $0 [target-dir] [--upgrade] [--with-hooks] [--git-init] [--no-isolate]"
+usage="usage: $0 [target-dir] [--upgrade] [--git-init] [--no-isolate]"
 while [ $# -gt 0 ]; do
   case "$1" in
     --upgrade)     MODE="upgrade" ;;
-    --with-hooks)  WITH_HOOKS=1 ;;
+    --with-hooks)  echo "  ! --with-hooks is retired (the Claude gate hook is superseded by the CI Verified tier); ignoring." >&2 ;;
     --git-init)    GIT_INIT=1 ;;
     --no-isolate)  ISOLATE=0 ;;
     -*)            echo "$usage  (unknown arg: $1)" >&2; exit 2 ;;
@@ -93,6 +92,13 @@ fi
 # (.forge-manifest present) so a FIRST install never touches an unrelated project's own
 # configs/ or skills/ dirs.
 if [ -f "$TARGET/.forge-manifest" ]; then
+  if [ -e "$TARGET/shared/scripts/claude-gate-hook.sh" ] || [ -e "$TARGET/shared/scripts/claude-gate-hook.ps1" ]; then
+    echo "  ~ the Claude gate hook (--with-hooks) is retired — enforcement is now the CI Verified tier (docs/ci-templates/)."
+  fi
+  # Retired: the opt-in Claude gate hook (superseded by the CI Verified tier).
+  for f in shared/scripts/claude-gate-hook.sh shared/scripts/claude-gate-hook.ps1; do
+    [ -e "$TARGET/$f" ] && { rm -f "$TARGET/$f"; echo "  - removed retired gate hook: $f"; }
+  done
   # Detect a genuinely OLD (pre-thin) forge install: it left this machinery at the target root.
   # A modern thin install — or an unrelated app that happens to keep its own top-level configs/
   # or skills/ — does NOT. Gate the configs/skills migration on this signal so a routine
@@ -183,6 +189,23 @@ for d in prds plans research solutions adr e2e/reports e2e/use-cases; do
   [ -e "$TARGET/docs/$d/.gitkeep" ] || touch "$TARGET/docs/$d/.gitkeep"
 done
 
+# --- MANAGED: CI templates (Verified-tier gate + activation guide) ---
+# Copied into the target (overwritten on upgrade). A pre-existing, non-ours file is backed up
+# once so first adoption never clobbers a user's own docs/ci-templates content.
+if [ -d "$PAYLOAD/docs/ci-templates" ]; then
+  mkdir -p "$TARGET/docs/ci-templates"
+  for f in "$PAYLOAD"/docs/ci-templates/*; do
+    [ -e "$f" ] || continue
+    base="$(basename "$f")"
+    dst="$TARGET/docs/ci-templates/$base"
+    if [ -f "$dst" ] && ! grep -q 'codeforge' "$dst" 2>/dev/null && [ ! -e "$dst.pre-forge.bak" ]; then
+      cp "$dst" "$dst.pre-forge.bak"
+      echo "  ! backed up existing docs/ci-templates/$base -> $base.pre-forge.bak"
+    fi
+    cp "$f" "$dst"
+  done
+fi
+
 # --- PROJECT-OWNED: PROJECT.md / CONTINUITY.md / docs/CHANGELOG.md (create only if missing) ---
 [ -f "$TARGET/PROJECT.md" ]    || { cp "$PAYLOAD/PROJECT.template.md" "$TARGET/PROJECT.md"; echo "  + created PROJECT.md (fill in persona/info/variables/special rules)"; }
 [ -f "$TARGET/CONTINUITY.md" ] || cp "$PAYLOAD/CONTINUITY.template.md" "$TARGET/CONTINUITY.md"
@@ -208,14 +231,13 @@ fi
 #     writes straight into the target — no source or sync script copied there) ---
 bash "$PAYLOAD/sync.sh" --out "$TARGET" >/dev/null
 
-# --- Claude Code .claude/settings.local.json: auto-isolation + opt-in gate hook ---
-# Both features land in this one gitignored, per-developer, machine-specific file. Auto-isolation
-# (default; --no-isolate to keep inheritance) adds `claudeMdExcludes` so Claude Code does NOT
-# blend ancestor CLAUDE.md / .claude/rules into this project — Codex and OpenCode already scope
-# to the project root, Claude Code walks to the filesystem root. --with-hooks adds the Tier-C
-# PreToolUse gate. codeforge only (re)writes this file when it is absent or a prior forge install
-# owned it (tracked as `localsettings:managed` in .forge-manifest); a file it doesn't own is left
-# alone. The hook's $CLAUDE_PROJECT_DIR is resolved by Claude Code at runtime, not now.
+# --- Claude Code .claude/settings.local.json: auto-isolation ---
+# Lands in this one gitignored, per-developer, machine-specific file. Auto-isolation (default;
+# --no-isolate to keep inheritance) adds `claudeMdExcludes` so Claude Code does NOT blend ancestor
+# CLAUDE.md / .claude/rules into this project — Codex and OpenCode already scope to the project
+# root, Claude Code walks to the filesystem root. codeforge only (re)writes this file when it is
+# absent or a prior forge install owned it (tracked as `localsettings:managed` in .forge-manifest);
+# a file it doesn't own is left alone.
 excludes=""
 if [ "$ISOLATE" = "1" ]; then
   d="$(dirname "$TARGET")"
@@ -232,10 +254,10 @@ fi
 n_excl=$(printf '%s' "$excludes" | grep -c . || true)
 
 sl="$TARGET/.claude/settings.local.json"
-if [ "$n_excl" -gt 0 ] || [ "$WITH_HOOKS" = "1" ]; then
+if [ "$n_excl" -gt 0 ]; then
   if [ -f "$sl" ] && [ "$PRIOR_LOCAL_MANAGED" != "1" ]; then
     echo "  ! .claude/settings.local.json exists and isn't codeforge-managed — not touching it."
-    echo "    (skipped auto-isolation / gate hook; remove that file and re-run, or edit it by hand.)"
+    echo "    (skipped auto-isolation; remove that file and re-run, or edit it by hand.)"
   else
     excl_json=""
     while IFS= read -r p; do
@@ -245,21 +267,13 @@ if [ "$n_excl" -gt 0 ] || [ "$WITH_HOOKS" = "1" ]; then
     done <<EOF
 $excludes
 EOF
-    hook_block='  "hooks": {
-    "PreToolUse": [
-      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/shared/scripts/claude-gate-hook.sh\"" } ] }
-    ]
-  }'
     {
       printf '{'
       [ "$n_excl" -gt 0 ] && printf '\n  "claudeMdExcludes": [%s\n  ]' "$excl_json"
-      { [ "$n_excl" -gt 0 ] && [ "$WITH_HOOKS" = "1" ]; } && printf ','
-      [ "$WITH_HOOKS" = "1" ] && printf '\n%s' "$hook_block"
       printf '\n}\n'
     } > "$sl"
     grep -q '^localsettings:managed$' "$manifest" 2>/dev/null || printf 'localsettings:managed\n' >> "$manifest"
     [ "$n_excl" -gt 0 ]      && echo "  + auto-isolated Claude Code from $n_excl ancestor instruction path(s) -> .claude/settings.local.json (--no-isolate to keep inheritance)"
-    [ "$WITH_HOOKS" = "1" ]  && echo "  + Claude gate hook -> .claude/settings.local.json (opt-in, hard-blocks ship on incomplete gates)"
   fi
 elif [ "$PRIOR_LOCAL_MANAGED" = "1" ] && [ -f "$sl" ]; then
   rm -f "$sl"

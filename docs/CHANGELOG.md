@@ -4,8 +4,21 @@ Notable changes to the codeforge framework itself, newest first. This is the fra
 development log; it is **not** the seed shipped to installed projects (that lives at
 `src/docs/CHANGELOG.md`).
 
-## Unreleased
+## 0.6.0 — 2026-07-22
 
+- **Enforcement reframed to a Verified-tier CI template (`docs/ci-templates/gates.yml`).** codeforge
+  now ships an opt-in GitHub Actions workflow where CI independently re-runs your declared test
+  command on the PR merge result, outside any agent's turn; made a required status check with
+  "do not allow bypassing" (plus CODEOWNERS on the workflow and test-defining files, dismiss-stale-
+  approvals, and strict/up-to-date checks per the template's README), it is the only tier that CAN
+  bind for everyone once fully configured. The default test step fails closed until you replace it.
+- **Retired `--with-hooks` (the Claude-only PreToolUse gate hook).** Superseded by the CI Verified
+  tier; its local fast-feedback role is already covered by `finish-branch` running `check-gates`.
+  Removed across the installers, wizard/CLI, and CI; `claude-gate-hook.{sh,ps1}` deleted and pruned
+  from targets on `--upgrade`. `--with-hooks` / `-WithHooks` is now a deprecated no-op (warns, still
+  installs) so existing scripts don't break. Rationale: two rounds of cross-engine plan review showed
+  a local git hook cannot be portable, mandatory enforcement (per-clone `core.hooksPath`, server-side
+  merges skip it, silent bypasses). Docs reframed to an honest Advisory/Attested/Verified ladder.
 - **`check-gates` now validates gate IDENTITY, not just count.** A ship-gate checklist with the
   right *number* of checked boxes but the wrong (renamed or missing) gates used to read green —
   the validator only enforced a required count per profile (standard = 6, light = 3). It now

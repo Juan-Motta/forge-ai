@@ -74,7 +74,7 @@ and have the relevant skill name the exact command to run.
 
 ---
 
-## Tier C — Hooks (automatic, blocking, or out-of-turn) — NOT portable
+## Hooks (automatic, blocking, or out-of-turn) — NOT portable
 
 Needed only when something must be *guaranteed* — it cannot be expressed as an
 instruction. This is where interoperability breaks: each engine has a different mechanism,
@@ -99,11 +99,18 @@ Per-engine mechanism (all can block):
 
 **Trade:** three separate implementations to keep in sync, plus per-engine trust/merge
 concerns. Reach for it only when a real guarantee is worth that cost — and start with a single
-engine. **A reference adapter ships opt-in:** `install.sh --with-hooks` (Claude Code only)
-installs a `PreToolUse` hook (`shared/scripts/claude-gate-hook.sh`) that runs the same
-`check-gates.sh` and exits 2 to block a ship on incomplete gates. It stays off the default
-install (per-developer, gitignored `.claude/settings.local.json`) so the portable core is
-unchanged; Codex/OpenCode adapters are not built yet.
+engine. **codeforge doesn't ship per-engine runtime hooks.** Instead, the real example of this
+tier is **the CI Verified template** (`docs/ci-templates/`): a workflow where CI independently
+re-runs the project's declared test command on the PR's merge result, outside any agent's
+turn — no per-engine adapter needed, because it runs in CI, not in an agent's session. Once
+wired up as a required status check under branch protection, it blocks the merge outside any
+engine's turn; it becomes bad-faith-**resistant** (never "proof") — rather than just a check
+that can be quietly weakened — only once the repo is also fully configured per
+`docs/ci-templates/README.md` (CODEOWNERS on the workflow and test-defining files,
+dismiss-stale-approvals, strict/up-to-date checks or a merge queue), and even then it still
+depends on a human actually reading those diffs. Repo/org admins can still bypass branch
+protection unless you've configured otherwise. See `shared/rules/ship-gates.md` for the
+Verified/Attested/Advisory ladder.
 
 ---
 
@@ -128,7 +135,8 @@ Before adding something, ask in order:
 2. Does it need deterministic, repeatable computation, but only when asked? → **Tier B**
    (a skill that invokes a `scripts/` helper).
 3. Must it be enforced/automatic even if the agent doesn't cooperate, or run outside a
-   turn? → **Tier C** (hooks, per engine) — accept the portability cost, or scope to one
-   engine.
+   turn? → **hooks** (per engine) — accept the portability cost, or scope to one engine; for
+   ship-gate enforcement specifically, prefer the CI Verified template (`docs/ci-templates/`)
+   over a per-engine hook.
 
 Default to the lowest tier that works. Most new functionality is Tier A.

@@ -70,11 +70,12 @@ state and is bypassable. It runs identically under Claude Code, Codex, and OpenC
 
 ## Enforcement model (read this — it's a deliberate trade)
 
-By default there is **no hard conditional block**. The skills instruct you to run the gates
-before shipping (advisory), and `finish-branch` runs `shared/scripts/check-gates.sh` — a
-deterministic check of `.workflow/state.md` that fails loudly on an unchecked box (still only
-when invoked). On top of that, each harness applies a **coarse native approval** on outward
-actions:
+There is **no hard conditional block** locally, and only one mechanism that CAN bind for
+everyone once fully configured. Locally, it's discipline: the skills instruct you to run the gates before shipping
+(**Advisory**), and `finish-branch` runs `shared/scripts/check-gates.sh` — a deterministic
+check of `.workflow/state.md` that fails loudly on an unchecked box, but only when invoked
+(**Attested**, local). On top of that, each harness applies a **coarse native approval** on
+outward actions — a human-confirmation prompt, not a gate check:
 
 - **Claude Code:** `git push` / `gh pr create` are `ask`-tier in `.claude/settings.json`
   (human approves).
@@ -84,6 +85,17 @@ actions:
   to `ask` (and force-push to `deny`).
 
 None of them read `.workflow/state.md` to decide — they always ask; you approve, after
-checking the gates (or running `check-gates.sh`). For real blocking on Claude Code,
-`install.sh --with-hooks` adds an opt-in `PreToolUse` hook that exits 2 on incomplete gates.
-A checked box is *attested*, not *verified* — see `shared/rules/ship-gates.md`.
+checking the gates (or running `check-gates.sh`).
+
+The **real hard gate** is the shipped CI template, `docs/ci-templates/gates.yml`: once copied
+into `.github/workflows/`, its test step filled in, and made a **required status check** with
+branch protection (bypass disabled), CI independently reruns your declared test command on the
+PR merge result, outside any agent's turn (**Verified**). It only becomes bad-faith-
+**resistant** — and can bind for every clone and every merge — once the repo is also fully
+configured per `docs/ci-templates/README.md` (CODEOWNERS on the workflow file and on the
+test-defining files, "Dismiss stale pull request approvals" enabled, strict/up-to-date checks
+or a merge queue, and bypass disabled for admins too) — and even then it still depends on a
+human actually reading those diffs. Repo/org admins can still bypass branch protection unless
+you've configured otherwise. Until you activate it, nothing here actually blocks a bad ship. A
+checked box in `.workflow/state.md` is *attested*, not *verified* — see
+`shared/rules/ship-gates.md` for the full Verified/Attested/Advisory ladder.
