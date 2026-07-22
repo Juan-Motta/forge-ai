@@ -1,113 +1,144 @@
-# Design — Portable hard enforcement (Fase 1)
+# Design — Verified-tier enforcement via CI (Fase 1, CI-only)
 
-**Date:** 2026-07-22
+**Date:** 2026-07-22 (rev 3 — CI-only, after two rounds of 3-engine plan review)
 **Status:** design (pending implementation)
-**Roadmap:** Fase 1 of "get codeforge to the level" (see docs/CHANGELOG + memory). Follows Fase 0
-(check-gates identity, PR #16).
+**Roadmap:** Fase 1 of "get codeforge to the level". Follows Fase 0 (check-gates identity, PR #16).
 
-## Problem
+## Why CI-only (the short version of two review rounds)
 
-codeforge's default install cannot **block** a bad ship on any engine. Enforcement today is:
-Advisory (skills instruct) + a best-effort native prompt per engine (reads no gate state,
-bypassable) + an **opt-in, Claude-only** `--with-hooks` PreToolUse hard block (`fails open`).
-Cross-engine review (Codex + kimi-k3, 2026-07-22) named this the #1 gap: *"runs everywhere,
-blocks nothing."* The three-engine council ranked portable hard enforcement the top priority.
+Rev 1 proposed a default-on git `pre-push` hook as *the* portable hard block. Two rounds of
+3-engine review (Opus + Codex gpt-5.6-sol + OpenCode kimi-k3) established:
 
-## Goal
+- A **local git hook cannot be portable, mandatory enforcement**: `core.hooksPath` is per-clone
+  (`.git/config` never travels), local hooks never fire on server-side merges (GitHub UI,
+  `gh pr merge`, Dependabot), and the exec-bit/CRLF/exit-3/`rm .workflow` traps make it silently
+  bypassable — the *default* state on a fresh clone is "no gate."
+- A **CI job running `check-gates` is vacuous**: `.workflow/` is gitignored, so a PR checkout has
+  no `state.md`; the E2E-report binding also lives only in that gitignored state, so no
+  committed source names the report — every implementable in-CI E2E check is either
+  non-commit-bound or fail-open, and conflicts with the `light` profile / `N/A` allowances.
+- The local hook's only real value — fast local feedback — is **already delivered** by
+  `finish-branch`, which runs `check-gates` before pushing.
 
-A hard block that (a) works **identically on Claude Code, Codex, and OpenCode**, (b) is **on by
-default**, and (c) completes the honest enforcement ladder with a real **Verified** tier.
+So the local hook is high-complexity, high-bypass, low-marginal-value. **Fase 1 drops it.** The
+honest, actually-portable enforcement is **CI + branch protection that recomputes the project's
+tests on the PR commit**. That is the only signal that binds for every clone and every merge.
 
-Non-goals: blocking local commits (breaks TDD); per-engine PreToolUse adapters; gating
-`gh pr create` directly (covered transitively — a PR needs a pushed branch).
+This is also more honest than claude-codex-forge's "baked in by construction" — its local hooks
+share the same per-clone limitation; its real gate is CI too.
 
-## Approach (decided during brainstorming)
+## Architecture — the honest ladder (final)
 
-Git is the one enforcement substrate common to all three engines: when any engine's shell runs
-`git push`, git fires the repo's `pre-push` hook regardless of which CLI drove it. So the
-portable hard block is a **committed git `pre-push` hook** activated via `core.hooksPath`.
+| Tier | Mechanism | Binds for | Bypass |
+| --- | --- | --- | --- |
+| **Advisory** | skills instruct | the honest agent | ignore it |
+| **Attested** | `finish-branch` runs `check-gates` locally before shipping | the clone that runs the workflow | skip finish-branch; `rm .workflow` |
+| **Verified** | CI reruns the project's tests on the PR merge result + branch protection | **everyone, every merge** | none once bypass is disallowed (repo/org admins bypass by default — the guide covers disabling that) |
 
-| Decision | Choice | Why |
-| --- | --- | --- |
-| Mechanism | committed hooks dir + `core.hooksPath` | versioned (reviewable in PRs, travels with the repo), engine-neutral |
-| Default posture | **ON by default**, `--advisory-only` opts out | closes the "blocks nothing" gap; the identity shift is documented honestly |
-| Which hook | **pre-push only** | the real ship boundary; blocking commits breaks TDD (red-test commits); `gh pr create` needs a pushed branch so pre-push covers it |
-| Existing `--with-hooks` | **replaced** | the portable pre-push supersedes the Claude-only PreToolUse; one mechanism |
-| Location | `shared/hooks/pre-push` | consistent with the thin-install `shared/` payload |
+No new git hook, no `core.hooksPath`, no new runtime blocking mechanism. codeforge stays
+"skills + config first"; the one added artifact is an opt-in CI template.
 
 ## Components
 
-### 1. The pre-push gate (core)
+### 1. Verified-tier CI template (the real gate)
 
-New committed file `src/shared/hooks/pre-push` → installed to the target as
-`shared/hooks/pre-push`. A single POSIX `sh` script (git runs hooks via `sh` even on Windows via
-Git-for-Windows' bundled shell, so **no `.ps1` variant is needed** — unlike `check-gates`, which
-has both because each engine invokes it directly).
+Ship two files in the codeforge source, installed into the target under `docs/ci-templates/`:
 
-Logic (mirrors the retiring `claude-gate-hook.sh`, minus the PreToolUse stdin JSON):
+- **`src/docs/ci-templates/gates.yml`** — a GitHub Actions workflow, reference (not
+  auto-activated; activated with `cp docs/ci-templates/gates.yml .github/workflows/`). It:
+  - triggers on `pull_request`; uses `actions/checkout`'s default, which checks out the **PR
+    merge result** (the state that will land on the base branch) — so the recompute binds to the
+    exact code being merged, outside any agent turn;
+  - runs the project's **real recompute** at a single clearly-marked step whose default body is
+    an explicit **failing** command (`echo 'codeforge: replace this with your test command'; exit 1`)
+    — so an un-edited required check **fails closed** rather than passing green while running
+    nothing. codeforge does not know the project's stack; the README explains the one-line
+    replacement (e.g. `npm test` / `uv run pytest`).
+  - **No `check-gates` step** (gitignored state is absent in CI) and **no E2E-report step** (no
+    committed source names the report; conflicts with light/N/A). The workflow verifies exactly
+    what it can honestly recompute: the project's own tests.
+- **`src/docs/ci-templates/README.md`** — activation + branch-protection guide: copy the
+  workflow, fill the test command, then **make it a required status check**, enable **"Do not
+  allow bypassing the above settings"**, and **disallow direct pushes** to the protected branch,
+  so UI merges / `gh pr merge` / Dependabot cannot skip it. States plainly: *until the test
+  command is filled, the check is required, AND bypass is disabled this is not yet the Verified
+  tier — and repo/org admins (and some GitHub Apps) can still bypass unless you configure
+  otherwise.*
 
-```
-run check-gates.sh (resolved relative to the repo root)
-  exit 0  → gates complete           → allow push
-  exit 1  → gates incomplete          → BLOCK push (print check-gates' detail)
-  exit 3  → no .workflow/state.md      → allow (no active workflow — e.g. pushing docs)
-  missing → check-gates not found      → warn + allow (fail-open on misconfiguration)
-```
+**Installer support (new, was unspecified):** `install.sh` + `install.ps1` copy
+`src/docs/ci-templates/*` into the target `docs/ci-templates/` as a **managed** copy. On first
+install, if a non-ours `docs/ci-templates/{gates.yml,README.md}` already exists, back it up to
+`*.pre-forge.bak` (like `CLAUDE.md`) and record ownership; on `--upgrade` overwrite only our
+managed copy. Add smoke assertions that both files land AND that a pre-existing user file is
+backed up, not clobbered.
 
-Per-push escape: `git push --no-verify` (honest — still Attested, not Verified). Permanent
-escape: install with `--advisory-only`, or `git config --unset core.hooksPath`.
+### 2. Retire `--with-hooks` across ALL surfaces (migration)
 
-### 2. Installer changes (`install.sh` + `install.ps1`)
+The Claude-only opt-in PreToolUse hook is removed (superseded by the CI Verified tier; its local
+role is covered by `finish-branch`). The reviews found the flag spans far more than the
+installer — every one of these is in scope:
 
-- Copy `shared/hooks/` into the target (thin payload); mark `pre-push` executable (`.sh` side;
-  the `.ps1` installer sets the bit where applicable / relies on git's shebang).
-- Default: run `git config core.hooksPath shared/hooks` in the target.
-- `--advisory-only`: **do not** set `core.hooksPath` (pure advisory install).
-- **Remove** the `--with-hooks` flag, `claude-gate-hook.{sh,ps1}`, and the settings.local.json
-  gate-hook block. Auto-isolation of `.claude/settings.local.json` (claudeMdExcludes) stays.
-- Guard-rails: not a git repo → warn + skip (as today); target already has a **custom**
-  `core.hooksPath` (not ours) → do not clobber, warn.
-- Upgrade path: an old install that has `claude-gate-hook.*` / `--with-hooks` settings → clean
-  up the retired hook (remove the settings.local.json PreToolUse block we own; leave a
-  user-owned settings.local.json untouched).
+- **`install.sh` / `install.ps1`:** drop the flag's behavior + the `settings.local.json`
+  gate-hook block. For safety during migration, **accept `--with-hooks` / `-WithHooks` as a
+  deprecated no-op that prints a one-line warning** (so any script/CI still passing it doesn't
+  hard-error), rather than an unknown-flag error. On `--upgrade` of a target that previously had
+  the hook, print a one-line notice that the Claude gate hook is retired (superseded by the CI
+  Verified tier), so existing users aren't silently un-gated.
+- **Delete** `src/shared/scripts/claude-gate-hook.sh` + `.ps1`.
+- **Target upgrade prune:** add `shared/scripts/claude-gate-hook.{sh,ps1}` to the installer's
+  cleanup list so an `--upgrade` over an old target removes them (today the installer copies
+  `shared/scripts/*` but only prunes manifest-tracked rules, so the stale hook would linger).
+- **`.github/workflows/ci.yml`:** remove the `--with-hooks` smoke case and the
+  `claude-gate-hook.ps1` exit-2/0 assertions — otherwise the implementing PR turns codeforge's
+  OWN CI red.
+- **`tests/smoke.sh`:** remove the existing `--with-hooks` smoke case ("installs the Claude gate;
+  blocks a red ship and allows a green one"); replace with an assertion that the hook is **not**
+  installed and that `--with-hooks` is accepted as a deprecated no-op.
+- **Wizard / CLI surface:** remove the hook question + state everywhere it lives —
+  `cli/components/Gates.mjs` (keep the profile question, drop the hook toggle),
+  `cli/components/Summary.mjs` (`profileHooks` render), `cli/state.mjs` (`withHooks` default),
+  `cli/lib/flags.mjs` (stop **emitting** `--with-hooks` from the wizard; leave install-intent
+  detection tolerant of it), `cli/lib/i18n.mjs` (hook strings, en+es), `bin/codeforge.mjs` (drop
+  it from help). **Keep** `cli/lib/run-installer.mjs`'s `WIN_FLAG['--with-hooks'] → -WithHooks`
+  translation so the deprecated no-op still reaches `install.ps1` correctly on the Windows npx
+  path (removing it would make PowerShell reject the GNU-style flag).
+- **Tests:** update `tools/test/{wizard-components,flags,run-installer}.test.mjs` — the wizard no
+  longer emits the flag, but `run-installer` still translates it (a compatibility test).
 
-### 3. Verified-tier CI template
+### 3. Honest docs update
 
-`src/docs/ci-templates/gates.yml` → installed to the target as `docs/ci-templates/gates.yml`
-(reference, not auto-activated — same pattern as a Playwright bridge template). On PR it runs
-`check-gates.sh` **bound to the PR commit, outside the agent's turn** (this is what makes it
-*Verified*), plus a `# TODO: <your test command>` placeholder for the project's real tests /
-verify-e2e recompute. Activated with `cp docs/ci-templates/gates.yml .github/workflows/`. This
-is also the only backstop against a `--no-verify` bypass of the local pre-push.
+Rewrite to the final ladder above and stop advertising a hard block that doesn't exist:
 
-### 4. Honest docs / philosophy update (required by the default flip)
+- `src/CLAUDE.md` "Enforcement model": Advisory + finish-branch's `check-gates` (Attested,
+  local, when invoked) is the local story; **CI + branch protection is the hard gate**. Remove
+  the `--with-hooks` Tier-C paragraph.
+- `src/shared/rules/ship-gates.md`: reframe the Verified/Attested/Advisory section to point at
+  the CI template as the concrete Verified mechanism; remove the "opt-in hard block (Tier C,
+  Claude only)" subsection.
+- `src/docs/extending.md`: drop/replace the Tier-C `--with-hooks` guidance.
+- `README.md`: enforcement + Status reflect "CI-enforced Verified tier via a shipped template;
+  local discipline is advisory + finish-branch's check; no per-engine runtime hooks."
 
-The current docs advertise *"skills-and-config-only, no runtime hooks by default."* The flip to a
-default-on pre-push contradicts that, so it must be rewritten truthfully:
+### 4. Tests
 
-- `src/CLAUDE.md` "Enforcement model" — default is now a portable git pre-push gate; `--no-verify`
-  and `--advisory-only` are the escapes; the Claude-only PreToolUse is retired.
-- `src/shared/rules/ship-gates.md` — reframe the ladder: **Advisory** (skills) → **Attested**
-  (local pre-push + check-gates) → **Verified** (CI template, recomputed on the PR commit).
-- `src/docs/extending.md` — drop/replace the Tier-C `--with-hooks` section.
-- `README.md` "Status" + enforcement section — reflect default-on portable enforcement.
-
-### 5. Tests
-
-- **Smoke (`tests/smoke.sh` + `.ps1` parity):** default install sets `core.hooksPath=shared/hooks`;
-  `--advisory-only` leaves it unset; non-git target skips with a warning; a pre-existing custom
-  `core.hooksPath` is not clobbered; `shared/hooks/pre-push` is present and executable; the
-  retired `claude-gate-hook.*` / `--with-hooks` no longer appear.
-- **pre-push script unit tests (`tools/test/pre-push.test.mjs`):** in a temp git repo, a red
-  state (unchecked gate) makes the hook exit non-zero (push blocked); a green state exits 0
-  (allowed); no `.workflow/state.md` exits 0 (allowed); missing check-gates warns + allows.
-  Drive the hook directly (`sh shared/hooks/pre-push </dev/null`) rather than a real push.
+- **CI template validity (`tools/test/ci-template.test.mjs`):** `gates.yml` parses as YAML,
+  triggers on `pull_request`, and its default test step is the **failing sentinel** (`exit 1`) —
+  assert the sentinel itself, not merely that a comment/placeholder is present; the README
+  references the required-check + "do not allow bypassing" settings.
+- **Smoke (`tests/smoke.sh`; note: no `tests/smoke.ps1` exists today — the pwsh parity path is
+  exercised inside `smoke.sh`'s pwsh cases):** after install, `docs/ci-templates/gates.yml` +
+  `README.md` are present; `claude-gate-hook.{sh,ps1}` are **absent**; `--with-hooks` prints the
+  deprecation warning and still installs; an `--upgrade` over a target that has a stale
+  `claude-gate-hook.*` prunes it.
+- **Wizard/CLI tests:** the hook question/flag no longer appear; the wizard's summary no longer
+  renders a Hooks line; `flags`/`run-installer` no longer translate `--with-hooks`.
 
 ## Ship
 
-- New default behavior → minor version bump (v0.6.0) at ship time.
-- Feature branch `feat/portable-enforcement` → PR to `dev` (per the Fase 0 flow).
-- Cross-engine code review (Codex) before ship; TDD throughout.
-- Bug 2 from the Fase 0 review (E2E report freshness binds to the branch, not the exact HEAD) is
-  in scope-adjacent territory but stays deferred unless the Verified CI template naturally
-  subsumes it; note it, don't expand scope here.
+- Minor version bump (v0.6.0). Removing `--with-hooks` behavior is a breaking-ish change,
+  softened by the deprecated-no-op; note it in the CHANGELOG.
+- Feature branch `feat/portable-enforcement` → PR to `dev`. Cross-engine (Codex) code review
+  before ship; TDD throughout.
+- **Explicitly out of scope** (deferred, tracked): a git pre-push convenience hook (rejected as
+  non-portable), and full HEAD-binding of E2E report content (Fase 0 "Bug 2", stays a documented
+  Attested-tier limitation — the CI tier recomputes tests, not the E2E report).
