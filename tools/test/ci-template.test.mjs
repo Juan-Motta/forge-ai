@@ -12,6 +12,10 @@ test('gates.yml triggers on pull_request', () => {
   assert.match(gates, /^on:\s*[\s\S]*pull_request:/m);
 });
 
+test('gates.yml also triggers on merge_group (so merge queues stay reported)', () => {
+  assert.match(gates, /^on:\s*[\s\S]*merge_group:/m);
+});
+
 test('gates.yml checks out the code (merge result) via actions/checkout', () => {
   assert.match(gates, /actions\/checkout@v\d/);
 });

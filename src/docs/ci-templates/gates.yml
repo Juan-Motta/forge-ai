@@ -9,13 +9,17 @@ name: gates (codeforge Verified tier)
 
 on:
   pull_request:
+  merge_group:
 
 jobs:
   gates:
     runs-on: ubuntu-latest
     steps:
-      # Default checkout on `pull_request` is the PR MERGE RESULT — the state that will land on
-      # the base branch — so the recompute binds to the exact code being merged.
+      # Default checkout on `pull_request` is the PR MERGE RESULT — the state that would land on
+      # the base branch if merged right now. That equals the EXACT code being merged only when
+      # "Require branches to be up to date before merging" (strict checks) is enabled, or a merge
+      # queue is used — otherwise the base can advance after this run and the tested commit
+      # diverges from what actually lands. See README.md.
       - uses: actions/checkout@v4
       - name: Recompute — REPLACE with your project's tests
         run: |

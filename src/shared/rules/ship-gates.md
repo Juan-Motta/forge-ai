@@ -113,9 +113,16 @@ produced it:
   say-so. The concrete mechanism codeforge ships for this: `docs/ci-templates/gates.yml`,
   copied into `.github/workflows/`, its test step filled in, and made a **required status
   check** under branch protection (bypass disabled) — it reruns your tests on the PR's merge
-  commit, outside any agent's turn. This is the strongest signal, and the only one that
-  survives a bad-faith or mistaken agent — though repo/org admins can still bypass branch
-  protection unless you've configured otherwise.
+  commit, outside any agent's turn. This is the strongest signal in the ladder, but it binds
+  against a bad-faith or mistaken agent **only when all three hold**: (1) the workflow file
+  itself is **CODEOWNERS-protected** with required code-owner review — otherwise a PR can edit
+  `.github/workflows/gates.yml` in the same PR it's supposed to gate, and GitHub runs that PR's
+  own (weakened) version; (2) **"Require branches to be up to date before merging"** (strict
+  checks) is enabled, or a merge queue is used — otherwise the base can advance after the check
+  ran and the tested merge commit is not the code that actually lands; and (3) "do not allow
+  bypassing" covers admins. Absent any one of these, the tier degrades toward Attested. See
+  `docs/ci-templates/README.md` for setup. Repo/org admins can still bypass branch protection
+  unless you've configured otherwise.
 - **Attested** — an agent or human *claimed* it and something validated the claim's *shape*,
   not its truth. A `- [x]` box in `.workflow/state.md`, or `check-gates.sh` reporting the
   checklist is complete, is attested: it confirms the record says "done", not that the work
@@ -163,7 +170,10 @@ is a commit-confirmation, not proof the gates are green. The approver must
    `.github/workflows/gates.yml`, fill in its test step, and make it a **required status
    check** with branch protection ("do not allow bypassing" enabled) — it then reruns your
    tests on the PR's merge commit, outside any agent's turn, and no local skip or engine
-   choice can get around it. This is the **only** signal in this ladder that binds for every
-   clone and every merge. Repo/org admins can still bypass branch protection unless you've
-   configured otherwise — decide who that should be. There are no per-engine runtime hooks
-   in codeforge; local enforcement is advisory + the Tier-B check above.
+   choice can get around it, **provided** the workflow file is CODEOWNERS-protected and
+   strict/up-to-date checks (or a merge queue) are on — see the preconditions under
+   "Verified" above and `docs/ci-templates/README.md`. With those in place, this is the
+   **only** signal in this ladder that binds for every clone and every merge. Repo/org
+   admins can still bypass branch protection unless you've configured otherwise — decide
+   who that should be. There are no per-engine runtime hooks in codeforge; local
+   enforcement is advisory + the Tier-B check above.

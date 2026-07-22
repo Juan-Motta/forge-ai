@@ -1,5 +1,4 @@
 import React from 'react';
-import { Box, Text } from 'ink';
 import SelectInput from 'ink-select-input';
 import { t } from '../lib/i18n.mjs';
 import { Card, Item, Indicator, moveSelectFooter } from './ui.mjs';

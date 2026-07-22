@@ -29,7 +29,6 @@ const en = {
     subtitle: 'A checklist in .workflow/state.md must be complete before git push / PR. Profile sets how many gates are required (a default — each workflow can override).',
     standard: 'standard   6 gates · full features & bug fixes',
     light: 'light      3 gates · quick-fix / trivial changes',
-    profileCrumb: 'profile: ',
   },
   project: {
     title: '⚒  Project',
@@ -86,7 +85,6 @@ const es = {
     subtitle: 'Un checklist en .workflow/state.md debe estar completo antes de git push / PR. El perfil define cuántos gates se exigen (un valor por defecto — cada workflow puede cambiarlo).',
     standard: 'standard   6 gates · features y bugfixes completos',
     light: 'light      3 gates · quick-fix / cambios triviales',
-    profileCrumb: 'perfil: ',
   },
   project: {
     title: '⚒  Proyecto',

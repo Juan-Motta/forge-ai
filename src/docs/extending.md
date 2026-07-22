@@ -103,7 +103,8 @@ engine. **codeforge doesn't ship per-engine runtime hooks.** Instead, the real e
 tier is **the CI Verified template** (`docs/ci-templates/`): a workflow that reruns your tests
 on the PR's merge commit and, once wired up as a required status check under branch
 protection, blocks the merge outside any engine's turn entirely — no per-engine adapter needed,
-because it runs in CI, not in an agent's session. See `shared/rules/ship-gates.md` for the
+because it runs in CI, not in an agent's session. Repo/org admins can still bypass branch
+protection unless you've configured otherwise. See `shared/rules/ship-gates.md` for the
 Verified/Attested/Advisory ladder.
 
 ---
