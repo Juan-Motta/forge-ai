@@ -15,11 +15,13 @@ trap 'rm -rf "$TMP"' EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 # Write a `standard`-profile workflow state with the full 6-gate checklist (matches
-# shared/rules/ship-gates.md). $1 = file, $2 = green (all checked) | red (last box unchecked).
+# shared/rules/ship-gates.md — check-gates validates gate IDENTITY, so the box wording must
+# name each canonical gate). The E2E gate uses the `— N/A:` escape so no report file is needed
+# in the throwaway target. $1 = file, $2 = green (all checked) | red (last box unchecked).
 write_state() {
   { printf '## Active workflow\n- **Profile:** standard\n## Ship-gate checklist\n'
     printf -- '- [x] On a feature branch\n- [x] Plan reviewed\n- [x] Tests passing\n'
-    printf -- '- [x] Code review clean\n- [x] Change verified\n'
+    printf -- '- [x] Code review clean\n- [x] E2E verified — N/A: smoke test\n'
     if [ "$2" = green ]; then printf -- '- [x] State updated\n'; else printf -- '- [ ] State updated\n'; fi
   } > "$1"
 }
