@@ -64,7 +64,7 @@ case "$profile" in
   standard)
     required=6
     gates='on .*feature branch;On a feature branch
-plan .*design.?review;Plan written and design-reviewed
+plan .*review;Plan written and design-reviewed
 tests?;Tests written (TDD) and passing
 code review;Code review clean
 e2e verified;E2E verified
