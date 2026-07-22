@@ -40,6 +40,10 @@ for f in CLAUDE.md AGENTS.md opencode.json PROJECT.md CONTINUITY.md \
 done
 [ -x "$TB/shared/scripts/check-gates.sh" ] || fail "bash: check-gates.sh is not executable"
 ls "$TB"/shared/rules/*.md >/dev/null 2>&1 || fail "bash: shared/rules/*.md missing"
+# ci-templates land as a managed copy
+[ -f "$TB/docs/ci-templates/gates.yml" ]  || fail "bash: docs/ci-templates/gates.yml not installed"
+[ -f "$TB/docs/ci-templates/README.md" ]  || fail "bash: docs/ci-templates/README.md not installed"
+grep -q 'exit 1' "$TB/docs/ci-templates/gates.yml" || fail "bash: ci template lost its fail-closed sentinel"
 # framework machinery + repo files must NOT land in the target (thin install)
 for f in install.sh install.ps1 README.md LICENSE src \
          skills configs sync.sh sync.ps1 \

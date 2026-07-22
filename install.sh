@@ -183,6 +183,23 @@ for d in prds plans research solutions adr e2e/reports e2e/use-cases; do
   [ -e "$TARGET/docs/$d/.gitkeep" ] || touch "$TARGET/docs/$d/.gitkeep"
 done
 
+# --- MANAGED: CI templates (Verified-tier gate + activation guide) ---
+# Copied into the target (overwritten on upgrade). A pre-existing, non-ours file is backed up
+# once so first adoption never clobbers a user's own docs/ci-templates content.
+if [ -d "$PAYLOAD/docs/ci-templates" ]; then
+  mkdir -p "$TARGET/docs/ci-templates"
+  for f in "$PAYLOAD"/docs/ci-templates/*; do
+    [ -e "$f" ] || continue
+    base="$(basename "$f")"
+    dst="$TARGET/docs/ci-templates/$base"
+    if [ -f "$dst" ] && ! grep -q 'codeforge' "$dst" 2>/dev/null && [ ! -e "$dst.pre-forge.bak" ]; then
+      cp "$dst" "$dst.pre-forge.bak"
+      echo "  ! backed up existing docs/ci-templates/$base -> $base.pre-forge.bak"
+    fi
+    cp "$f" "$dst"
+  done
+fi
+
 # --- PROJECT-OWNED: PROJECT.md / CONTINUITY.md / docs/CHANGELOG.md (create only if missing) ---
 [ -f "$TARGET/PROJECT.md" ]    || { cp "$PAYLOAD/PROJECT.template.md" "$TARGET/PROJECT.md"; echo "  + created PROJECT.md (fill in persona/info/variables/special rules)"; }
 [ -f "$TARGET/CONTINUITY.md" ] || cp "$PAYLOAD/CONTINUITY.template.md" "$TARGET/CONTINUITY.md"

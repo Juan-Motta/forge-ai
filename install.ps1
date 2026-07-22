@@ -176,6 +176,21 @@ foreach ($d in 'prds', 'plans', 'research', 'solutions', 'adr', 'e2e/reports', '
   if (-not (Test-Path $gk)) { New-Item -ItemType File -Path $gk | Out-Null }
 }
 
+# --- MANAGED: CI templates (Verified-tier gate + activation guide) ---
+$ctSrc = Join-Path $Payload 'docs/ci-templates'
+if (Test-Path $ctSrc) {
+  $ctDst = Join-Path $Target 'docs/ci-templates'
+  New-Item -ItemType Directory -Force -Path $ctDst | Out-Null
+  foreach ($f in Get-ChildItem -File $ctSrc) {
+    $dst = Join-Path $ctDst $f.Name
+    if ((Test-Path $dst) -and -not (Select-String -LiteralPath $dst -Pattern 'codeforge' -Quiet) -and -not (Test-Path "$dst.pre-forge.bak")) {
+      Copy-Item $dst "$dst.pre-forge.bak"
+      Write-Host "  ! backed up existing docs/ci-templates/$($f.Name) -> $($f.Name).pre-forge.bak"
+    }
+    Copy-Item $f.FullName $dst -Force
+  }
+}
+
 # --- PROJECT-OWNED: PROJECT.md / CONTINUITY.md / docs/CHANGELOG.md (create only if missing) ---
 $tProject = Join-Path $Target 'PROJECT.md'
 if (-not (Test-Path $tProject)) {
