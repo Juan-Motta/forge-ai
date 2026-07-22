@@ -34,6 +34,21 @@ test('README documents CODEOWNERS protection', () => {
   assert.match(readme, /CODEOWNERS/);
 });
 
+test('README requires CODEOWNERS on both the workflow path and the test-defining files', () => {
+  // A regression that protects only the workflow (and drops the test-defining files, e.g.
+  // package.json) would still match a bare /CODEOWNERS/ assertion — require both concretely.
+  assert.match(readme, /\.github\/workflows/);
+  assert.match(readme, /package\.json/);
+});
+
+test('gates.yml sets least-privilege permissions (contents: read)', () => {
+  assert.match(gates, /permissions:\s*[\s\S]*?contents:\s*read/);
+});
+
+test('gates.yml disables persisted checkout credentials', () => {
+  assert.match(gates, /persist-credentials:\s*false/);
+});
+
 test('README documents dismissing stale PR approvals on new commits', () => {
   assert.match(readme, /dismiss stale/i);
 });

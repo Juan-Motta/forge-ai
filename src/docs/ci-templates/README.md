@@ -17,7 +17,12 @@ a PR that also rewrites its own declared test command; see the CODEOWNERS note i
    (`npm test`, `uv run pytest`, `go test ./...`, …). The placeholder `exit 1` is intentional so
    an un-configured check can never pass green.
 3. In your repo settings, protect the base branch and make **`gates`** a **required status check**:
-   - Enable **"Require status checks to pass before merging"** and select `gates`.
+   - Enable **"Require status checks to pass before merging"** and select `gates`. When you pick
+     it from the list, GitHub also shows an **expected source** for the check — pin it to
+     **GitHub Actions**. Without pinning the source, anyone with write access can report a
+     `gates` status of `success` from another source (e.g. a Commit Status API call, or a
+     differently-named workflow) and satisfy the "required" check without this workflow ever
+     having run.
    - Enable **"Require branches to be up to date before merging"** (strict status checks), or
      use a merge queue. Without this, GitHub allows merging after the base branch has advanced,
      so the merge-result commit that `gates` tested can differ from what actually lands — the
@@ -48,11 +53,14 @@ a PR that also rewrites its own declared test command; see the CODEOWNERS note i
 
 Until the test command is filled, the check is required, **and** bypass is disabled, this is not
 yet the Verified tier. Even then, the tier only becomes **bad-faith-resistant** (never "proof")
-against a bad-faith or mistaken actor when **all** of the following hold: the workflow file
-**and** the test-defining files are CODEOWNERS-protected (step 4), "Dismiss stale pull request
-approvals when new commits are pushed" is enabled (step 3), "Require branches to be up to date
-before merging" is enabled or a merge queue is used (step 3), and "Do not allow bypassing the
-above settings" includes admins. Even fully configured, this only routes the diff to a human
+against a bad-faith or mistaken actor when **all** of the following hold: the required `gates`
+check has its **expected source pinned to GitHub Actions** (step 3) — otherwise anyone with write
+access can report a same-named status from elsewhere and satisfy the check without this workflow
+running — the workflow file **and** the test-defining files are CODEOWNERS-protected (step 4),
+"Dismiss stale pull request approvals when new commits are pushed" is enabled (step 3), "Require
+branches to be up to date before merging" is enabled or a merge queue is used (step 3), and "Do
+not allow bypassing the above settings" includes admins. Even fully configured, this only routes
+the diff to a human
 code owner — it still depends on that human actually reading the workflow/test-config change,
 not rubber-stamping it. Repo/org **admins** (and some GitHub Apps) can still bypass branch
 protection unless you've configured otherwise — decide who that should be.

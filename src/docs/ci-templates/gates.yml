@@ -16,6 +16,12 @@ on:
   pull_request:
   merge_group:
 
+# Least-privilege token: the Recompute step below runs the PR's own (untrusted) test command.
+# With no `permissions` block, the default GITHUB_TOKEN can be read/write — scope it down so
+# untrusted PR code never inherits more than read access.
+permissions:
+  contents: read
+
 jobs:
   gates:
     runs-on: ubuntu-latest
@@ -26,6 +32,10 @@ jobs:
       # queue is used — otherwise the base can advance after this run and the tested commit
       # diverges from what actually lands. See README.md.
       - uses: actions/checkout@v4
+        with:
+          # Do not persist the (scoped-down) token in the checkout'd git config — the Recompute
+          # step runs untrusted PR test code, which should have no credential to exfiltrate.
+          persist-credentials: false
       - name: Recompute — REPLACE with your project's tests
         run: |
           echo "codeforge: replace this step with your project's test command"
