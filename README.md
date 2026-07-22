@@ -163,12 +163,17 @@ is worth (see [`ship-gates.md`](src/shared/rules/ship-gates.md)):
   deterministic check that reads `.workflow/state.md` and **exits non-zero** listing any
   unchecked box. It validates the *record* (a checked box is a claim), it's **local**, and it
   only runs when invoked.
-- **Verified** — the only signal independent of the agent, and the only one that binds for
-  every clone and every merge: a shipped **Verified-tier CI template**
-  (`docs/ci-templates/gates.yml`) reruns your tests on the PR's merge commit. Copy it into
+- **Verified** — the only signal independent of the agent: a shipped **Verified-tier CI
+  template** (`docs/ci-templates/gates.yml`) has CI independently re-run your project's
+  declared test command on the PR's merge result, outside any agent's turn. Copy it into
   `.github/workflows/`, fill in the test step, and make it a **required status check** under
-  branch protection — that's the real gate. Repo/org admins can still bypass branch protection
-  unless you've configured otherwise.
+  branch protection — that's the real gate. It becomes bad-faith-**resistant** (never "proof")
+  — and can bind for every clone and every merge — only once the repo is fully configured per
+  [`docs/ci-templates/README.md`](src/docs/ci-templates/README.md): CODEOWNERS on the workflow
+  file and the test-defining files, "Dismiss stale pull request approvals", strict/up-to-date
+  checks or a merge queue, and no bypass for admins — and even then it still depends on a human
+  actually reading those diffs. Repo/org admins can still bypass branch protection unless
+  you've configured otherwise.
 
 On top of that, each engine shows a **best-effort native prompt** on outward actions — it
 matches by command pattern and reads no gate state, so it's a commit-confirmation, not proof
@@ -182,8 +187,8 @@ the gates are green:
 
 **No per-engine runtime hooks.** Local discipline is advisory + `finish-branch`'s
 `check-gates` (Attested); the shipped Verified-tier CI template
-(`docs/ci-templates/`), made a required check via branch protection, is what actually binds
-for everyone.
+(`docs/ci-templates/`), made a required check via branch protection and fully configured per
+its README, is what can bind for everyone.
 
 ### Memory & continuity
 

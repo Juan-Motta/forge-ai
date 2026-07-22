@@ -1,11 +1,16 @@
 name: gates (codeforge Verified tier)
 
-# codeforge Verified-tier gate — the enforcement that binds for EVERY clone and EVERY merge.
+# codeforge Verified-tier gate — CI independently re-runs your project's declared test command
+# on the PR merge result, outside any agent's turn.
 # This file is a TEMPLATE. To activate (see README.md in this directory):
 #   1. cp docs/ci-templates/gates.yml .github/workflows/gates.yml
 #   2. replace the "Recompute" step below with your real test command
 #   3. make this workflow a REQUIRED status check with "Do not allow bypassing" enabled
 # Until you do (1)-(3), this is NOT yet the Verified tier — the default step fails on purpose.
+# Even then, it becomes bad-faith-RESISTANT (never "proof") — and can bind for every clone and
+# every merge — only once the repo is fully configured per README.md (CODEOWNERS on this file
+# and on the test-defining files, "Dismiss stale pull request approvals", strict/up-to-date
+# checks or a merge queue, and no bypass for admins).
 
 on:
   pull_request:

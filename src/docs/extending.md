@@ -100,10 +100,15 @@ Per-engine mechanism (all can block):
 **Trade:** three separate implementations to keep in sync, plus per-engine trust/merge
 concerns. Reach for it only when a real guarantee is worth that cost — and start with a single
 engine. **codeforge doesn't ship per-engine runtime hooks.** Instead, the real example of this
-tier is **the CI Verified template** (`docs/ci-templates/`): a workflow that reruns your tests
-on the PR's merge commit and, once wired up as a required status check under branch
-protection, blocks the merge outside any engine's turn entirely — no per-engine adapter needed,
-because it runs in CI, not in an agent's session. Repo/org admins can still bypass branch
+tier is **the CI Verified template** (`docs/ci-templates/`): a workflow where CI independently
+re-runs the project's declared test command on the PR's merge result, outside any agent's
+turn — no per-engine adapter needed, because it runs in CI, not in an agent's session. Once
+wired up as a required status check under branch protection, it blocks the merge outside any
+engine's turn; it becomes bad-faith-**resistant** (never "proof") — rather than just a check
+that can be quietly weakened — only once the repo is also fully configured per
+`docs/ci-templates/README.md` (CODEOWNERS on the workflow and test-defining files,
+dismiss-stale-approvals, strict/up-to-date checks or a merge queue), and even then it still
+depends on a human actually reading those diffs. Repo/org admins can still bypass branch
 protection unless you've configured otherwise. See `shared/rules/ship-gates.md` for the
 Verified/Attested/Advisory ladder.
 

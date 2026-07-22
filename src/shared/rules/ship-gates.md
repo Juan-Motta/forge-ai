@@ -67,8 +67,9 @@ ancestor directory. A committed report with a hand-typed `VERDICT: PASS` and no 
 behind it satisfies every check above. This is the **Attested** tier (see the Verified /
 Attested / Advisory ladder below) — the record's *shape* is validated, not the underlying
 claim. Only the **Verified** tier — an out-of-turn CI job that re-runs `verify-e2e` itself
-against the PR commit, independent of the agent's say-so — is bypass-proof against a
-bad-faith or mistaken attestation.
+against the PR commit, independent of the agent's say-so — is bad-faith-**resistant** (never
+"proof") against a bad-faith or mistaken attestation, and only once it is activated and made a
+required, bypass-protected check per `docs/ci-templates/README.md`.
 
 The `— N/A:` escape is an **exact em-dash form** (em-dash, space, `N/A:`, non-empty reason).
 A bare `N/A:`, a `- N/A:`, or a backticked `` `N/A:` `` inside explanatory text does **not**
@@ -110,19 +111,27 @@ Be precise about the strength of each gate signal. A claim is only as strong as 
 produced it:
 
 - **Verified** — an out-of-turn check *recomputed* the fact, independent of the agent's
-  say-so. The concrete mechanism codeforge ships for this: `docs/ci-templates/gates.yml`,
-  copied into `.github/workflows/`, its test step filled in, and made a **required status
-  check** under branch protection (bypass disabled) — it reruns your tests on the PR's merge
-  commit, outside any agent's turn. This is the strongest signal in the ladder, but it binds
-  against a bad-faith or mistaken agent **only when all three hold**: (1) the workflow file
-  itself is **CODEOWNERS-protected** with required code-owner review — otherwise a PR can edit
-  `.github/workflows/gates.yml` in the same PR it's supposed to gate, and GitHub runs that PR's
-  own (weakened) version; (2) **"Require branches to be up to date before merging"** (strict
-  checks) is enabled, or a merge queue is used — otherwise the base can advance after the check
-  ran and the tested merge commit is not the code that actually lands; and (3) "do not allow
-  bypassing" covers admins. Absent any one of these, the tier degrades toward Attested. See
-  `docs/ci-templates/README.md` for setup. Repo/org admins can still bypass branch protection
-  unless you've configured otherwise.
+  say-so. The concrete, unconditional guarantee codeforge ships for this: `docs/ci-templates/
+  gates.yml` — once copied into `.github/workflows/`, its test step filled in, and made a
+  **required status check** under branch protection (bypass disabled) — has CI independently
+  re-run the project's declared test command on the PR's merge result, outside any agent's
+  turn. That alone is real, but it is not yet resistant to a bad-faith actor. It becomes
+  **resistant** (never "proof") to a bad-faith or mistaken agent only when **all** of the
+  following also hold: (1) the workflow file itself is **CODEOWNERS-protected** with required
+  code-owner review — otherwise a PR can edit `.github/workflows/gates.yml` in the same PR it's
+  supposed to gate, and GitHub runs that PR's own (weakened) version; (2) the **test-defining
+  files** (e.g. `package.json`, test config/harness) are CODEOWNERS-protected too — otherwise a
+  PR can rewrite what `gates` actually runs instead of touching the workflow file itself; (3)
+  **"Dismiss stale pull request approvals when new commits are pushed"** is enabled — otherwise
+  an earlier approval survives a later commit that weakens the gate; (4) **"Require branches to
+  be up to date before merging"** (strict checks) is enabled, or a merge queue is used —
+  otherwise the base can advance after the check ran and the tested merge commit is not the
+  code that actually lands; and (5) "do not allow bypassing" covers admins. Even with all five
+  in place, this only routes the diff to a human code owner — it still depends on that human
+  actually reading the change, not rubber-stamping it, and it does not defend against a PR that
+  rewrites its own declared test command in a way a reviewer waves through. Absent any one of
+  (1)-(5), the tier degrades toward Attested. See `docs/ci-templates/README.md` for setup.
+  Repo/org admins can still bypass branch protection unless you've configured otherwise.
 - **Attested** — an agent or human *claimed* it and something validated the claim's *shape*,
   not its truth. A `- [x]` box in `.workflow/state.md`, or `check-gates.sh` reporting the
   checklist is complete, is attested: it confirms the record says "done", not that the work
@@ -165,15 +174,18 @@ The prompt shows the human a generic "allow this command?", **not** the checklis
 is a commit-confirmation, not proof the gates are green. The approver must
 **independently check `.workflow/state.md` before approving** (or run `check-gates.sh`).
 
-4. **The hard gate (binds for everyone): CI + branch protection.** codeforge ships
-   `docs/ci-templates/gates.yml` as the concrete **Verified**-tier mechanism. Copy it into
-   `.github/workflows/gates.yml`, fill in its test step, and make it a **required status
-   check** with branch protection ("do not allow bypassing" enabled) — it then reruns your
-   tests on the PR's merge commit, outside any agent's turn, and no local skip or engine
-   choice can get around it, **provided** the workflow file is CODEOWNERS-protected and
-   strict/up-to-date checks (or a merge queue) are on — see the preconditions under
-   "Verified" above and `docs/ci-templates/README.md`. With those in place, this is the
-   **only** signal in this ladder that binds for every clone and every merge. Repo/org
+4. **The one mechanism that can bind for everyone: CI + branch protection.** codeforge ships
+   `docs/ci-templates/gates.yml` as the concrete **Verified**-tier mechanism: CI independently
+   re-runs the project's declared test command on the PR merge result, outside any agent's
+   turn. Copy it into `.github/workflows/gates.yml`, fill in its test step, and make it a
+   **required status check** with branch protection ("do not allow bypassing" enabled) — that
+   alone means no local skip or engine choice can dodge the rerun. It becomes bad-faith-
+   **resistant** (never "proof") — and *can* bind for every clone and every merge into the
+   protected branch — only once the full setup in `docs/ci-templates/README.md` is also in
+   place: the workflow file **and** the test-defining files are CODEOWNERS-protected, "Dismiss
+   stale pull request approvals" is enabled, strict/up-to-date checks (or a merge queue) are
+   on, and bypass is disabled for admins too — and even then it still depends on a human
+   actually reading those diffs. See the preconditions under "Verified" above. Repo/org
    admins can still bypass branch protection unless you've configured otherwise — decide
    who that should be. There are no per-engine runtime hooks in codeforge; local
    enforcement is advisory + the Tier-B check above.

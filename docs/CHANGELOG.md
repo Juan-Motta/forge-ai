@@ -7,9 +7,11 @@ development log; it is **not** the seed shipped to installed projects (that live
 ## 0.6.0 — 2026-07-22
 
 - **Enforcement reframed to a Verified-tier CI template (`docs/ci-templates/gates.yml`).** codeforge
-  now ships an opt-in GitHub Actions workflow that reruns your tests on the PR merge result; made a
-  required status check with "do not allow bypassing", it is the only gate that binds for every
-  clone and every merge. The default test step fails closed until you replace it.
+  now ships an opt-in GitHub Actions workflow where CI independently re-runs your declared test
+  command on the PR merge result, outside any agent's turn; made a required status check with
+  "do not allow bypassing" (plus CODEOWNERS on the workflow and test-defining files, dismiss-stale-
+  approvals, and strict/up-to-date checks per the template's README), it is the only tier that CAN
+  bind for everyone once fully configured. The default test step fails closed until you replace it.
 - **Retired `--with-hooks` (the Claude-only PreToolUse gate hook).** Superseded by the CI Verified
   tier; its local fast-feedback role is already covered by `finish-branch` running `check-gates`.
   Removed across the installers, wizard/CLI, and CI; `claude-gate-hook.{sh,ps1}` deleted and pruned

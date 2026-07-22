@@ -29,3 +29,15 @@ test('README documents required-check + do-not-allow-bypassing', () => {
   assert.match(readme, /required status check/i);
   assert.match(readme, /do not allow bypassing/i);
 });
+
+test('README documents CODEOWNERS protection', () => {
+  assert.match(readme, /CODEOWNERS/);
+});
+
+test('README documents dismissing stale PR approvals on new commits', () => {
+  assert.match(readme, /dismiss stale/i);
+});
+
+test('README documents strict/up-to-date branches or a merge queue', () => {
+  assert.match(readme, /up to date before merging|merge queue/i);
+});
