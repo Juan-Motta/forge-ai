@@ -59,6 +59,14 @@ Commit, then push / open PR — approve the native prompt **only if the gates ar
 Record the change in `docs/CHANGELOG.md` and save any reusable learning
 (`shared/rules/memory.md`). Or run `finish-branch` to do the wrap-up.
 
+## Under `/goal` (owner=goal)
+
+`/goal` drives the phase sequence itself; it does not run `new-feature` as a standalone unit. If a
+phase's guidance here is used under `owner=goal`, the following belong to `/goal`, not this skill:
+state init (§0), design-review and code-review **loop control** (§3/§5), `simplify`, verify (§6),
+ship (§7), review-log lines, and phase transitions. Implementers run with `commit_policy=defer`
+(stage-only; `/goal` commits once at ship). This skill contributes only the requested phase's work.
+
 ## Common rationalizations
 
 | Rationalization | Reality |
