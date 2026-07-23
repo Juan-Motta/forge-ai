@@ -25,9 +25,25 @@
 
 ## Review log
 
+<!-- Standalone workflows: free-form "Design/Code review iteration N — <engine> — findings: …".
+     Under /goal (owner=goal): fixed-schema lines that goal-state.sh parses — see
+     shared/rules/goal-state.md, e.g.
+     - loop=code — round=1 — kind=round — reviewer=codex — result=P1=2 — digest=<sha> — ts=<ISO> -->
+
 - Design review iteration 1 — <engine> — findings: <P0/P1/P2 counts or "clean">
 - Code review iteration 1 — <engine> — findings: <...>
 
 ## Notes
 
 <decisions, assumptions, what was verified>
+
+## Blockers
+
+<!-- HALT records (/goal, see shared/rules/goal-state.md). Empty when nothing is halted.
+     - [ ] BLOCKER — <phase> — <reason> — ts=<ISO>
+     HALT is terminal for automation; a human dispositions/resets before a new /goal run. -->
+
+## Attempts
+
+<!-- Durable retry counters (/goal, see shared/rules/goal-state.md). Empty by default.
+     - ATTEMPT ship-red — n=<k> — ts=<ISO>   (n>=2 → /goal HALTs) -->
