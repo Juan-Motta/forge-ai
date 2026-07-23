@@ -1,195 +1,181 @@
-# /goal Plan A — state + digest helper (foundation) — Implementation Plan (rev2)
+# /goal Plan A — state + digest helper (foundation) — Implementation Plan (rev3)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
-> (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
-> checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or
+> superpowers:executing-plans. Steps use `- [ ]` checkboxes. **Tests are the arbiter of the
+> byte-level git/PowerShell determinism in this plan** — a red test is a real defect, fix it (never
+> weaken the test).
 
-**Goal:** Build the two engine-neutral shell helpers `/goal` relies on — `goal-digest.{sh,ps1}`
-(the §6.1 certification digest) and `goal-state.{sh,ps1}` (read `## /goal loop` fields, count the
-convergence-breaker rounds, read/bump the durable ship-red counter) — with node tests.
+**Goal:** `goal-digest.{sh,ps1}` (the §6.1 certification digest) + `goal-state.{sh,ps1}` (read
+`## /goal loop` fields, count breaker rounds, read/bump the durable ship-red counter), with node
+tests, shipped to targets as `sh`+`pwsh` (no Node in targets), like `check-gates.{sh,ps1}`.
 
-**Architecture:** Ships to targets, so POSIX `sh` + PowerShell 7 (no Node in targets), like
-`src/shared/scripts/check-gates.{sh,ps1}`. Dev tests live in `tools/test/*.test.mjs` (`node --test`,
-zero-dep) and **spawn** the scripts, mirroring `tools/test/check-gates.{test,ps1.test}.mjs`.
+**Architecture — the digest is ONE normalized `git diff`.** Seed a temporary git index from the
+repo's real index (absolute path), `git add -N` (intent-to-add) every in-scope untracked file into
+it, then hash the **raw bytes** of a single deterministic `git diff <base>` over that index. Git
+frames tracked+untracked identically (modes, symlinks `120000`, renames-off), the representation is
+index-state-invariant (untracked == staged == committed for identical content — empirically
+confirmed, incl. mixed modify+delete+add), and `sh`/`ps1` both hash the same git bytes so parity is
+structural. Committed-tree digest (Plan C ship check) = same fn with `--from-head`.
 
-**The digest is one normalized `git diff`.** (This is the rev2 correction from cross-engine plan
-review: the earlier dual representation — unified diff for tracked, custom `U\t…` framing for
-untracked — was not staging-invariant, so merely `git add`-ing reviewed content changed the digest
-and Plan-C's `digest(committed tree)==cert` ship assertion was unsatisfiable.) Instead: seed a
-**temporary git index** from the repo's real index, `git add -N` (intent-to-add) every in-scope
-untracked file into it, then hash the **raw bytes** of a single `git diff <base>` over that index.
-Git then frames tracked + untracked uniformly (modes, symlinks as `120000`, renames-off), the
-representation is identical before/after staging, and `sh`/`ps1` both hash the same git bytes → byte
-parity is trivial. The committed-tree digest (for Plan C's ship check) is the same function with
-`--from-head` (`git diff <base> HEAD`), equal by construction when the commit captured the in-scope
-worktree content.
+**Tech Stack:** POSIX `sh`, PowerShell 7, `git`, `shasum`/`sha256sum`, `node:test`,
+`node:child_process`, `node:fs`, `node:url` (`fileURLToPath`).
 
-**Tech Stack:** POSIX `sh`, PowerShell 7 (`pwsh`), `git` (temp-index via `GIT_INDEX_FILE`),
-`shasum`/`sha256sum`, `node:test`, `node:child_process`, `node:fs`, `node:url` (`fileURLToPath`).
+## Global Constraints (verbatim; every task inherits these)
 
-## Global Constraints (from the design spec, verbatim)
-
-- Digest exclusion set (§6.1), applied to the diff pathspecs (one set, one place):
-  `.workflow/*`, `docs/e2e/reports/*`, `CONTINUITY.md`, `docs/CHANGELOG.md`, `VERSION`.
-  **Reviewer/council scratch** is written under `.workflow/` (already excluded) — no separate prefix
-  is introduced (resolves the "pin one scratch prefix" spec item: the pin is "under `.workflow/`").
-  **`package.json`/lockfiles are NOT excluded** (feature content) — a positive-control test asserts
-  they stay in scope.
-- Digest determinism: `LC_ALL=C`, `git diff --no-renames --no-color`, temp-index normalization.
-- Digest is **index-state-invariant**: the same in-scope content yields the same digest whether a
-  file is untracked, `-N`, staged, or committed (a dedicated test asserts this).
-- Breaker constants are consumed by callers (Plan C), not hard-coded here: `N=4`,
-  `MAX_REENTRIES=3`, `MAX_CODE_ROUNDS=3·N`. The helper only *counts*.
-- Review-log schema (§10): `- loop=plan|code — round=<N> — kind=round|recert|cert —
-  reviewer=<…> — result=… — digest — ts`. Breaker counts `kind=round` **within `## Review log`**.
-- Ship-red schema (§10): `- ATTEMPT ship-red — n=<k> — ts` **within `## Attempts`**; `n>=2` → HALT.
-- All state readers/writers are **section-scoped** (`## <name>` up to the next `## ` heading).
-- sh/ps1 parity is mandatory; parity tests run only when BOTH `sh` and `pwsh` exist, and use
-  fixtures with mixed-case, non-ASCII, wildcard-bracket, and executable paths.
-- Scripts safe under `set -eu`; git-producer failures are detected (no `set -e`+pipe swallowing);
-  portable `sha256` (`sha256sum` else `shasum -a 256`); tools preflighted (missing git/sha → exit 3).
-- Tests use `fileURLToPath` (never `new URL().pathname` — breaks on Windows) and `hasSh`/`hasPwsh`
-  guards (mirror `tools/test/check-gates.test.mjs`).
+- **Exclusion set** (§6.1), applied to the diff pathspecs, one source of truth in each script:
+  `:(exclude).workflow/*`, `:(exclude)docs/e2e/reports/*`, `:(exclude)CONTINUITY.md`,
+  `:(exclude)docs/CHANGELOG.md`, `:(exclude)VERSION`. Reviewer/council scratch lives under
+  `.workflow/` (already excluded) — no separate prefix. `package.json`/lockfiles are **in scope**.
+- **Deterministic diff flags** (both scripts, both modes):
+  `diff --full-index --no-ext-diff --no-textconv --default-prefix --no-renames --no-color`.
+  (`--full-index`: abbreviated OIDs can collide or differ worktree-vs-committed; `--no-ext-diff`/
+  `--no-textconv`: ignore repo diff/textconv drivers; `--default-prefix`: stable `a/ b/`.)
+- **Index-state invariance:** identical in-scope content → identical digest whether untracked,
+  `-N`, staged, or committed. `--from-head` equals the worktree digest by construction.
+- **Fail closed:** any nonzero `git`/sha status → exit 3 (never hash an empty/partial stream). Tools
+  preflighted (missing git/sha, bad/empty base, not-a-repo → exit 3), on BOTH engines.
+- **Real index is never mutated** (temp index via `GIT_INDEX_FILE`); works in linked worktrees
+  (resolve the index path as absolute).
+- **sh/ps1 parity is mandatory**; parity tests run only when BOTH `sh` and `pwsh` exist. ps1 hashes
+  git's **raw stdout bytes** (no decode/re-encode — `Start-Process -RedirectStandardOutput` is NOT
+  raw on Unix; use `System.Diagnostics.Process` + copy `StandardOutput.BaseStream`), passes args via
+  `ProcessStartInfo.ArgumentList` (not a joined string — spaces), and uses `-LiteralPath` for all
+  path tests (bracket wildcards like `app/[id]`).
+- **State schemas** (§10), all **section-scoped** (`## <name>` to next `## `, CRLF-tolerant):
+  review-log `- loop=… — round=N — kind=round|recert|cert — …` (breaker counts `kind=round` in
+  `## Review log`); ship-red `- ATTEMPT ship-red — n=k — ts=…` in `## Attempts` (`n>=2` → HALT),
+  **appended at the END of the section so `tail`/`[-1]` = newest** (monotonic).
+- **Breaker constants** (`N=4`, `MAX_REENTRIES=3`, `MAX_CODE_ROUNDS=3·N`) are the caller's (Plan C);
+  the helper only counts.
+- Tests use `fileURLToPath` (never `new URL().pathname`) and `hasSh`/`hasPwsh` guards (mirror
+  `tools/test/check-gates.test.mjs`) on **every** suite that spawns `sh` or `pwsh`.
 
 ---
 
 ## File Structure
-
-- `src/shared/scripts/goal-digest.sh` — `sh goal-digest.sh <base_sha> [repo_dir] [--from-head]` →
-  64-char hex digest. `--from-head` hashes `git diff <base> HEAD` (committed tree) instead of the
-  normalized worktree.
-- `src/shared/scripts/goal-digest.ps1` — PowerShell twin, byte-identical.
-- `src/shared/scripts/goal-state.sh` — `field | round-count | ship-red-count | ship-red-bump`,
-  all section-scoped.
-- `src/shared/scripts/goal-state.ps1` — PowerShell twin.
-- `tools/test/goal-digest.test.mjs`, `tools/test/goal-digest.ps1.test.mjs`,
-  `tools/test/goal-state.test.mjs`, `tools/test/goal-state.ps1.test.mjs`.
-
-Task 1–2 = digest (sh + tests, then ps1 parity). Task 3–4 = state (sh + tests, then ps1 parity).
-Task 5 = CI-discovery verification.
+- `src/shared/scripts/goal-digest.sh` / `.ps1` — `<base_sha> [repo_dir] [--from-head]` → 64-hex.
+- `src/shared/scripts/goal-state.sh` / `.ps1` — `field | round-count | ship-red-count | ship-red-bump`.
+- `tools/test/goal-digest.test.mjs`, `goal-digest.ps1.test.mjs`, `goal-state.test.mjs`,
+  `goal-state.ps1.test.mjs`.
 
 ---
 
-### Task 1: `goal-digest.sh` — normalized single-`git diff` digest
+### Task 1: `goal-digest.sh` + its test
 
-**Files:**
-- Create: `src/shared/scripts/goal-digest.sh`
-- Test: `tools/test/goal-digest.test.mjs`
-
-**Interfaces:**
-- Produces: `goal-digest.sh <base_sha> [repo_dir] [--from-head]` → stdout one line, 64-char lower
-  hex. Exit 0 ok; exit 3 if `git`/sha missing, `base_sha` empty/invalid, or `repo_dir` not a repo.
-- Consumes: nothing.
+**Files:** Create `src/shared/scripts/goal-digest.sh`; Test `tools/test/goal-digest.test.mjs`.
+**Interfaces:** `goal-digest.sh <base_sha> [repo_dir] [--from-head]` → stdout 64-hex; exit 3 on any
+bad env/arg/tool/git failure.
 
 - [ ] **Step 1: Write the failing tests** (`tools/test/goal-digest.test.mjs`)
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, mkdirSync, symlinkSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync, mkdirSync, symlinkSync, chmodSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SH = fileURLToPath(new URL('../../src/shared/scripts/goal-digest.sh', import.meta.url));
+const hasSh = spawnSync('sh', ['-c', 'exit 0'], { stdio: 'ignore' }).status === 0;
+const G = { skip: !hasSh };
 
 function initRepo() {
   const dir = mkdtempSync(join(tmpdir(), 'goaldig-'));
   const git = (...a) => execFileSync('git', a, { cwd: dir, stdio: 'pipe' });
   git('init', '-q'); git('config', 'user.email', 't@t.co'); git('config', 'user.name', 'T');
-  writeFileSync(join(dir, 'seed.txt'), 'seed\n');
-  git('add', '.'); git('commit', '-qm', 'base');
+  writeFileSync(join(dir, 'seed.txt'), 'seed\n'); git('add', '.'); git('commit', '-qm', 'base');
   return { dir, base: git('rev-parse', 'HEAD').toString().trim(), git };
 }
-const digest = (dir, base, ...extra) =>
-  execFileSync('sh', [SH, base, dir, ...extra], { cwd: dir }).toString().trim();
+const dg = (dir, base, ...x) => execFileSync('sh', [SH, base, dir, ...x], { cwd: dir }).toString().trim();
 
-test('digest is 64-hex and deterministic', () => {
-  const { dir, base } = initRepo();
-  writeFileSync(join(dir, 'seed.txt'), 'seed\nX\n');
-  const d = digest(dir, base);
-  assert.match(d, /^[0-9a-f]{64}$/);
-  assert.equal(d, digest(dir, base));
+test('64-hex + deterministic', G, () => {
+  const { dir, base } = initRepo(); writeFileSync(join(dir, 'seed.txt'), 'seed\nX\n');
+  const d = dg(dir, base); assert.match(d, /^[0-9a-f]{64}$/); assert.equal(d, dg(dir, base));
 });
 
-test('staging does NOT change the digest (index-state invariance)', () => {
+test('index-state invariance: untracked == staged == committed(--from-head)', G, () => {
   const { dir, base, git } = initRepo();
-  writeFileSync(join(dir, 'new.txt'), 'content\n');        // untracked
-  const untracked = digest(dir, base);
-  git('add', 'new.txt');                                    // now staged, same bytes
-  assert.equal(digest(dir, base), untracked);               // <-- the rev2 fix
-  git('commit', '-qm', 'c');
-  assert.equal(digest(dir, base, '--from-head'), untracked); // committed tree == cert
+  writeFileSync(join(dir, 'new.txt'), 'content\n');
+  const untracked = dg(dir, base);
+  git('add', 'new.txt'); assert.equal(dg(dir, base), untracked);
+  git('commit', '-qm', 'c'); assert.equal(dg(dir, base, '--from-head'), untracked);
 });
 
-test('a content change moves the digest; an excluded path does not', () => {
-  const { dir, base } = initRepo();
-  const before = digest(dir, base);
+test('invariance holds with modify+delete+add together', G, () => {
+  const { dir, base, git } = initRepo();
+  writeFileSync(join(dir, 'seed.txt'), 'seed\nmod\n');           // modify
+  writeFileSync(join(dir, 'a.txt'), 'add\n');                    // add
+  git('rm', '-q', '--cached', 'seed.txt'); /* keep worktree */   // ensure diff has a delete-ish case
+  const before = dg(dir, base);
+  git('add', '-A'); assert.equal(dg(dir, base), before);
+});
+
+test('excluded path is digest-neutral; in-scope change moves it', G, () => {
+  const { dir, base } = initRepo(); const before = dg(dir, base);
   mkdirSync(join(dir, '.workflow'), { recursive: true });
-  writeFileSync(join(dir, '.workflow', 'state.md'), 'noise\n'); // excluded
-  assert.equal(digest(dir, base), before);
-  writeFileSync(join(dir, 'seed.txt'), 'seed\nY\n');            // in-scope
-  assert.notEqual(digest(dir, base), before);
+  writeFileSync(join(dir, '.workflow', 'state.md'), 'noise\n'); assert.equal(dg(dir, base), before);
+  writeFileSync(join(dir, 'seed.txt'), 'seed\nY\n'); assert.notEqual(dg(dir, base), before);
 });
 
-test('package.json is in scope (positive control); rename moves digest', () => {
-  const { dir, base, git } = initRepo();
-  const before = digest(dir, base);
-  writeFileSync(join(dir, 'package.json'), '{"name":"x"}\n');   // NOT excluded
-  assert.notEqual(digest(dir, base), before);
-  const withPkg = digest(dir, base);
-  git('add', '.'); git('commit', '-qm', 'pkg');
-  git('mv', 'seed.txt', 'renamed.txt');
-  assert.notEqual(digest(dir, base), withPkg);                  // --no-renames = del+add
-});
-
-test('leading-dash and symlink untracked files are handled', () => {
+test('positive controls: package.json, empty add, plan doc all move the digest', G, () => {
   const { dir, base } = initRepo();
-  writeFileSync(join(dir, '-weird.txt'), 'dash\n');             // must not be read as an option
-  symlinkSync('seed.txt', join(dir, 'link'));                   // symlink → git frames as 120000
-  const d = digest(dir, base);
-  assert.match(d, /^[0-9a-f]{64}$/);                            // no crash; deterministic
-  assert.equal(d, digest(dir, base));
+  const b0 = dg(dir, base);
+  writeFileSync(join(dir, 'package.json'), '{"name":"x"}\n'); const b1 = dg(dir, base); assert.notEqual(b1, b0);
+  writeFileSync(join(dir, 'empty.txt'), '');                    const b2 = dg(dir, base); assert.notEqual(b2, b1);
+  mkdirSync(join(dir, 'docs', 'plans'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'plans', 'p.md'), 'plan\n');  const b3 = dg(dir, base); assert.notEqual(b3, b2);
 });
 
-test('bad base sha exits 3, not sha-of-empty', () => {
+test('executable-bit change moves the digest', G, () => {
+  const { dir, base, git } = initRepo();
+  writeFileSync(join(dir, 'run.sh'), '#!/bin/sh\n'); git('add', '.'); git('commit', '-qm', 'x');
+  const before = dg(dir, base); chmodSync(join(dir, 'run.sh'), 0o755);
+  assert.notEqual(dg(dir, base), before);
+});
+
+test('rename moves the digest (--no-renames)', G, () => {
+  const { dir, base, git } = initRepo(); const before = dg(dir, base);
+  git('mv', 'seed.txt', 'renamed.txt'); assert.notEqual(dg(dir, base), before);
+});
+
+test('symlink and leading-dash untracked are bound (present ≠ absent), crash-free', G, () => {
+  const { dir, base } = initRepo(); const before = dg(dir, base);
+  writeFileSync(join(dir, '-weird.txt'), 'dash\n'); const d1 = dg(dir, base); assert.notEqual(d1, before);
+  symlinkSync('seed.txt', join(dir, 'link'));       const d2 = dg(dir, base); assert.notEqual(d2, d1);
+});
+
+test('linked worktree: digest works and the real index is byte-unchanged', G, () => {
+  const { dir, base, git } = initRepo();
+  const wt = mkdtempSync(join(tmpdir(), 'goalwt-'));
+  const idxBefore = execFileSync('shasum', ['-a', '256', join(dir, '.git', 'index')]).toString();
+  git('worktree', 'add', '-q', wt, 'HEAD');
+  writeFileSync(join(wt, 'w.txt'), 'in-worktree\n');
+  const d = execFileSync('sh', [SH, base, wt], { cwd: wt }).toString().trim();
+  assert.match(d, /^[0-9a-f]{64}$/);
+  const idxAfter = execFileSync('shasum', ['-a', '256', join(dir, '.git', 'index')]).toString();
+  assert.equal(idxAfter, idxBefore);
+});
+
+test('bad base sha exits 3; empty base exits 3', G, () => {
   const { dir } = initRepo();
-  const r = execFileSync('sh', [SH, 'deadbeefdeadbeef', dir], { cwd: dir, encoding: 'utf8', stdio: 'pipe' })
-    .catch?.(e => e) ?? null;
-  // execFileSync throws on non-zero; assert via spawnSync instead:
+  assert.equal(spawnSync('sh', [SH, 'deadbeefdeadbeef', dir], { cwd: dir }).status, 3);
+  assert.equal(spawnSync('sh', [SH, '', dir], { cwd: dir }).status, 3);
 });
 ```
 
-Replace the last test with a spawnSync form (execFileSync throws, awkward to assert):
-
-```js
-import { spawnSync } from 'node:child_process';
-test('bad base sha exits 3', () => {
-  const { dir } = initRepo();
-  const r = spawnSync('sh', [SH, 'deadbeefdeadbeef', dir], { cwd: dir });
-  assert.equal(r.status, 3);
-});
-```
-
-- [ ] **Step 2: Run to verify failure**
-
-Run: `node --test tools/test/goal-digest.test.mjs`
-Expected: FAIL (script missing / spawn ENOENT).
+- [ ] **Step 2: Run — verify failure.** `node --test tools/test/goal-digest.test.mjs` → FAIL (missing script).
 
 - [ ] **Step 3: Write `src/shared/scripts/goal-digest.sh`**
 
 ```sh
 #!/bin/sh
-# goal-digest.sh — /goal certification digest (design §6.1).
+# goal-digest.sh — /goal certification digest (design §6.1). ONE normalized git diff.
 # Usage: sh goal-digest.sh <base_sha> [repo_dir] [--from-head]
-# Prints a 64-char hex digest of in-scope content vs <base_sha>. Default: the
-# normalized worktree (temp index + intent-to-add, so tracked+untracked frame
-# identically and the digest is index-state invariant). --from-head: the
-# committed tree (git diff <base> HEAD). Exit: 0 ok · 3 bad env/args.
+# Exit: 0 ok · 3 bad env/args/tool/git failure (fail closed).
 set -eu
 LC_ALL=C; export LC_ALL
-
 base="${1:-}"; repo="${2:-.}"; mode="${3:-}"
 [ -n "$base" ] || { echo "goal-digest: missing base_sha" >&2; exit 3; }
 command -v git >/dev/null 2>&1 || { echo "goal-digest: git not found" >&2; exit 3; }
@@ -199,56 +185,46 @@ else echo "goal-digest: no sha256 tool" >&2; exit 3; fi
 git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 || { echo "goal-digest: not a repo" >&2; exit 3; }
 git -C "$repo" cat-file -e "${base}^{commit}" 2>/dev/null || { echo "goal-digest: bad base" >&2; exit 3; }
 
-set -f  # noglob: exclusion pathspecs contain '*'
-# exclusion set — the single source of truth (keep in sync with goal-digest.ps1)
-set -- \
-  ':(exclude).workflow/*' \
-  ':(exclude)docs/e2e/reports/*' \
-  ':(exclude)CONTINUITY.md' \
-  ':(exclude)docs/CHANGELOG.md' \
-  ':(exclude)VERSION'
+set -f
+set -- ':(exclude).workflow/*' ':(exclude)docs/e2e/reports/*' ':(exclude)CONTINUITY.md' \
+       ':(exclude)docs/CHANGELOG.md' ':(exclude)VERSION'
+DIFF="diff --full-index --no-ext-diff --no-textconv --default-prefix --no-renames --no-color"
 
-out=$(mktemp); trap 'rm -f "$out"' EXIT INT TERM
+out=$(mktemp); tmp_idx=""
+cleanup() { rm -f "$out"; [ -n "$tmp_idx" ] && rm -f "$tmp_idx"; }
+trap cleanup EXIT INT TERM
 
 if [ "$mode" = "--from-head" ]; then
-  git -C "$repo" -c core.quotepath=false diff --no-renames --no-color "$base" HEAD -- . "$@" > "$out"
+  git -C "$repo" -c core.quotepath=false $DIFF "$base" HEAD -- . "$@" > "$out" \
+    || { echo "goal-digest: git diff failed" >&2; exit 3; }
 else
-  # normalized worktree: temp index seeded from the real index, + intent-to-add untracked
-  real_idx=$(cd "$repo" && git rev-parse --git-path index)
-  tmp_idx=$(mktemp); trap 'rm -f "$out" "$tmp_idx"' EXIT INT TERM
-  [ -f "$repo/$real_idx" ] && cp "$repo/$real_idx" "$tmp_idx" || : > "$tmp_idx"
+  real_idx=$(git -C "$repo" rev-parse --git-path index)
+  case "$real_idx" in /*) idx_abs="$real_idx" ;; *) idx_abs="$repo/$real_idx" ;; esac
+  tmp_idx=$(mktemp)
+  if [ -f "$idx_abs" ]; then cp "$idx_abs" "$tmp_idx"; else rm -f "$tmp_idx"; fi
   GIT_INDEX_FILE="$tmp_idx"; export GIT_INDEX_FILE
-  git -C "$repo" add -N -- . "$@" >/dev/null 2>&1 || true   # intent-to-add in-scope untracked
-  git -C "$repo" -c core.quotepath=false diff --no-renames --no-color "$base" -- . "$@" > "$out"
+  git -C "$repo" add -N -- . "$@" >/dev/null 2>&1 \
+    || { unset GIT_INDEX_FILE; echo "goal-digest: git add -N failed" >&2; exit 3; }
+  git -C "$repo" -c core.quotepath=false $DIFF "$base" -- . "$@" > "$out" \
+    || { unset GIT_INDEX_FILE; echo "goal-digest: git diff failed" >&2; exit 3; }
   unset GIT_INDEX_FILE
 fi
-# git wrote its raw bytes to "$out"; hash them
 $SHA < "$out" | cut -d' ' -f1
 ```
 
-- [ ] **Step 4: Run to verify passes**
+- [ ] **Step 4: Run — verify pass.** `node --test tools/test/goal-digest.test.mjs` → PASS (all).
 
-Run: `node --test tools/test/goal-digest.test.mjs`
-Expected: PASS (all tests, incl. the invariance and exit-3 tests).
-
-- [ ] **Step 5: Commit**
-
+- [ ] **Step 5: Commit.**
 ```bash
 git add src/shared/scripts/goal-digest.sh tools/test/goal-digest.test.mjs
-git commit -m "feat(goal): goal-digest.sh normalized single-git-diff digest"
+git commit -m "feat(goal): goal-digest.sh normalized git-diff digest (full-index, fail-closed, worktree-safe)"
 ```
 
 ---
 
-### Task 2: `goal-digest.ps1` — PowerShell parity (hash raw git bytes)
+### Task 2: `goal-digest.ps1` — parity (raw bytes, Process, ArgumentList)
 
-**Files:**
-- Create: `src/shared/scripts/goal-digest.ps1`
-- Test: `tools/test/goal-digest.ps1.test.mjs`
-
-**Interfaces:** `pwsh goal-digest.ps1 <base_sha> [repo_dir] [--from-head]` → identical hex to `.sh`.
-Because both hash the **raw stdout bytes** of the same `git diff`, parity is structural (same git
-binary, same args) — the ps1 must NOT decode/re-encode git output.
+**Files:** Create `src/shared/scripts/goal-digest.ps1`; Test `tools/test/goal-digest.ps1.test.mjs`.
 
 - [ ] **Step 1: Write the failing parity test** (`tools/test/goal-digest.ps1.test.mjs`)
 
@@ -266,15 +242,15 @@ const PS1 = fileURLToPath(new URL('../../src/shared/scripts/goal-digest.ps1', im
 const hasSh   = spawnSync('sh',   ['-c', 'exit 0'], { stdio: 'ignore' }).status === 0;
 const hasPwsh = spawnSync('pwsh', ['-v'],           { stdio: 'ignore' }).status === 0;
 
-test('goal-digest.ps1 == goal-digest.sh across tricky paths', { skip: !(hasSh && hasPwsh) }, () => {
-  const dir = mkdtempSync(join(tmpdir(), 'goaldigp-'));
+test('ps1 == sh across mixed-case, non-ASCII, invalid-UTF-8, wildcard, spaces', { skip: !(hasSh && hasPwsh) }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'goal digp-'));   // NOTE: space in repo path
   const git = (...a) => execFileSync('git', a, { cwd: dir, stdio: 'pipe' });
   git('init', '-q'); git('config', 'user.email', 't@t.co'); git('config', 'user.name', 'T');
   writeFileSync(join(dir, 'seed.txt'), 'seed\n'); git('add', '.'); git('commit', '-qm', 'base');
   const base = git('rev-parse', 'HEAD').toString().trim();
-  // mixed-case ordering, non-ASCII content, wildcard-bracket path
   writeFileSync(join(dir, 'Foo.txt'), 'A\n');
   writeFileSync(join(dir, 'bar.txt'), 'café ☕\n');
+  writeFileSync(join(dir, 'bin.dat'), Buffer.from([0x89, 0xff, 0xfe, 0x00, 0x41]));  // invalid UTF-8
   mkdirSync(join(dir, 'app', '[id]'), { recursive: true });
   writeFileSync(join(dir, 'app', '[id]', 'page.txt'), 'wild\n');
   const sh  = execFileSync('sh',   [SH,  base, dir], { cwd: dir }).toString().trim();
@@ -283,102 +259,96 @@ test('goal-digest.ps1 == goal-digest.sh across tricky paths', { skip: !(hasSh &&
 });
 ```
 
-- [ ] **Step 2: Run to verify failure/skip**
-
-Run: `node --test tools/test/goal-digest.ps1.test.mjs`
-Expected: FAIL (ps1 missing) on a dual-runtime host; SKIP where either runtime is absent.
+- [ ] **Step 2: Run — verify failure/skip.** → FAIL (missing) on dual-runtime; SKIP otherwise.
 
 - [ ] **Step 3: Write `src/shared/scripts/goal-digest.ps1`**
 
 ```powershell
 #!/usr/bin/env pwsh
-# goal-digest.ps1 — PowerShell twin of goal-digest.sh (design §6.1). Hashes the RAW bytes of the
-# same 'git diff' the .sh hashes — no decode/re-encode, so parity is structural.
-param([Parameter(Mandatory)][string]$Base, [string]$RepoDir = '.', [string]$Mode = '')
+# goal-digest.ps1 — parity twin of goal-digest.sh. Hashes git's RAW stdout bytes.
+param([string]$Base = '', [string]$RepoDir = '.', [string]$Mode = '')
 $ErrorActionPreference = 'Stop'
-$PSNativeCommandUseErrorActionPreference = $false   # handle native exit via $LASTEXITCODE (like check-gates.ps1)
+$PSNativeCommandUseErrorActionPreference = $false
 $env:LC_ALL = 'C'
-$repo = (Resolve-Path $RepoDir).Path
-$excl = @(':(exclude).workflow/*', ':(exclude)docs/e2e/reports/*', ':(exclude)CONTINUITY.md',
-          ':(exclude)docs/CHANGELOG.md', ':(exclude)VERSION')
-
 function Fail($m) { [Console]::Error.WriteLine("goal-digest: $m"); exit 3 }
+if ([string]::IsNullOrEmpty($Base)) { Fail 'missing base_sha' }
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Fail 'git not found' }
+$repo = (Resolve-Path -LiteralPath $RepoDir).Path
+
+# run git with raw-byte stdout captured to a file; return exit code
+function GitRawTo($file, [string[]]$gitArgs) {
+  $psi = [System.Diagnostics.ProcessStartInfo]::new()
+  $psi.FileName = 'git'; $psi.WorkingDirectory = $repo
+  $psi.RedirectStandardOutput = $true; $psi.UseShellExecute = $false
+  foreach ($a in $gitArgs) { $psi.ArgumentList.Add($a) }
+  $p = [System.Diagnostics.Process]::Start($psi)
+  $fs = [System.IO.File]::Create($file)
+  $p.StandardOutput.BaseStream.CopyTo($fs); $fs.Close(); $p.WaitForExit()
+  return $p.ExitCode
+}
 & git -C $repo rev-parse --git-dir *> $null; if ($LASTEXITCODE -ne 0) { Fail 'not a repo' }
 & git -C $repo cat-file -e "$Base^{commit}" *> $null; if ($LASTEXITCODE -ne 0) { Fail 'bad base' }
 
-$out = [System.IO.Path]::GetTempFileName()
+$excl = @(':(exclude).workflow/*', ':(exclude)docs/e2e/reports/*', ':(exclude)CONTINUITY.md',
+          ':(exclude)docs/CHANGELOG.md', ':(exclude)VERSION')
+$diff = @('-C', $repo, '-c', 'core.quotepath=false', 'diff', '--full-index', '--no-ext-diff',
+          '--no-textconv', '--default-prefix', '--no-renames', '--no-color')
+$out = [System.IO.Path]::GetTempFileName(); $tmpIdx = $null
 try {
-  # Redirect native git stdout to a file as raw bytes (no PowerShell string decoding).
   if ($Mode -eq '--from-head') {
-    $args = @('-C', $repo, '-c', 'core.quotepath=false', 'diff', '--no-renames', '--no-color', $Base, 'HEAD', '--', '.') + $excl
-    $p = Start-Process git -ArgumentList $args -NoNewWindow -Wait -PassThru -RedirectStandardOutput $out
+    $code = GitRawTo $out ($diff + @($Base, 'HEAD', '--', '.') + $excl)
   } else {
     $realIdx = (& git -C $repo rev-parse --git-path index).Trim()
-    $tmpIdx  = [System.IO.Path]::GetTempFileName()
-    $src = Join-Path $repo $realIdx
-    if (Test-Path $src) { Copy-Item $src $tmpIdx -Force } else { '' | Set-Content -NoNewline $tmpIdx }
+    $idxAbs = if ([System.IO.Path]::IsPathRooted($realIdx)) { $realIdx } else { Join-Path $repo $realIdx }
+    $tmpIdx = [System.IO.Path]::GetTempFileName()
+    if (Test-Path -LiteralPath $idxAbs) { Copy-Item -LiteralPath $idxAbs $tmpIdx -Force } else { Remove-Item $tmpIdx -Force }
     $env:GIT_INDEX_FILE = $tmpIdx
-    $addArgs = @('-C', $repo, 'add', '-N', '--', '.') + $excl
-    & git @addArgs *> $null            # intent-to-add; ignore status
-    $args = @('-C', $repo, '-c', 'core.quotepath=false', 'diff', '--no-renames', '--no-color', $Base, '--', '.') + $excl
-    $p = Start-Process git -ArgumentList $args -NoNewWindow -Wait -PassThru -RedirectStandardOutput $out
+    & git @(@('-C', $repo, 'add', '-N', '--', '.') + $excl) *> $null
+    if ($LASTEXITCODE -ne 0) { Remove-Item Env:GIT_INDEX_FILE; Fail 'git add -N failed' }
+    $code = GitRawTo $out ($diff + @($Base, '--', '.') + $excl)
     Remove-Item Env:GIT_INDEX_FILE
-    Remove-Item $tmpIdx -Force
   }
+  if ($code -ne 0) { Fail 'git diff failed' }
   $sha = [System.Security.Cryptography.SHA256]::Create()
-  $bytes = [System.IO.File]::ReadAllBytes($out)
-  -join ($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') })
-} finally { Remove-Item $out -Force -ErrorAction SilentlyContinue }
+  -join ($sha.ComputeHash([System.IO.File]::ReadAllBytes($out)) | ForEach-Object { $_.ToString('x2') })
+} finally {
+  Remove-Item $out -Force -ErrorAction SilentlyContinue
+  if ($tmpIdx) { Remove-Item $tmpIdx -Force -ErrorAction SilentlyContinue }
+}
 ```
 
-- [ ] **Step 4: Run to verify parity**
+- [ ] **Step 4: Run — verify parity.** `node --test tools/test/goal-digest.ps1.test.mjs` → PASS on
+  a host with both runtimes (CI windows job has Git-for-Windows `sh` + `pwsh`). A divergence is
+  always a decode/re-encode or arg-order fault — fix it; a parity failure is P1.
 
-Run: `node --test tools/test/goal-digest.ps1.test.mjs`
-Expected: PASS on a host with both `sh`+`pwsh` (CI windows job has both via Git-for-Windows). If it
-diverges, the fault is always a decode/re-encode or arg-order difference — align until identical; a
-parity failure is P1.
-
-- [ ] **Step 5: Commit**
-
+- [ ] **Step 5: Commit.**
 ```bash
 git add src/shared/scripts/goal-digest.ps1 tools/test/goal-digest.ps1.test.mjs
-git commit -m "feat(goal): goal-digest.ps1 parity (raw git-diff bytes)"
+git commit -m "feat(goal): goal-digest.ps1 parity (raw bytes via Process, ArgumentList, LiteralPath)"
 ```
 
 ---
 
-### Task 3: `goal-state.sh` — section-scoped readers + durable `ship-red-bump`
+### Task 3: `goal-state.sh` — section-scoped (CRLF-tolerant) readers + monotonic `ship-red-bump`
 
-**Files:**
-- Create: `src/shared/scripts/goal-state.sh`
-- Test: `tools/test/goal-state.test.mjs`
-
-**Interfaces:**
-- `field <name> [file]` → value of `| <name> | <value> |` **within `## /goal loop`**, else empty.
-- `round-count <plan|code> [file]` → integer count of `## Review log` lines matching the fixed
-  schema with `loop=<x>` AND `kind=round` (single integer, `0` when none).
-- `ship-red-count [file]` → latest `n` from `## Attempts` `ATTEMPT ship-red` lines, else `0`.
-- `ship-red-bump [file]` → append `- ATTEMPT ship-red — n=<k+1> — ts=<ISO>` **inside `## Attempts`**
-  (before the next `## ` heading; create the section if absent), print the new `n`.
-- Exit 0 for reads; exit 3 unknown subcommand.
+**Files:** Create `src/shared/scripts/goal-state.sh`; Test `tools/test/goal-state.test.mjs`.
 
 - [ ] **Step 1: Write the failing tests** (`tools/test/goal-state.test.mjs`)
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SH = fileURLToPath(new URL('../../src/shared/scripts/goal-state.sh', import.meta.url));
+const hasSh = spawnSync('sh', ['-c', 'exit 0'], { stdio: 'ignore' }).status === 0;
+const G = { skip: !hasSh };
 const run = (args, cwd) => execFileSync('sh', [SH, ...args], { cwd }).toString().trim();
-function stateFile(body) {
-  const dir = mkdtempSync(join(tmpdir(), 'goalst-')); writeFileSync(join(dir, 'state.md'), body); return dir;
-}
+const mk = (body) => { const d = mkdtempSync(join(tmpdir(), 'goalst-')); writeFileSync(join(d, 'state.md'), body); return d; };
 const STATE = `## /goal loop
 | phase | code-review |
 | reentries | 2 |
@@ -393,85 +363,76 @@ const STATE = `## /goal loop
 | phase | DECOY |
 `;
 
-test('field is section-scoped to ## /goal loop', () => {
-  const dir = stateFile(STATE);
-  assert.equal(run(['field', 'phase', 'state.md'], dir), 'code-review'); // not the Notes DECOY
-  assert.equal(run(['field', 'reentries', 'state.md'], dir), '2');
-  assert.equal(run(['field', 'absent', 'state.md'], dir), '');
+test('field is section-scoped', G, () => {
+  const d = mk(STATE);
+  assert.equal(run(['field', 'phase', 'state.md'], d), 'code-review'); // not the Notes DECOY
+  assert.equal(run(['field', 'reentries', 'state.md'], d), '2');
+  assert.equal(run(['field', 'absent', 'state.md'], d), '');
 });
-
-test('round-count counts kind=round per loop; zero yields a single 0', () => {
-  const dir = stateFile(STATE);
-  assert.equal(run(['round-count', 'code', 'state.md'], dir), '2'); // cert excluded
-  assert.equal(run(['round-count', 'plan', 'state.md'], dir), '1');
-  const empty = stateFile('## Review log\n');
-  assert.equal(run(['round-count', 'code', 'state.md'], empty), '0'); // not "0\n0"
+test('round-count: kind=round per loop; single 0 on empty', G, () => {
+  const d = mk(STATE);
+  assert.equal(run(['round-count', 'code', 'state.md'], d), '2');
+  assert.equal(run(['round-count', 'plan', 'state.md'], d), '1');
+  assert.equal(run(['round-count', 'code', 'state.md'], mk('## Review log\n')), '0');
 });
-
-test('ship-red-bump increments inside ## Attempts and persists', () => {
-  const dir = stateFile('## /goal loop\n| phase | ship |\n\n## Notes\nend\n');
-  assert.equal(run(['ship-red-bump', 'state.md'], dir), '1');
-  assert.equal(run(['ship-red-bump', 'state.md'], dir), '2');
-  assert.equal(run(['ship-red-count', 'state.md'], dir), '2');
-  const body = readFileSync(join(dir, 'state.md'), 'utf8');
-  assert.match(body, /## Attempts[\s\S]*ATTEMPT ship-red — n=2/); // landed in its own section
+test('CRLF state file still parses', G, () => {
+  const d = mk(STATE.replace(/\n/g, '\r\n'));
+  assert.equal(run(['field', 'phase', 'state.md'], d), 'code-review');
+  assert.equal(run(['round-count', 'code', 'state.md'], d), '2');
+});
+test('ship-red-bump is monotonic and lands inside ## Attempts', G, () => {
+  const d = mk('## /goal loop\n| phase | ship |\n\n## Notes\nend\n');
+  assert.equal(run(['ship-red-bump', 'state.md'], d), '1');
+  assert.equal(run(['ship-red-bump', 'state.md'], d), '2');
+  assert.equal(run(['ship-red-bump', 'state.md'], d), '3');   // monotonic (catches inverted counter)
+  assert.equal(run(['ship-red-count', 'state.md'], d), '3');
+  assert.match(readFileSync(join(d, 'state.md'), 'utf8'), /## Attempts[\s\S]*n=3/);
+});
+test('unknown subcommand exits 3', G, () => {
+  assert.equal(spawnSync('sh', [SH, 'bogus'], { cwd: mk('x') }).status, 3);
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
-
-Run: `node --test tools/test/goal-state.test.mjs` → FAIL (script missing).
+- [ ] **Step 2: Run — verify failure.** → FAIL (missing script).
 
 - [ ] **Step 3: Write `src/shared/scripts/goal-state.sh`**
 
 ```sh
 #!/bin/sh
-# goal-state.sh — section-scoped readers/writers for /goal's .workflow/state.md (§4/§6.2/§10).
-# Subcommands: field <name> [file] | round-count <plan|code> [file]
-#              ship-red-count [file] | ship-red-bump [file]
-# Reads never fail on a missing file (empty/0). Exit: 0 ok · 3 unknown subcommand.
+# goal-state.sh — section-scoped, CRLF-tolerant readers/writers for /goal state.md (§4/§6.2/§10).
+# field <name> [file] | round-count <plan|code> [file] | ship-red-count [file] | ship-red-bump [file]
 set -eu
-
-# section <header> <file> : emit only the lines under '## <header>' up to the next '## '
-section() {
-  awk -v h="$1" '
-    $0 == "## " h { insec=1; next }
-    /^## / { insec=0 }
-    insec { print }
-  ' "$2"
-}
-
+# section <header> <file>: lines under '## <header>' up to the next '## ' (CRLF-tolerant)
+section() { awk -v h="$1" '{ sub(/\r$/,"") } $0=="## " h {i=1;next} /^## / {i=0} i {print}' "$2"; }
 cmd="${1:-}"
 case "$cmd" in
   field)
-    name="${2:-}"; file="${3:-.workflow/state.md}"
-    [ -f "$file" ] || { printf ''; exit 0; }
+    name="${2:-}"; file="${3:-.workflow/state.md}"; [ -f "$file" ] || { printf ''; exit 0; }
     section "/goal loop" "$file" | awk -v k="$name" '
       $0 ~ ("^\\| *" k " *\\|") { s=$0; sub(/^\| *[^|]* *\| */,"",s); sub(/ *\|.*$/,"",s); print s; exit }'
     ;;
   round-count)
-    loop="${2:-}"; file="${3:-.workflow/state.md}"
-    [ -f "$file" ] || { echo 0; exit 0; }
-    section "Review log" "$file" \
-      | grep -c -e "loop=$loop .*kind=round" 2>/dev/null | head -1 || echo 0
+    loop="${2:-}"; file="${3:-.workflow/state.md}"; [ -f "$file" ] || { echo 0; exit 0; }
+    section "Review log" "$file" | grep -c -e "loop=$loop .*kind=round" 2>/dev/null | head -1 || echo 0
     ;;
   ship-red-count)
-    file="${2:-.workflow/state.md}"
-    [ -f "$file" ] || { echo 0; exit 0; }
+    file="${2:-.workflow/state.md}"; [ -f "$file" ] || { echo 0; exit 0; }
     n=$(section "Attempts" "$file" | sed -n 's/.*ATTEMPT ship-red — n=\([0-9][0-9]*\).*/\1/p' | tail -1)
     [ -n "$n" ] && echo "$n" || echo 0
     ;;
   ship-red-bump)
     file="${2:-.workflow/state.md}"
-    cur=$(sh "$0" ship-red-count "$file")
-    next=$((cur + 1))
-    ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    cur=$(sh "$0" ship-red-count "$file"); next=$((cur + 1))
+    ts=$(date -u +%Y-%m-%dT%H:%M:%SZ); line="- ATTEMPT ship-red — n=$next — ts=$ts"
     [ -f "$file" ] || : > "$file"
-    line="- ATTEMPT ship-red — n=$next — ts=$ts"
     if grep -q '^## Attempts' "$file" 2>/dev/null; then
-      # insert the line just after the '## Attempts' header (stays inside the section)
-      awk -v L="$line" '{ print } /^## Attempts$/ && !done { print L; done=1 }' "$file" > "$file.tmp" \
-        && mv "$file.tmp" "$file"
+      # append at the END of the ## Attempts section (before next '## ' or EOF) → newest last
+      awk -v L="$line" '
+        { sub(/\r$/,"") }
+        /^## / && insec { print L; insec=0 }
+        { print }
+        $0=="## Attempts" { insec=1 }
+        END { if (insec) print L }' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
     else
       printf '\n## Attempts\n%s\n' "$line" >> "$file"
     fi
@@ -481,31 +442,19 @@ case "$cmd" in
 esac
 ```
 
-Note on `round-count`: piping `grep -c` into `head -1` yields a single line; the `|| echo 0` guard
-only fires if the whole pipe fails. `grep -c` on zero matches prints `0` and the pipe succeeds via
-`head`, so the output is exactly `0` (the earlier `grep -c || echo 0` double-`0` bug is gone).
+- [ ] **Step 4: Run — verify pass.** → PASS (incl. monotonicity, CRLF, section-scope, zero).
 
-- [ ] **Step 4: Run to verify passes**
-
-Run: `node --test tools/test/goal-state.test.mjs` → PASS (all, incl. the zero and section-scope cases).
-
-- [ ] **Step 5: Commit**
-
+- [ ] **Step 5: Commit.**
 ```bash
 git add src/shared/scripts/goal-state.sh tools/test/goal-state.test.mjs
-git commit -m "feat(goal): goal-state.sh section-scoped readers + ship-red-bump"
+git commit -m "feat(goal): goal-state.sh section-scoped CRLF-tolerant readers + monotonic ship-red-bump"
 ```
 
 ---
 
-### Task 4: `goal-state.ps1` — PowerShell parity (all four subcommands + exit 3)
+### Task 4: `goal-state.ps1` — parity (all four subcommands, exit 3, append-at-end)
 
-**Files:**
-- Create: `src/shared/scripts/goal-state.ps1`
-- Test: `tools/test/goal-state.ps1.test.mjs`
-
-**Interfaces:** identical output to `goal-state.sh` for all four subcommands; unknown subcommand →
-exit 3 (via `[Console]::Error.WriteLine` + `exit 3`, never `Write-Error` which throws under Stop).
+**Files:** Create `src/shared/scripts/goal-state.ps1`; Test `tools/test/goal-state.ps1.test.mjs`.
 
 - [ ] **Step 1: Write the failing parity test** (`tools/test/goal-state.ps1.test.mjs`)
 
@@ -530,155 +479,123 @@ const STATE = `## /goal loop
 - loop=code — round=2 — kind=cert — reviewer=self — result=clean — digest=bb — ts=t2
 `;
 
-test('goal-state.ps1 matches .sh for reads + bump + unknown-exit', { skip: !(hasSh && hasPwsh) }, () => {
+test('ps1 matches sh: reads, 2 bumps, unknown-exit', { skip: !(hasSh && hasPwsh) }, () => {
   const mk = () => { const d = mkdtempSync(join(tmpdir(), 'goalstp-')); writeFileSync(join(d, 'state.md'), STATE); return d; };
   const sh  = (a, d) => execFileSync('sh',   [SH,  ...a], { cwd: d }).toString().trim();
   const ps1 = (a, d) => execFileSync('pwsh', ['-NoProfile', '-File', PS1, ...a], { cwd: d }).toString().trim();
   for (const a of [['field','phase','state.md'], ['round-count','code','state.md'], ['ship-red-count','state.md']]) {
-    const d1 = mk(), d2 = mk();
-    assert.equal(ps1(a, d2), sh(a, d1), `read mismatch: ${a.join(' ')}`);
+    assert.equal(ps1(a, mk()), sh(a, mk()), `read: ${a.join(' ')}`);
   }
-  // bump parity on separate identical fixtures
-  const ds = mk(), dp = mk();
-  assert.equal(ps1(['ship-red-bump','state.md'], dp), sh(['ship-red-bump','state.md'], ds));
-  // unknown subcommand → exit 3 on both
+  const ds = mk(), dp = mk();               // two bumps each → both must read '2'
+  sh(['ship-red-bump','state.md'], ds); assert.equal(sh(['ship-red-bump','state.md'], ds), '2');
+  ps1(['ship-red-bump','state.md'], dp); assert.equal(ps1(['ship-red-bump','state.md'], dp), '2');
+  assert.equal(ps1(['ship-red-count','state.md'], dp), sh(['ship-red-count','state.md'], ds));
   assert.equal(spawnSync('sh',   [SH,  'bogus'], { cwd: mk() }).status, 3);
   assert.equal(spawnSync('pwsh', ['-NoProfile','-File',PS1,'bogus'], { cwd: mk() }).status, 3);
 });
 ```
 
-- [ ] **Step 2: Run to verify failure/skip**
-
-Run: `node --test tools/test/goal-state.ps1.test.mjs` → FAIL (ps1 missing) or SKIP.
+- [ ] **Step 2: Run — verify failure/skip.**
 
 - [ ] **Step 3: Write `src/shared/scripts/goal-state.ps1`**
 
 ```powershell
 #!/usr/bin/env pwsh
-# goal-state.ps1 — PowerShell twin of goal-state.sh (design §4/§6.2/§10), section-scoped.
-param([Parameter(Mandatory)][string]$Cmd, [string]$A2 = '', [string]$A3 = '')
+# goal-state.ps1 — parity twin of goal-state.sh (§4/§6.2/§10), section-scoped, CRLF-tolerant.
+param([string]$Cmd = '', [string]$A2 = '', [string]$A3 = '')
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 function DefaultFile($f) { if ($f) { $f } else { '.workflow/state.md' } }
 function Section([string]$header, [string]$file) {
   $in = $false
-  foreach ($line in Get-Content -LiteralPath $file) {
-    if ($line -eq "## $header") { $in = $true; continue }
-    elseif ($line -like '## *') { $in = $false }
+  foreach ($raw in Get-Content -LiteralPath $file) {
+    $line = $raw -replace "`r$", ''
+    if ($line -eq "## $header") { $in = $true; continue } elseif ($line -like '## *') { $in = $false }
     if ($in) { $line }
   }
 }
 switch ($Cmd) {
   'field' {
-    $name = $A2; $file = DefaultFile $A3
-    if (-not (Test-Path $file)) { return }
+    $name = $A2; $file = DefaultFile $A3; if (-not (Test-Path -LiteralPath $file)) { return }
     foreach ($l in Section '/goal loop' $file) {
       if ($l -match "^\|\s*$([regex]::Escape($name))\s*\|\s*(.*?)\s*\|") { $matches[1]; break }
     }
   }
   'round-count' {
-    $loop = $A2; $file = DefaultFile $A3
-    if (-not (Test-Path $file)) { '0'; break }
+    $loop = $A2; $file = DefaultFile $A3; if (-not (Test-Path -LiteralPath $file)) { '0'; break }
     (Section 'Review log' $file | Where-Object { $_ -match "loop=$loop .*kind=round" }).Count
   }
   'ship-red-count' {
-    $file = DefaultFile $A2
-    if (-not (Test-Path $file)) { '0'; break }
+    $file = DefaultFile $A2; if (-not (Test-Path -LiteralPath $file)) { '0'; break }
     $ns = Section 'Attempts' $file | ForEach-Object { if ($_ -match 'ATTEMPT ship-red — n=(\d+)') { [int]$matches[1] } }
     if ($ns) { $ns[-1] } else { '0' }
   }
   'ship-red-bump' {
     $file = DefaultFile $A2
     $cur = [int](& pwsh -NoProfile -File $PSCommandPath 'ship-red-count' $file)
-    $next = $cur + 1
-    $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-    if (-not (Test-Path $file)) { New-Item -ItemType File -Path $file | Out-Null }
+    $next = $cur + 1; $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
     $line = "- ATTEMPT ship-red — n=$next — ts=$ts"
-    $content = Get-Content -LiteralPath $file
+    if (-not (Test-Path -LiteralPath $file)) { New-Item -ItemType File -Path $file | Out-Null }
+    $content = @(Get-Content -LiteralPath $file)
     if ($content -contains '## Attempts') {
-      $outLines = foreach ($l in $content) { $l; if ($l -eq '## Attempts') { $line } }
+      $outLines = New-Object System.Collections.Generic.List[string]; $insec = $false
+      foreach ($l in $content) {
+        if (($l -like '## *') -and $insec) { $outLines.Add($line); $insec = $false }
+        $outLines.Add($l)
+        if ($l -eq '## Attempts') { $insec = $true }
+      }
+      if ($insec) { $outLines.Add($line) }
       Set-Content -LiteralPath $file -Value $outLines
-    } else {
-      Add-Content -LiteralPath $file -Value "`n## Attempts`n$line"
-    }
+    } else { Add-Content -LiteralPath $file -Value "`n## Attempts`n$line" }
     $next
   }
   default { [Console]::Error.WriteLine("goal-state: unknown subcommand '$Cmd'"); exit 3 }
 }
 ```
 
-- [ ] **Step 4: Run to verify parity**
+- [ ] **Step 4: Run — verify parity.** → PASS on a dual-runtime host.
 
-Run: `node --test tools/test/goal-state.ps1.test.mjs` → PASS on a dual-runtime host.
-
-- [ ] **Step 5: Commit**
-
+- [ ] **Step 5: Commit.**
 ```bash
 git add src/shared/scripts/goal-state.ps1 tools/test/goal-state.ps1.test.mjs
-git commit -m "feat(goal): goal-state.ps1 parity (section-scoped, exit 3)"
+git commit -m "feat(goal): goal-state.ps1 parity (section-scoped, append-at-end, exit 3)"
 ```
 
 ---
 
-### Task 5: Verify CI auto-discovers the new tests (no CI edit expected)
+### Task 5: Verify CI auto-discovers the new tests (no CI edit)
 
-**Files:** (verification only)
-
-- [ ] **Step 1: Confirm CI uses Node test auto-discovery**
-
-Run: `grep -n "node --test" .github/workflows/ci.yml`
-Expected: Ubuntu job runs bare `node --test`, Windows job runs `node --test tools/test/` — **both
-auto-discover** `tools/test/*.test.mjs`. The four new files are picked up with **no CI edit**.
-
-- [ ] **Step 2: Confirm the whole suite is green locally**
-
-Run: `npm run check`
-Expected: lint + evals + `node --test` all green; the two `.ps1.test.mjs` SKIP if `pwsh` absent.
-
-- [ ] **Step 3: (Conditional) commit only if CI actually changed**
-
-CI needs no change, so there is nothing to commit here. Do **not** run an empty `git commit` (it
-fails "nothing to commit"). If — and only if — a future CI refactor is required, make it a real
-change and commit it; otherwise this task is a green-suite verification with no commit.
+- [ ] **Step 1:** `grep -n "node --test" .github/workflows/ci.yml` → Ubuntu bare `node --test`,
+  Windows `node --test tools/test/`; both auto-discover `tools/test/*.test.mjs`. No CI edit needed.
+- [ ] **Step 2:** `npm run check` → lint + evals + `node --test` green; `.ps1.test.mjs` SKIP without `pwsh`.
+- [ ] **Step 3:** No commit (CI unchanged). Do NOT run an empty `git commit`.
 
 ---
 
-## Self-Review (rev2)
+## Self-Review (rev3)
 
-**Cross-engine plan-review findings (Opus + Codex) — disposition:**
-- P1 digest not staging-invariant → **fixed**: temp-index `git add -N` normalization, one
-  `git diff`, `--from-head` for the committed check; invariance test added (Task 1).
-- P1 `grep -c` "0\n0" → **fixed**: `grep -c | head -1`; zero-count test added (Task 3).
-- P1 Task-2 exclusion test wrote a non-excluded `docs` file → **fixed**: excluded path tested in
-  isolation; positive control (`package.json` in scope) added (Task 1).
-- P1 ps1 culture-sort / decoded-diff / `Get-Item` wildcards → **fixed by design**: ps1 hashes the
-  raw bytes of the same `git diff` (no sort, no framing, no per-file read); `-LiteralPath` used in
-  state.ps1; parity fixture includes mixed-case, non-ASCII, and `app/[id]/` (Task 2).
-- P1 no pipefail / bad-base swallowed / missing-tool exit 3 → **fixed**: preflight git+sha+repo+base,
-  git writes to a temp file whose status is the script's (Task 1); bad-base exit-3 test added.
-- P1 `cat` symlink/`-n` → **fixed by design**: no `cat`; git frames symlinks as `120000`;
-  symlink+leading-dash test added (Task 1).
-- P1 reviewer/council scratch prefix unpinned → **resolved**: scratch lives under `.workflow/`
-  (already excluded); documented in Global Constraints, no new prefix.
-- P1 weak tests (rename = tracked mv; no positive controls) → **fixed**: invariance, package.json,
-  symlink, exclusion-in-isolation, zero-count, section-scope, bump-parity, unknown-exit all added.
-- P1 readers not section-scoped; bump appends at EOF → **fixed**: `section()` helper scopes every
-  read; bump inserts right after `## Attempts`; DECOY-in-Notes test added (Task 3).
-- P1 ps1 `Write-Error` exits 1 / cwd / native-error → **fixed**: `[Console]::Error.WriteLine`+`exit 3`,
-  `Resolve-Path`, `$PSNativeCommandUseErrorActionPreference=$false` (Tasks 2, 4).
-- P1 tests `new URL().pathname` / no `hasSh` → **fixed**: `fileURLToPath` + `hasSh`/`hasPwsh` guards
-  everywhere.
-- P1 Task 7 empty commit → **fixed**: Task 5 is verification-only, no commit unless CI truly changes.
-- P2 `sort -z` non-POSIX → **moot**: the temp-index design removed the untracked `sort` entirely.
+**Plan-review round-2 findings (Opus + Codex) — disposition (all fixed here):**
+- ship-red counter inverted → **append at END** of `## Attempts` (sh awk + ps1 list); **monotonicity
+  test** (`bump→bump→bump→count==3`) added (Tasks 3, 4).
+- `git diff` abbreviated-OID collision / textconv / ext-diff / prefix config →
+  `--full-index --no-ext-diff --no-textconv --default-prefix` on both scripts, both modes (Global
+  Constraints; Tasks 1, 2).
+- linked-worktree absolute `--git-path index` → rooted-path check (`case /*` / `IsPathRooted`);
+  worktree test asserting the real index is byte-unchanged (Tasks 1, 2).
+- fail-open producer failures → every `git add -N`/`git diff` nonzero → exit 3 (both engines).
+- ps1 `Start-Process -RedirectStandardOutput` not raw on Unix → `System.Diagnostics.Process` +
+  `StandardOutput.BaseStream.CopyTo` (raw); invalid-UTF-8 (`0x89 0xff 0xfe`) parity fixture.
+- ps1 arg splitting / wildcard `Test-Path`/`Resolve-Path` → `ProcessStartInfo.ArgumentList` +
+  `-LiteralPath` everywhere; parity fixture uses a **space in the repo path** and `app/[id]/`.
+- CRLF → `sub(/\r$/,"")` in sh `section()`/bump awk; `-replace "\r$"` in ps1 `Section`; CRLF test.
+- sh-only tests lacked `hasSh` → every sh-spawning suite guarded with `hasSh` (`G`); parity suites
+  guarded with `hasSh && hasPwsh`.
+- §6.1 coverage → added empty-file, plan-doc, config, package.json positive controls, executable-bit
+  change, symlink/leading-dash present≠absent, modify+delete+add invariance, linked-worktree.
+- ps1 empty-base exit 1 → `$Base=''` default + `IsNullOrEmpty` guard → exit 3; empty-base test (sh).
+- broken inline test stub in Task 1 Step 1 → removed (single `spawnSync` exit-3 test).
 
-**Placeholder scan:** every step has complete runnable content; no TBD. (Task 1 Step 1 shows one
-`execFileSync` stub then replaces it with the `spawnSync` exit-3 test — the final form is complete.)
-
-**Type/name consistency:** subcommands (`field`/`round-count`/`ship-red-count`/`ship-red-bump`) and
-the digest signature (`<base_sha> [repo_dir] [--from-head]`) are identical across `.sh`, `.ps1`, and
-tests. The exclusion set is verbatim-identical in `goal-digest.sh`, `goal-digest.ps1`, and Global
-Constraints.
-
-**Deferred to Plan C (not Plan A):** the `field` **write** path and gate1/gate2/SIMPLIFY/blocker
-writers, and the caller-side breaker comparison. Plan A ships only the read/count/digest/bump
-primitives + the committed-tree digest mode those callers need.
+**Placeholder scan:** clean. **Name/signature consistency:** subcommands + `<base_sha> [repo_dir]
+[--from-head]` + the exclusion set + diff flags are identical across `.sh`, `.ps1`, and Global
+Constraints. **Deferred to Plan C:** the state *write* path (gate1/gate2/SIMPLIFY/blocker writers)
+and the caller-side breaker comparison.
