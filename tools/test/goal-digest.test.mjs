@@ -1,14 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, mkdirSync, symlinkSync, chmodSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, symlinkSync, chmodSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SH = fileURLToPath(new URL('../../src/shared/scripts/goal-digest.sh', import.meta.url));
 const hasSh = spawnSync('sh', ['-c', 'exit 0'], { stdio: 'ignore' }).status === 0;
+const WIN = process.platform === 'win32';
 const G = { skip: !hasSh };
+const fileSha = (p) => createHash('sha256').update(readFileSync(p)).digest('hex'); // portable (no `shasum` on Windows)
 
 function initRepo() {
   const dir = mkdtempSync(join(tmpdir(), 'goaldig-'));
@@ -56,7 +59,7 @@ test('positive controls: package.json, empty add, plan doc all move the digest',
   writeFileSync(join(dir, 'docs', 'plans', 'p.md'), 'plan\n');  const b3 = dg(dir, base); assert.notEqual(b3, b2);
 });
 
-test('executable-bit change moves the digest', G, () => {
+test('executable-bit change moves the digest', { skip: !hasSh || WIN }, () => {  // git filemode is off on Windows
   const { dir, base, git } = initRepo();
   writeFileSync(join(dir, 'run.sh'), '#!/bin/sh\n'); git('add', '.'); git('commit', '-qm', 'x');
   const before = dg(dir, base); chmodSync(join(dir, 'run.sh'), 0o755);
@@ -77,12 +80,12 @@ test('symlink and leading-dash untracked are bound (present != absent), crash-fr
 test('linked worktree: digest works and the real index is byte-unchanged', G, () => {
   const { dir, base, git } = initRepo();
   const wt = mkdtempSync(join(tmpdir(), 'goalwt-'));
-  const idxBefore = execFileSync('shasum', ['-a', '256', join(dir, '.git', 'index')]).toString();
+  const idxBefore = fileSha(join(dir, '.git', 'index'));
   git('worktree', 'add', '-q', wt, 'HEAD');
   writeFileSync(join(wt, 'w.txt'), 'in-worktree\n');
   const d = execFileSync('sh', [SH, base, wt], { cwd: wt }).toString().trim();
   assert.match(d, /^[0-9a-f]{64}$/);
-  const idxAfter = execFileSync('shasum', ['-a', '256', join(dir, '.git', 'index')]).toString();
+  const idxAfter = fileSha(join(dir, '.git', 'index'));
   assert.equal(idxAfter, idxBefore);
 });
 
