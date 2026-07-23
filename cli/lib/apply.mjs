@@ -80,6 +80,11 @@ export function applyProject(targetDir, answers) {
 // Claude-only: when subagent-driven execution is chosen, write a Claude Code agent
 // definition whose `model:` is the model dispatched implementation subagents run with.
 // No-op for inline mode (or non-Claude installs). Not shipped to other engines.
+// Always regenerates (overwrites) so an upgraded install can't keep a stale template.
+// NOTE: this runs only via the wizard; `sync`/`--upgrade` do NOT touch .claude/agents, so
+// /goal's capability-preflight (design §6.4) MUST verify this file contains `commit_policy`
+// and HALT if it doesn't (stale pre-Plan-B agent), telling the user to re-run codeforge
+// setup. Owned by Plan C; noted here so it isn't lost.
 export function applyClaudeAgents(targetDir, answers) {
   const c = answers.claude;
   if (!c?.subagents || !c.model?.model) return;
@@ -87,13 +92,21 @@ export function applyClaudeAgents(targetDir, answers) {
   mkdirSync(dir, { recursive: true });
   const file = `---
 name: codeforge-implementer
-description: Implements exactly one task from the active codeforge plan (TDD: red → green → refactor), runs the covering tests, commits, and reports back. Dispatch one per task when running the workflow subagent-driven.
+description: Implements exactly one task from the active codeforge plan (TDD: red → green → refactor), runs the covering tests, and reports back. Honors the dispatch brief's commit_policy (per-task = commit + report sha; defer = stage only, no commit). Dispatch one per task when running subagent-driven.
 model: ${c.model.model}
 ---
 
 You implement ONE task from the active codeforge plan. Read the task, write the failing
-test first, make it pass with the minimal change, run the covering tests, commit, then
-report status (DONE / BLOCKED), the commit sha, and a one-line test summary. Do not start
+test first, make it pass with the minimal change, and run the covering tests. Then honor the
+**commit_policy** the dispatching driver gave you (see shared/rules/execution.md):
+
+- commit_policy=per-task (the default): commit, then report status (DONE / BLOCKED), the
+  commit sha, and a one-line test summary.
+- commit_policy=defer (used by /goal): do NOT commit — stage this task's files only, then
+  report status (DONE / BLOCKED), the task id, and a one-line test summary. Do not compute a
+  digest; the orchestrator owns it and makes the single commit at ship.
+
+On BLOCKED: report the blocker; do not commit and do not stage a half-done task. Do not start
 other tasks. Follow the repo's TDD and ship-gate rules.
 `;
   writeFileSync(join(dir, 'codeforge-implementer.md'), file);
