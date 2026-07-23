@@ -191,8 +191,8 @@ set -- ':(exclude).workflow/*' ':(exclude)docs/e2e/reports/*' ':(exclude)CONTINU
 DIFF="diff --full-index --no-ext-diff --no-textconv --default-prefix --no-renames --no-color"
 
 out=$(mktemp); tmp_idx=""
-cleanup() { rm -f "$out"; [ -n "$tmp_idx" ] && rm -f "$tmp_idx"; }
-trap cleanup EXIT INT TERM
+cleanup() { rm -f "$out"; [ -n "$tmp_idx" ] && rm -f "$tmp_idx"; return 0; }  # return 0: a trailing
+trap cleanup EXIT INT TERM   # false test in an EXIT trap would override the script's exit status
 
 if [ "$mode" = "--from-head" ]; then
   git -C "$repo" -c core.quotepath=false $DIFF "$base" HEAD -- . "$@" > "$out" \
