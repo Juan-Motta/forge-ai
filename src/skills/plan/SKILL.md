@@ -40,6 +40,13 @@ significant architecture decision as an ADR (the `adr` skill) in `docs/adr/`.
 `new-feature` / `fix-bug` build from this plan. A gap here propagates downstream, so a
 missing required behavior or acceptance criterion is a P1, not a nit.
 
+## Under `/goal` (owner=goal)
+
+`/goal` invokes `review` directly and owns the plan-review loop and its `.workflow/state.md` logging
+(`shared/rules/execution.md`). Under `owner=goal` this skill **produces the plan only** — it does
+**NOT** run its own step 3 reviewer dispatch, does not loop to convergence, and does not write
+review-log lines. `/goal` runs review, counts rounds, and enforces the breaker.
+
 ## Common rationalizations
 
 | Rationalization | Reality |

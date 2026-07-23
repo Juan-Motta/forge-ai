@@ -50,6 +50,7 @@ state and is bypassable. It runs identically under Claude Code, Codex, and OpenC
 - `council` — multi-perspective decision analysis: several engines as advisors → synthesized verdict + minority report (for hard, expensive forks)
 - `adr` — record an architecture decision (context, alternatives, consequences) → `docs/adr/`
 - `finish-branch` — close out a branch: confirm gates → final verify → commit → push → PR
+- `goal` — drive one feature objective autonomously (prd → plan → TDD → review → verify → ship) with only two human gates (approve PRD, create PR); orchestrates the other skills under owner=goal, doesn't replace them
 - `checkpoint` — write a clean session handoff to `CONTINUITY.md` before closing / context reset
 - `index` — generate/refresh `docs/index.md`, a high-level project map for fast orientation
 
@@ -67,6 +68,8 @@ state and is bypassable. It runs identically under Claude Code, Codex, and OpenC
 - `continuity.md` — session handoff via `CONTINUITY.md`; how to resume on a new session
 - `models.md` — default model per role (research/review/council); reviewer ≠ driver
 - `project-rules.md` — how per-project `PROJECT.md` layers on the global baseline (precedence)
+- `goal-state.md` — `/goal`'s `.workflow/state.md` line schemas (shared with `goal-state.sh`)
+- `goal-autonomy-setup.md` — per-engine allow-entries to enable `/goal`'s unattended mode
 
 ## Enforcement model (read this — it's a deliberate trade)
 

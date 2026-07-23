@@ -76,6 +76,32 @@ test('applyClaudeAgents writes an agent file with the chosen model when subagent
   assert.match(f, /name: codeforge-implementer/);
 });
 
+test('generated implementer agent is commit_policy-aware in its BODY (not just description)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cf-agents-cp-'));
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  applyClaudeAgents(dir, { claude: { subagents: true, model: { model: 'sonnet', effort: 'high' } } });
+  const f = readFileSync(join(dir, '.claude', 'agents', 'codeforge-implementer.md'), 'utf8');
+  const body = f.split('\n---\n').slice(1).join('\n---\n');   // everything after frontmatter
+  assert.match(body, /commit_policy/);
+  assert.match(body, /per-task/);                             // per-task branch present (body)
+  assert.match(body, /commit sha/i);                          // ...reports the commit sha (only per-task branch)
+  assert.match(body, /defer[\s\S]*(do NOT commit|stage[^\n]*only)/i); // defer branch: stage only (body)
+  assert.doesNotMatch(body, /make it pass with the minimal change, run the covering tests, commit,/); // no unconditional commit
+  assert.match(f, /^model: sonnet$/m);                        // still parameterized
+  assert.match(f, /name: codeforge-implementer/);
+});
+
+test('applyClaudeAgents overwrites a stale (pre-commit_policy) agent file', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cf-agents-stale-'));
+  mkdirSync(join(dir, '.claude', 'agents'), { recursive: true });
+  const p = join(dir, '.claude', 'agents', 'codeforge-implementer.md');
+  writeFileSync(p, '---\nname: codeforge-implementer\nmodel: old\n---\n…runs the covering tests, commit, then report the commit sha.\n');
+  applyClaudeAgents(dir, { claude: { subagents: true, model: { model: 'sonnet' } } });
+  const f = readFileSync(p, 'utf8');
+  assert.match(f, /commit_policy/);            // refreshed
+  assert.match(f, /^model: sonnet$/m);         // and re-parameterized
+});
+
 test('applyClaudeAgents is a no-op for inline mode', () => {
   const dir = mkdtempSync(join(tmpdir(), 'cf-agents-inline-'));
   applyClaudeAgents(dir, { claude: { subagents: false, model: null } });

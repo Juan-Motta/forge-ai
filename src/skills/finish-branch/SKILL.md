@@ -60,6 +60,15 @@ Only now — after shipping — record the PR link / merge outcome in `.workflow
 the workflow state reflects reality. (This is the one thing that legitimately comes after
 the ship commit.)
 
+## Under `/goal` (owner=goal)
+
+Under `owner=goal`, `/goal` owns the ship — this skill does **NOT** independently run steps 4–6.
+`/goal` performs them in its §8 order: **single commit FIRST**, then it proves the committed-tree
+digest equals the certification digest, then **GATE 2** authorizes the already-committed head, then
+push → PR. Step 3 (durable docs) may add **only** the CHANGELOG at ship time (it is digest-neutral);
+any ADR/solution doc must be written **before** final certification, because a post-certification
+change to a digest-covered path forces code-review re-entry (`goal` skill §6.5).
+
 ## Common rationalizations
 
 | Rationalization | Reality |

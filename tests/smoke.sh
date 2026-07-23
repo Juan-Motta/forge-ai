@@ -34,7 +34,11 @@ for f in CLAUDE.md AGENTS.md opencode.json PROJECT.md CONTINUITY.md \
          .claude/skills/new-feature/SKILL.md .agents/skills/new-feature/SKILL.md \
          .claude/settings.json .codex/config.toml docs/CHANGELOG.md \
          shared/state.template.md \
-         shared/scripts/check-gates.sh shared/scripts/check-gates.ps1; do
+         shared/scripts/check-gates.sh shared/scripts/check-gates.ps1 \
+         shared/scripts/goal-digest.sh shared/scripts/goal-state.sh \
+         shared/scripts/goal-digest.ps1 shared/scripts/goal-state.ps1 \
+         shared/rules/goal-state.md shared/rules/goal-autonomy-setup.md \
+         .claude/skills/goal/SKILL.md .agents/skills/goal/SKILL.md; do
   [ -e "$TB/$f" ] || fail "bash: expected runtime file $f was not produced"
 done
 [ -x "$TB/shared/scripts/check-gates.sh" ] || fail "bash: check-gates.sh is not executable"

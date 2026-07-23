@@ -44,6 +44,13 @@ treat it as a failed review — re-run, do not fabricate a verdict.
 - Resolve all P0/P1/P2 (P3 optional). Re-run the reviewer until a pass is clean.
 - Record each iteration and its result in `.workflow/state.md` (which engine, findings).
 
+## Under `/goal` (owner=goal)
+
+Under `owner=goal`, perform **exactly one** read-only reviewer pass and return the severity-tagged
+findings. Do **NOT** do step 4's "resolve, re-run, record each iteration" — `/goal` owns the loop:
+it decides iterations, writes the review-log lines, and enforces the breaker
+(`shared/rules/execution.md`). No looping, no state writes from this skill.
+
 ## Common rationalizations
 
 | Rationalization | Reality |

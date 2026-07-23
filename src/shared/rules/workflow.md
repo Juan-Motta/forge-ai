@@ -18,6 +18,12 @@ Use a workflow skill for any non-trivial change. Follow its steps in order.
 | Wrap up + open PR | `finish-branch` |
 | Session handoff before closing | `checkpoint` |
 | Project map for orientation | `index` |
+| Drive a whole feature hands-off (idea → PR-ready) | `goal` |
+
+`goal` is an **orchestrator**: it runs the skills above under `owner=goal` (`execution.md`), pausing
+for a human only to approve the PRD and to create the PR (see `goal-autonomy-setup.md` to enable the
+unattended permissions). Feature-only in v1 (a bug routes to `fix-bug`). Its autonomy is discipline,
+not a runtime gate — see the honesty note in the `goal` skill.
 
 ## Phases (shared shape)
 
