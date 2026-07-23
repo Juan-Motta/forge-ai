@@ -1,10 +1,11 @@
 # codeforge `/goal` — autonomous mode (Fase 2) — design spec
 
 **Written:** 2026-07-22. **Branch:** `feat/goal-autonomous` (off `dev`, v0.6.0).
-**Status:** design approved; **revised 4× after cross-engine review** (Opus + Codex `gpt-5.6-sol`
-+ OpenCode `kimi-k3`) — see §12. Revision 4 **cuts durable cross-session resume from v1** (the
-source of most crash-safety findings across iters 3–4) → single-session best-effort loop. Next:
-human spec-review gate → writing-plans.
+**Status:** design approved; **revised 5× after cross-engine review** (Opus + Codex `gpt-5.6-sol`
++ OpenCode `kimi-k3`) — see §14. Revision 4 **cut durable cross-session resume from v1** (the
+source of most crash-safety findings across iters 3–4) → single-session best-effort loop; revision
+5 closed the iter-5 cut-verification findings (all narrow/local — both engines confirmed the cut is
+coherent). Next: human spec-review gate → writing-plans.
 
 Repo: `~/Desktop/personal/projects/forge-ai` (GitHub `Juan-Motta/codeforge`, npm
 `@jualopezmo/codeforge`). Cross-engine (Claude Code / Codex / OpenCode) workflow-discipline
@@ -122,12 +123,23 @@ cross-session resume guarantee, so no nonce-scoping / epoch-generation / crash-s
 | gate1       | approved ts=<ts> prd=<path>    (empty until approved)                    |
 ```
 
-### 4.1 Loop start / stale-loop handling
-`/goal <feature>` on a fresh `.workflow/state.md` initializes the loop and resets the standard
-`## Ship-gate checklist` to all-unchecked (§8). If `## /goal loop` already shows a non-`done`
-loop (an interrupted prior run), `/goal` **stops and asks the human**: resume-in-this-session
-(best-effort, from `phase`/`step`), or discard-and-restart (the human dispositions any staged
-work). v1 does **not** auto-resume and has no abandon-record protocol — it's an interactive prompt.
+### 4.1 Loop start, stale-loop, and workflow-collision handling
+`/goal <feature>` requires a **clean workflow slot**. Before initializing, it inspects
+`.workflow/state.md`:
+- If a **non-`done` `## /goal loop`** exists (an interrupted prior run) **OR** `## Active workflow`
+  shows any **other unfinished workflow** (`new-feature`/`fix-bug`/`quick-fix`), `/goal` **stops and
+  asks the human to disposition it** (discard/reset, and disposition any staged work). It does
+  **NOT** offer cross-session resume (fix P1-A/P1-3: that would re-import the crash/preflight-stale
+  vector the cut removed) and does **NOT** reset the shared `## Ship-gate checklist` over a live
+  workflow (fix — that would clobber a `new-feature`/`fix-bug` run). A `halted` loop is **never**
+  resumable by a fresh `/goal`.
+- Only on a clean slot does `/goal` initialize by **REPLACE** (not append): the `## Active workflow`
+  fields, `## /goal loop`, any goal-format `## Review log` / `## Blockers` / markers, and the
+  canonical 6-box `## Ship-gate checklist` reset to unchecked (§8).
+
+"Inactive" = the **absence** of a `## /goal loop` section (or `status=done`) — there is no
+`INACTIVE` status value. In-session continuity after a harness compaction is handled **only** by
+§4.2 (same run), never by a fresh `/goal` invocation.
 
 ### 4.2 In-session continuity (best-effort, not crash-safe)
 If a harness compaction occurs mid-run, the driver re-orients from the conversation summary + a
@@ -147,17 +159,21 @@ On PR creation: `status=done`.
 plain prompt elsewhere). On approval write `gate1` (`ts + prd path`), `status=active`. The
 autonomous run does not begin without a `gate1` record.
 
-**GATE 2** — ordered **after the single ship commit** (fix P0-δ). Ship sequence (§8): `check-gates`
-green AND **`digest(committed tree) == certification digest`** (§6.1; proves the commit *contains*
-the certified content, not just that the working tree matches — fix P0-2) → `status=awaiting-gate2`
-→ explicit approval on all engines → write the gate2 record (`action + committed head + branch +
-remote + ts`) → push → PR → `done`. The driver re-verifies the committed head before push/PR; a
-mismatch (a rare drift) → re-issue GATE 2. If the human **declines** or requests changes → soft-
-reset the unauthorized, unpushed commit and return to the owning phase per the feedback (a code
-change re-enters code-review, §6.5). The native `ask`-tier prompt is defense-in-depth only; the
-post-GATE-2 push/PR are proven prompt-free at preflight (§6.4), so the explicit gate is the only
-planned pause. Council routing / NON-triggers unchanged (ambiguous → council; non-convergence →
-HALT; `council` fails → HALT).
+**GATE 2** — ordered **after the single ship commit** (fix P0-δ), per the §8 ship sequence which
+proves `digest(committed tree) == cert` (the commit *contains* the certified content — fix P0-2)
+before `status=awaiting-gate2`. Then: explicit approval on all engines → write the gate2 record
+(`action + committed head + branch + remote + ts`) → push → PR → `done`.
+- **Human declines / requests changes** → soft-reset the unauthorized, unpushed commit and return
+  to `<owning-phase>/active` (**status reset to `active`** — fix: it must not stay `awaiting-gate2`,
+  or no phase row matches); a code change re-enters code-review (§6.5).
+- **Committed head/tree drifts after authorization** (rare) → **invalidate** the authorization and
+  return to `ship/active` **revalidation** (recheck committed-tree==cert + gates): digest-covered
+  drift re-enters code-review; digest-neutral drift proceeds to a **freshly bound** GATE 2. A
+  mismatch never merely re-issues GATE 2 over unverified content (fix P0-2 recovery).
+
+The native `ask`-tier prompt is defense-in-depth only; the post-GATE-2 push/PR are proven
+prompt-free at preflight (§6.4), so the explicit gate is the only planned pause. Council routing /
+NON-triggers unchanged (ambiguous → council; non-convergence → HALT; `council` fails → HALT).
 
 ---
 
@@ -190,20 +206,27 @@ split, staged↔untracked).
 **Digest-stability probe (fix P1-5):** because membership depends on the *target repo* ignoring its
 generated outputs (coverage, build artifacts), preflight (§6.4) computes the digest, runs the
 project's test/e2e suite once, and recomputes. If it moved, **HALT before GATE 1** naming the
-offending paths and asking the human to git-ignore them (or record them in a small project digest-
-exclude list, pinned in the §10 manifest — keeps the exclusion set closed per run).
+offending paths and asking the human to **git-ignore them**. (v1 has no per-project mutable
+digest-exclude list — fix P1-6: a mutable list has no closed schema and could broaden exclusions
+after certification, hiding changed content; the exclusion set is exactly the fixed one above plus
+`.gitignore`.)
 
 ### 6.2 Bounded termination (no autonomous release — HALT hands to human)
 - **Certification = the single exit condition:** first pass where the expected-reviewer set is all
   clean at one digest. Each round appends a §10 review-log line (`kind=round|recert|cert`, `loop`,
   `digest`).
-- **Per-loop breaker:** count `kind=round` lines for the current loop. Not certified within `N`
-  (default 4, named constant) → **HALT** (human takes over). Applies to plan-review AND code-review.
+- **Per-loop breaker (boundary explicit — fix P1-4 off-by-one):** count `kind=round` lines for the
+  current loop. **Resulting count `< N` → continue; `>= N` → HALT** (default `N=4`, named constant).
+  (The earlier "within N" vs "N exceeded" wording left `count == N` matching no transition.) Applies
+  to plan-review AND code-review.
 - **Global re-entry cap (fix P0-β, P1-2):** the verify↔code-review cycle is bounded by **both**
-  `reentries ≤ MAX_REENTRIES` (default 3) **and** total code-review `kind=round` lines ≤
-  `MAX_CODE_ROUNDS` (default 3·N); either exceeded → HALT. Capping `reentries` directly bounds even
-  a 0-round clean-cert ping-pong (where verify keeps changing code and each re-review is instantly
-  clean) — the round count alone did not.
+  `reentries >= MAX_REENTRIES` (default 3) **and** total code-review `kind=round` lines `>=
+  MAX_CODE_ROUNDS` (default 3·N) → HALT. Capping `reentries` directly bounds even a 0-round
+  clean-cert ping-pong (where verify keeps changing code and each re-review is instantly clean) —
+  the round count alone did not.
+- **Ship-red counter is durable (fix P1-4):** repeated `check-gates`-red at ship is tracked by a
+  persisted §10 `ATTEMPT ship-red` line, so the "same transition twice → HALT" rule survives a
+  mid-run compaction (the driver cannot forget a prior red).
 - **No release/adjudication/budget machinery.** A HALT is terminal for the autonomous loop; the
   human takes over interactively (fixes P0-1 by deletion — the release lever that four rounds could
   not make sound is simply not in v1).
@@ -247,9 +270,9 @@ touch only excluded files (CHANGELOG). The global cap (§6.2) bounds repeated re
 - **`commit_policy=defer` (fixes P1-E, N4):** `execution.md` + the generated `codeforge-implementer`
   agent gain a `commit_policy=per-task|defer` contract. Under `defer` (`/goal`): implementer stages
   only after its task is green+accepted, does **not** commit, reports `task-id + test evidence`;
-  `/goal` writes `step` and makes the single commit at ship, staging the **full digest-covered set**
-  (§6.1 membership is the manifest — fix P0-2). Generator (`cli/lib/apply.mjs`, verified to order a
-  commit today) updated (§9).
+  `/goal` writes `step` and makes the single commit at ship, staging the **ship manifest** (§8:
+  digest-covered set ∪ required durable docs — the E2E report + CHANGELOG — fix P0-2/P1-7).
+  Generator (`cli/lib/apply.mjs`, verified to order a commit today) updated (§9).
 - **Failure:** retry once → judgment-call recovery → `council`; else **HALT** (human takes over).
 - **Unavoidable `ask`-tier command:** **HALT explicitly** — never launch a command that then
   blocks on a native prompt. Prefer prompt-free alternatives (cache flags, `: >` instead of `rm`).
@@ -265,12 +288,20 @@ touch only excluded files (CHANGELOG). The global cap (§6.2) bounds repeated re
   resets the 6 standard boxes to unchecked at loop start (§4.1) and ticks each as its phase
   completes — in particular the verify phase writes the report path into the E2E box. Without this,
   check-gates would exit 1 at ship and the loop could never leave `ship`.
-- **Ship ordering (P0-δ, P0-2):** `ship` → `check-gates` green AND `digest(committed tree) == cert
-  digest` → write CHANGELOG (excluded/digest-neutral) → **single commit** (stages the full
-  digest-covered set) → recompute the committed-tree digest == cert → `awaiting-gate2` → GATE 2
-  authorizes the **committed** head → push → PR → `done`.
+- **Ship ordering + commit-content proof (P0-δ, P0-2, P1-7) — explicit sequence:**
+  1. `check-gates` green AND `digest(worktree) == cert digest`;
+  2. write CHANGELOG (excluded / digest-neutral);
+  3. stage the **ship manifest** = digest-covered set **∪** required durable excluded artifacts (the
+     E2E `VERDICT: PASS` report under `docs/e2e/reports/**` and `docs/CHANGELOG.md`);
+  4. **single commit**;
+  5. **assert** `digest(committed tree) == cert digest` **AND** the E2E report + CHANGELOG are
+     present in `HEAD` **AND** no intended file was left uncommitted;
+  6. → `awaiting-gate2`.
+  If step 5 fails → **HALT** (`## Blockers`) — never issue GATE 2 over an unproven commit. GATE 2
+  then authorizes the committed head → push → PR → `done`.
 - **Red path:** `check-gates` red → owning phase. If the fix touches a digest-covered path →
-  re-enter code-review (§6.5); non-code fix → re-green then re-ship. Same transition twice → HALT.
+  re-enter code-review (§6.5); non-code fix → re-green then re-ship. A **second** ship-red (per the
+  durable §10 `ATTEMPT ship-red` counter) → HALT.
 - **CI honesty:** exact conditional wording from `ship-gates.md` — the Fase 1 CI template is inert
   until copied/filled/required, bad-faith-resistant only with full activation. Never "the hard gate"
   unconditionally. Honesty block in the skill body.
@@ -286,7 +317,8 @@ touch only excluded files (CHANGELOG). The global cap (§6.2) bounds repeated re
   (loop control + logging belong to `/goal`; init/ship steps disabled under `/goal`).
 - `tools/run-evals.mjs` — `/goal` routing/collision cases (rank-1 ≥ floor) + bug → `/fix-bug`
   rejection case.
-- `src/shared/state.template.md` — add `## /goal loop` (INACTIVE) + `## Blockers`.
+- `src/shared/state.template.md` — the `## /goal loop` section is **absent by default** (its
+  absence = inactive; no `INACTIVE` status value) + add `## Blockers` + `## Attempts`.
 - `src/shared/rules/execution.md` — add `owner` + `commit_policy=per-task|defer`.
 - `cli/lib/apply.mjs` — generated `codeforge-implementer` becomes `commit_policy`-aware (report
   task-id + evidence under `defer`, not a commit SHA); update its tests.
@@ -316,6 +348,8 @@ Single-line, fixed-order, helper-parseable (single active loop, so no nonce fiel
 - **SIMPLIFY marker** (`## /goal loop`): `- [x] SIMPLIFY done — digest — ts`.
 - **Blocker** (`## Blockers`): `- [ ] BLOCKER — phase — reason — ts` (HALT record; human takes over
   — no adjudication/budget schema in v1).
+- **Ship-red attempt** (`## Attempts`): `- ATTEMPT ship-red — n=<k> — ts` (durable; incremented
+  before each ship-side `check-gates` red; `n>=2` → HALT — fix P1-4).
 
 ---
 
@@ -325,33 +359,35 @@ Single-line, fixed-order, helper-parseable (single active loop, so no nonce fiel
 |---|---|---|---|---|
 | 1 | (no loop) | `/goal <feature>` | `preflight`/`active` | init `## /goal loop`, reset ship-gate checklist, `base_sha`, `reentries=0` |
 | 2 | (no loop) | `/goal <bug>` | (none) | STOP → `/fix-bug` |
-| 3 | (stale non-done loop) | `/goal …` | (ask human) | resume-in-session OR discard-restart (§4.1) |
+| 3 | (stale non-done loop OR other active workflow) | `/goal …` | (ask human) | STOP → human dispositions/resets; no cross-session resume; `halted` never resumable (§4.1) |
 | 4 | `preflight`/`active` | preflight + stability probe OK | `prd`/`active` | REVIEWERS manifest |
 | 5 | `preflight`/`active` | spawn/push/PR prompts, no non-driver reviewer, or digest unstable | `halted` | `## Blockers` |
 | 6 | `prd`/`active` | PRD written | `prd`/`awaiting-gate1` | — |
 | 7 | `prd`/`awaiting-gate1` | human approves | `research`\|`plan-review`/`active` | gate1 record |
 | 8 | `prd`/`awaiting-gate1` | human declines | `prd`/`active` | revise PRD (→ row 6 again) |
 | 9 | `research`/`active` | done | `plan-review` | — |
-| 10 | `plan-review`/`active` | round findings, counted<N | `plan-review` | `kind=round` |
+| 10 | `plan-review`/`active` | round findings, resulting count `< N` | `plan-review` | `kind=round` |
 | 11 | `plan-review`/`active` | clean pass | `tdd` | `kind=cert` |
-| 12 | `plan-review`/`active` | N exceeded | `halted` | `## Blockers` |
+| 12 | `plan-review`/`active` | resulting count `>= N` | `halted` | `## Blockers` |
 | 13 | `tdd`/`active` | task k green+accepted | `tdd` | `step=tdd:k/M` (stage only) |
 | 14 | `tdd`/`active` | all tasks done | `code-review` | — |
-| 15 | `code-review`/`active` | round findings, counted<N | `code-review` | `kind=round` |
+| 15 | `code-review`/`active` | round findings, resulting count `< N` | `code-review` | `kind=round` |
 | 15b | `code-review`/`active` | clean pass, SIMPLIFY marker present (re-entry) | `verify` | `kind=cert` |
 | 16 | `code-review`/`active` | first clean pass, no SIMPLIFY marker | `code-review` (simplify) | SIMPLIFY marker |
 | 17 | `code-review`/`active` | re-cert clean, digest stable | `verify` | `kind=cert` |
 | 18 | `code-review`/`active` | re-cert findings | `code-review` | `kind=round` |
-| 19 | `code-review`/`active` | N exceeded OR reentries>MAX OR rounds>MAX_CODE_ROUNDS | `halted` | `## Blockers` |
+| 19 | `code-review`/`active` | resulting count `>= N` OR `reentries >= MAX_REENTRIES` OR rounds `>= MAX_CODE_ROUNDS` | `halted` | `## Blockers` |
 | 20 | `verify`/`active` | changes a digest-covered path | `code-review` | `reentries++` (§6.5) |
 | 21 | `verify`/`active` | pass / N/A | `ship`/`active` | evidence, tick E2E box |
-| 22 | `ship`/`active` | check-gates green AND committed-tree digest==cert | `ship`/`awaiting-gate2` | CHANGELOG, single commit |
-| 23 | `ship`/`active` | check-gates red, fix touches digest path | `code-review` | `reentries++` |
-| 24 | `ship`/`active` | check-gates red, non-code fix | `ship`/`active` (re-green, re-ship) | attempt |
-| 25 | `ship`/`active` | same transition twice red | `halted` | `## Blockers` |
+| 22 | `ship`/`active` | worktree digest==cert AND check-gates green | `ship`/`active` (staging) | write CHANGELOG, stage ship manifest, single commit |
+| 22b | `ship`/`active` | committed-tree digest==cert AND report+CHANGELOG in HEAD, nothing left uncommitted | `ship`/`awaiting-gate2` | — |
+| 22c | `ship`/`active` | committed-tree digest≠cert OR a required artifact missing | `halted` | `## Blockers` (never GATE 2) |
+| 23 | `ship`/`active` | check-gates red, fix touches digest path | `code-review` | `reentries++`, `ATTEMPT ship-red` |
+| 24 | `ship`/`active` | check-gates red, non-code fix, `n<2` | `ship`/`active` (re-green, re-ship) | `ATTEMPT ship-red n++` |
+| 25 | `ship`/`active` | ship-red `n>=2` (durable §10 counter) | `halted` | `## Blockers` |
 | 26 | `ship`/`awaiting-gate2` | human approves | `ship`/`active` (push→PR) | gate2 line |
-| 27 | `ship`/`awaiting-gate2` | human declines / requests changes | owning phase per feedback | soft-reset unpushed commit |
-| 28 | `ship`/`awaiting-gate2` | committed-head re-verify mismatch | `ship`/`awaiting-gate2` | re-issue GATE 2 |
+| 27 | `ship`/`awaiting-gate2` | human declines / requests changes | `<owning-phase>`/`active` | soft-reset unpushed commit, **status←active** |
+| 28 | `ship`/`awaiting-gate2` | committed head/tree drift after auth | `ship`/`active` (revalidate) | invalidate gate2 auth → recheck committed-tree==cert + gates |
 | 29 | `ship`/`active` | PR created | `done` | — |
 | 30 | any/`active` | unrecoverable / ask-tier unavoidable / council fails | `halted` | `## Blockers` |
 | 31 | any/`halted` | (v1) | (terminal for automation) | human takes over interactively |
@@ -402,4 +438,27 @@ Single-line, fixed-order, helper-parseable (single active loop, so no nonce fiel
   (0-round ping-pong); `package.json` in digest; digest-stability probe; ship-gate checklist
   maintenance; §11 re-entry (15b) + decline (27) + prd/active (6→8) rows; push/PR prompt-free at
   preflight. Cross-session durable resume → v2 follow-up.
+- **Iter 5 (verify the cut) — 2/3 engines** (Opus + Codex `gpt-5.6-sol`; kimi-k3 stalled without
+  synthesis and was stopped — Codex is the mandatory reviewer and ran clean-to-completion). **Both
+  confirmed the cut is coherent** (grep: deleted machinery survives only in negation; every §11
+  nonterminal has a bounded exit; `MAX_REENTRIES` bounds the 0-round ping-pong; `package.json`
+  covered; stability probe sound; checklist boxes match `check-gates.sh`). Remaining findings all
+  narrow/local, resolved in **rev5**:
+  - §4.1 still offered "resume-in-this-session" for a stale loop → **removed**: a fresh `/goal`
+    finding any non-`done` loop OR other active workflow STOPs for human disposition; `halted` never
+    resumable; in-session continuity only via §4.2 (P1-A/P1-3).
+  - §8/§11 committed-tree check was circular + had no failure exit → **explicit ship sequence**
+    (worktree==cert+gates → stage ship manifest → commit → assert committed-tree==cert + artifacts
+    in HEAD → gate2; mismatch → HALT, rows 22/22b/22c) (P0-1/P2-D).
+  - §5/§11 GATE 2 recovery left `status` hung / could authorize drift → row 27 → `<owning>/active`
+    (status reset); row 28 → `ship/active` revalidation (recheck committed-tree==cert, not a bare
+    re-issue) (P0-2).
+  - §6.2/§11 breaker off-by-one (`count==N` matched no row) → boundary `< N` continue / `>= N` HALT;
+    durable `ATTEMPT ship-red` counter so twice-red HALT survives compaction (P1-4).
+  - §4.1/§9 checklist reset could clobber an active `new-feature`/`fix-bug`; `INACTIVE` wasn't a
+    status → guard added; inactive = section absent (P2-B/P1-5).
+  - §7/§8 ship staging named only the digest-covered set → **ship manifest = digest-covered ∪ {E2E
+    report, CHANGELOG}**, asserted present in HEAD (P2-C/P1-7).
+  - §6.1 mutable project digest-exclude list had no schema → **removed for v1** (require
+    `.gitignore`) (P1-6).
   Raw reviewer outputs archived in the session scratchpad (not committed).
